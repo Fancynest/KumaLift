@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -68,13 +69,13 @@ fun RoutinesScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Screen Top Header
+            // Screen Top Header with statusBarsPadding
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(KumaColors.SurfaceDim)
-                    .padding(horizontal = 16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -89,17 +90,18 @@ fun RoutinesScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     // Mesocycle Progress Banner
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -109,20 +111,24 @@ fun RoutinesScreen(
                                     Text(
                                         text = "CURRENT MESOCYCLE",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.ElectricLime
+                                            color = KumaColors.ElectricLime,
+                                            letterSpacing = 0.8.sp
                                         )
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "PPL Hypertrophy Phase 2",
-                                        style = MaterialTheme.typography.titleLarge
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     )
                                 }
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
                                         .background(KumaColors.SurfaceContainerHigh)
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = "Week 3 of 6",
@@ -134,7 +140,7 @@ fun RoutinesScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -153,7 +159,7 @@ fun RoutinesScreen(
                                     )
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             LinearProgressIndicator(
                                 progress = { 0.75f },
                                 modifier = Modifier
@@ -170,7 +176,8 @@ fun RoutinesScreen(
                 // Category Filter Pills
                 item {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
                         items(categories) { category ->
                             val isSelected = category == selectedCategory
@@ -184,7 +191,7 @@ fun RoutinesScreen(
                                         shape = PillShape
                                     )
                                     .clickable { selectedCategory = category }
-                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
                             ) {
                                 Text(
                                     text = category,
@@ -210,7 +217,7 @@ fun RoutinesScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -224,9 +231,10 @@ fun RoutineCardItem(
 ) {
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
-        backgroundColor = KumaColors.SurfaceContainerLow
+        backgroundColor = KumaColors.SurfaceContainerLow,
+        cornerRadius = 18.dp
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -240,14 +248,17 @@ fun RoutineCardItem(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = routine.title,
-                style = MaterialTheme.typography.headlineSmall
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
             )
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} min · ${routine.targetRpeTier}",
@@ -257,24 +268,24 @@ fun RoutineCardItem(
                 )
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Exercise Preview Tags
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 routine.exerciseTemplates.take(3).forEach { ex ->
                     KumaBadge(text = ex.name)
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Start Routine Button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .height(48.dp)
                     .clip(PillShape)
                     .background(KumaColors.ElectricLime)
                     .clickable(onClick = onStart),

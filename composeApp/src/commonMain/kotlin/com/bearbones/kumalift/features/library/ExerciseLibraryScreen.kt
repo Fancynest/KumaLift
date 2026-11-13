@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -38,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -71,13 +71,13 @@ fun ExerciseLibraryScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Screen Top Header
+            // Screen Top Header with statusBarsPadding
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(KumaColors.SurfaceDim)
-                    .padding(horizontal = 16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -100,9 +100,9 @@ fun ExerciseLibraryScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 20.dp)
             ) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Search Bar
                 OutlinedTextField(
@@ -124,7 +124,7 @@ fun ExerciseLibraryScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(KumaColors.SurfaceContainer),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = KumaColors.ElectricLime,
@@ -135,11 +135,12 @@ fun ExerciseLibraryScreen(
                     singleLine = true
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Muscle Group Filter Chips
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp)
                 ) {
                     item {
                         val isAllSelected = selectedMuscle == null
@@ -153,7 +154,7 @@ fun ExerciseLibraryScreen(
                                     PillShape
                                 )
                                 .clickable { selectedMuscle = null }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = "All",
@@ -177,7 +178,7 @@ fun ExerciseLibraryScreen(
                                     PillShape
                                 )
                                 .clickable { selectedMuscle = muscle }
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = muscle.displayName,
@@ -190,11 +191,11 @@ fun ExerciseLibraryScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Exercise List
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(filteredExercises, key = { it.id }) { exercise ->
@@ -210,7 +211,7 @@ fun ExerciseLibraryScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(80.dp))
+                        Spacer(modifier = Modifier.height(100.dp))
                     }
                 }
             }
@@ -225,19 +226,20 @@ fun ExerciseListItem(
 ) {
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
-        backgroundColor = KumaColors.SurfaceContainerLow
+        backgroundColor = KumaColors.SurfaceContainerLow,
+        cornerRadius = 16.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     KumaBadge(text = exercise.equipment.code)
                     Text(
@@ -246,7 +248,7 @@ fun ExerciseListItem(
                         color = KumaColors.TextMuted
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = exercise.name,
                     style = MaterialTheme.typography.titleMedium.copy(
@@ -254,7 +256,7 @@ fun ExerciseListItem(
                     )
                 )
                 if (exercise.currentPrWeightKg != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "PR: ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -267,8 +269,8 @@ fun ExerciseListItem(
             IconButton(
                 onClick = onAdd,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(KumaColors.SurfaceContainer)
             ) {
                 Icon(

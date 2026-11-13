@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,7 +32,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
@@ -49,13 +49,13 @@ fun WorkoutSummaryScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Screen Top Header
+            // Screen Top Header with statusBarsPadding
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(KumaColors.SurfaceDim)
-                    .padding(horizontal = 16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -70,17 +70,18 @@ fun WorkoutSummaryScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     // Session Header Card
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -90,7 +91,7 @@ fun WorkoutSummaryScreen(
                                     modifier = Modifier
                                         .clip(PillShape)
                                         .background(KumaColors.ElectricLime)
-                                        .padding(horizontal = 10.dp, vertical = 2.dp)
+                                        .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = "SESSION LOGGED",
@@ -107,14 +108,16 @@ fun WorkoutSummaryScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
                                 text = "Push Day Complete",
-                                style = MaterialTheme.typography.headlineLarge
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontSize = 28.sp
+                                )
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
                                 text = "Today · 11:30 AM – 12:17 PM",
@@ -127,10 +130,10 @@ fun WorkoutSummaryScreen(
 
                 // Core 2x2 Grid Metrics
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
@@ -151,7 +154,7 @@ fun WorkoutSummaryScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
@@ -175,18 +178,19 @@ fun WorkoutSummaryScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainer
+                        backgroundColor = KumaColors.SurfaceContainer,
+                        cornerRadius = 16.dp
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(KumaColors.ElectricLimeGlow),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -194,30 +198,28 @@ fun WorkoutSummaryScreen(
                                     imageVector = Icons.Default.EmojiEvents,
                                     contentDescription = null,
                                     tint = KumaColors.ElectricLime,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
 
                             Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "NEW PR ACHIEVED",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.ElectricLime
-                                        )
+                                Text(
+                                    text = "NEW PR ACHIEVED",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.ElectricLime,
+                                        letterSpacing = 0.8.sp
                                     )
-                                }
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "Barbell Bench Press: 118.0 kg",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "3RM PR (+3.0 kg breakthrough)",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -232,22 +234,23 @@ fun WorkoutSummaryScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Text(
                                 text = "Volume Distribution",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             // Segmented bar
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(10.dp)
+                                    .height(12.dp)
                                     .clip(PillShape)
                             ) {
                                 Box(
@@ -270,7 +273,7 @@ fun WorkoutSummaryScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -279,7 +282,8 @@ fun WorkoutSummaryScreen(
                                 Text(
                                     text = "Chest: 52%",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime
+                                        color = KumaColors.ElectricLime,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 )
                                 Text(
@@ -299,12 +303,12 @@ fun WorkoutSummaryScreen(
 
                 // Save Action
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     KumaPrimaryButton(
                         text = "SAVE & FINISH WORKOUT",
                         onClick = onSaveAndClose
                     )
-                    Spacer(modifier = Modifier.height(60.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -322,9 +326,10 @@ fun SummaryMetricCard(
 ) {
     KumaCard(
         modifier = modifier,
-        backgroundColor = KumaColors.SurfaceContainerLow
+        backgroundColor = KumaColors.SurfaceContainerLow,
+        cornerRadius = 16.dp
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -341,10 +346,10 @@ fun SummaryMetricCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = if (isAccent) KumaColors.ElectricLime else KumaColors.TextMuted,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge.copy(

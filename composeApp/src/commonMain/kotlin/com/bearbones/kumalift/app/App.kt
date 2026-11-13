@@ -7,18 +7,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -70,6 +73,7 @@ fun App() {
 
     KumaLiftTheme {
         Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 // Show bottom navigation bar only on main screens (not inside fullscreen active logger or summary)
                 if (currentScreen != Screen.ACTIVE_LOGGER && currentScreen != Screen.SUMMARY) {
@@ -85,7 +89,7 @@ fun App() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(bottom = paddingValues.calculateBottomPadding())
             ) {
                 Crossfade(targetState = currentScreen) { screen ->
                     when (screen) {
@@ -134,16 +138,21 @@ fun KumaBottomNavigation(
     onTabSelected: (Screen) -> Unit,
     onActiveLoggerClick: () -> Unit
 ) {
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(KumaColors.SurfaceDim)
+            .navigationBarsPadding()
+    ) {
         // Floating Active Session Banner if workout is currently active
         if (hasActiveWorkout) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(40.dp)
+                    .height(44.dp)
                     .background(KumaColors.ElectricLime)
                     .clickable(onClick = onActiveLoggerClick)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -158,7 +167,8 @@ fun KumaBottomNavigation(
                         text = "  ACTIVE WORKOUT IN PROGRESS",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            color = KumaColors.OnElectricLime
+                            color = KumaColors.OnElectricLime,
+                            letterSpacing = 0.5.sp
                         )
                     )
                 }
@@ -180,13 +190,12 @@ fun KumaBottomNavigation(
             }
         }
 
-        // Main Navigation Bar
+        // Main Navigation Bar with comfortable height & spacing
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .background(KumaColors.SurfaceDim)
-                .padding(horizontal = 8.dp),
+                .height(68.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
@@ -203,13 +212,13 @@ fun KumaBottomNavigation(
                 onClick = { onTabSelected(Screen.ROUTINES) }
             )
             NavItem(
-                icon = Icons.Default.MenuBook,
+                icon = Icons.AutoMirrored.Filled.MenuBook,
                 label = "Library",
                 isSelected = currentScreen == Screen.LIBRARY,
                 onClick = { onTabSelected(Screen.LIBRARY) }
             )
             NavItem(
-                icon = Icons.Default.ShowChart,
+                icon = Icons.AutoMirrored.Filled.ShowChart,
                 label = "Progress",
                 isSelected = currentScreen == Screen.PROGRESS,
                 onClick = { onTabSelected(Screen.PROGRESS) }
@@ -227,22 +236,23 @@ fun NavItem(
 ) {
     Column(
         modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(24.dp)
         )
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
                 color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted
             )
         )

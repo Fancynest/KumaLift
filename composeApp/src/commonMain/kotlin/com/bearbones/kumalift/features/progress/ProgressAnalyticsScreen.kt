@@ -13,14 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,13 +57,13 @@ fun ProgressAnalyticsScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Screen Top Header
+            // Screen Top Header with statusBarsPadding
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(KumaColors.SurfaceDim)
-                    .padding(horizontal = 16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -78,18 +78,18 @@ fun ProgressAnalyticsScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     // Timeframe Segmented Control
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(KumaColors.SurfaceContainer)
-                            .padding(4.dp),
+                            .padding(6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         timeframes.forEach { tf ->
@@ -97,13 +97,13 @@ fun ProgressAnalyticsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .height(38.dp)
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(if (isSelected) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainer)
                                     .border(
                                         width = if (isSelected) 1.dp else 0.dp,
                                         color = if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(10.dp)
                                     )
                                     .clickable { selectedTimeframe = tf },
                                 contentAlignment = Alignment.Center
@@ -124,9 +124,10 @@ fun ProgressAnalyticsScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -136,13 +137,17 @@ fun ProgressAnalyticsScreen(
                                     Text(
                                         text = "ESTIMATED 1RM TRAJECTORY",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.ElectricLime
+                                            color = KumaColors.ElectricLime,
+                                            letterSpacing = 0.8.sp
                                         )
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "Barbell Bench Press",
-                                        style = MaterialTheme.typography.titleLarge
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     )
                                 }
                                 Box(
@@ -150,14 +155,14 @@ fun ProgressAnalyticsScreen(
                                         .clip(PillShape)
                                         .background(KumaColors.ElectricLimeGlow)
                                         .border(1.dp, KumaColors.ElectricLime, PillShape)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Default.TrendingUp,
+                                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                             contentDescription = null,
                                             tint = KumaColors.ElectricLime,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
@@ -171,26 +176,27 @@ fun ProgressAnalyticsScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
                                 text = "118.0 kg",
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 32.sp,
                                     color = KumaColors.TextWhite
                                 )
                             )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
-                            // Simplified Visual Spline / Milestone Graph Representation
+                            // Milestone Graph Representation
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(80.dp)
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .height(95.dp)
+                                    .clip(RoundedCornerShape(12.dp))
                                     .background(KumaColors.SurfaceContainer)
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Bottom
                             ) {
@@ -209,9 +215,10 @@ fun ProgressAnalyticsScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,18 +233,19 @@ fun ProgressAnalyticsScreen(
                                 Text(
                                     text = "Avg 54,200 kg (+14%)",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime
+                                        color = KumaColors.ElectricLime,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(18.dp))
 
                             // 6-week Volume Bar Chart
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(110.dp),
+                                    .height(120.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.Bottom
                             ) {
@@ -254,36 +262,30 @@ fun ProgressAnalyticsScreen(
 
                 // 3. Hall of Fame (Personal Records)
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEvents,
-                                    contentDescription = null,
-                                    tint = KumaColors.ElectricLime,
-                                    modifier = Modifier.size(18.dp)
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = KumaColors.ElectricLime,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Hall of Fame (Personal Records)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
                                 )
-                                Text(
-                                    text = "Hall of Fame (Personal Records)",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
+                            )
                         }
 
                         prs.forEach { pr ->
                             PersonalRecordItem(pr = pr)
                         }
                     }
-                    Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -301,7 +303,7 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
                 modifier = Modifier
                     .clip(PillShape)
                     .background(KumaColors.ElectricLime)
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
                     text = value,
@@ -312,20 +314,21 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
                     )
                 )
             }
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
         Box(
             modifier = Modifier
-                .size(if (isPeak) 10.dp else 6.dp)
+                .size(if (isPeak) 12.dp else 8.dp)
                 .clip(CircleShape)
                 .background(if (isPeak) KumaColors.ElectricLime else KumaColors.TextMuted)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
-                color = if (isPeak) KumaColors.ElectricLime else KumaColors.TextMuted
+                fontSize = 11.sp,
+                color = if (isPeak) KumaColors.ElectricLime else KumaColors.TextMuted,
+                fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal
             )
         )
     }
@@ -339,16 +342,16 @@ fun VolumeBar(week: String, heightFraction: Float, isCurrent: Boolean = false) {
     ) {
         Box(
             modifier = Modifier
-                .width(28.dp)
-                .height((80 * heightFraction).dp)
-                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                .width(32.dp)
+                .height((90 * heightFraction).dp)
+                .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                 .background(if (isCurrent) KumaColors.ElectricLime else KumaColors.SurfaceContainerHigh)
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = week,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
+                fontSize = 11.sp,
                 color = if (isCurrent) KumaColors.ElectricLime else KumaColors.TextMuted,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
             )
@@ -360,12 +363,13 @@ fun VolumeBar(week: String, heightFraction: Float, isCurrent: Boolean = false) {
 fun PersonalRecordItem(pr: PersonalRecord) {
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
-        backgroundColor = KumaColors.SurfaceContainer
+        backgroundColor = KumaColors.SurfaceContainer,
+        cornerRadius = 16.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(18.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -376,7 +380,7 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                         fontWeight = FontWeight.Bold
                     )
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${pr.weightKg} kg × ${pr.reps} reps · Est 1RM: ${pr.estimated1RmKg} kg",
                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -391,7 +395,7 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                     text = pr.prTier,
                     isPr = true
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = pr.dateAchieved,
                     style = MaterialTheme.typography.labelSmall.copy(

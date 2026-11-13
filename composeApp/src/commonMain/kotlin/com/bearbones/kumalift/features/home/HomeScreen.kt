@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,10 +31,8 @@ import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
@@ -61,24 +63,24 @@ fun HomeScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header bar
+            // Header bar with statusBarsPadding
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(KumaColors.SurfaceDim)
-                    .padding(horizontal = 16.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(KumaColors.SurfaceContainer),
                         contentAlignment = Alignment.Center
                     ) {
@@ -86,14 +88,14 @@ fun HomeScreen(
                             imageVector = Icons.Default.Bolt,
                             contentDescription = null,
                             tint = KumaColors.ElectricLime,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     Text(
                         text = "KUMALIFT",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp,
+                            letterSpacing = 1.2.sp,
                             color = KumaColors.TextWhite
                         )
                     )
@@ -101,7 +103,7 @@ fun HomeScreen(
 
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(KumaColors.SurfaceContainer),
                     contentAlignment = Alignment.Center
@@ -118,11 +120,11 @@ fun HomeScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     // 1. Athlete Header & Greeting
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -134,20 +136,22 @@ fun HomeScreen(
                                 text = "WEEK 6 · HYPERTROPHY PHASE",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = KumaColors.ElectricLime,
-                                    letterSpacing = 0.8.sp
+                                    letterSpacing = 1.sp
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "Good morning, Alex",
-                                style = MaterialTheme.typography.headlineMedium
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontSize = 24.sp
+                                )
                             )
                         }
 
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(KumaColors.SurfaceContainer),
                             contentAlignment = Alignment.Center
                         ) {
@@ -155,30 +159,36 @@ fun HomeScreen(
                                 imageVector = Icons.Default.ElectricBolt,
                                 contentDescription = null,
                                 tint = KumaColors.ElectricLime,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Metric Chips Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Metric Chips in a horizontally scrollable LazyRow (zero squeezing)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
-                        KumaBadge(
-                            text = "4 Day Streak",
-                            icon = Icons.Default.LocalFireDepartment
-                        )
-                        KumaBadge(
-                            text = "18.4k kg This Week",
-                            icon = Icons.Default.FitnessCenter
-                        )
-                        KumaBadge(
-                            text = "Target Met: 80%",
-                            icon = Icons.Default.Verified
-                        )
+                        item {
+                            KumaBadge(
+                                text = "4 Day Streak",
+                                icon = Icons.Default.LocalFireDepartment
+                            )
+                        }
+                        item {
+                            KumaBadge(
+                                text = "18.4k kg This Week",
+                                icon = Icons.Default.FitnessCenter
+                            )
+                        }
+                        item {
+                            KumaBadge(
+                                text = "Target Met: 80%",
+                                icon = Icons.Default.Verified
+                            )
+                        }
                     }
                 }
 
@@ -186,9 +196,10 @@ fun HomeScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(18.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -196,13 +207,13 @@ fun HomeScreen(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
                                         contentDescription = null,
                                         tint = KumaColors.ElectricLime,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                     Text(
                                         text = "This Week",
@@ -215,7 +226,7 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .clip(PillShape)
                                         .background(KumaColors.ElectricLime)
-                                        .padding(horizontal = 10.dp, vertical = 2.dp)
+                                        .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = "4/5 Workouts",
@@ -227,11 +238,13 @@ fun HomeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                            // 7 Days Grid: M, T, W, T, F, S, S
+                            // 7 Days Grid with comfortable breathing room
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 DayCircle("M", isDone = true)
@@ -250,9 +263,10 @@ fun HomeScreen(
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -266,38 +280,35 @@ fun HomeScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
                                 text = "Pull Day A",
-                                style = MaterialTheme.typography.headlineLarge
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontSize = 28.sp
+                                )
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = "4 exercises · 16 sets · ~55 min",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = KumaColors.TextSecondary
-                                )
-                            }
+                            Text(
+                                text = "4 exercises · 16 sets · ~55 min",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KumaColors.TextSecondary
+                            )
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             // Exercise Preview Chips
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 KumaBadge(text = "Deadlift")
                                 KumaBadge(text = "Barbell Row")
                                 KumaBadge(text = "Lat Pulldown")
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
                             KumaPrimaryButton(
                                 text = "START WORKOUT",
@@ -308,7 +319,7 @@ fun HomeScreen(
                     }
                 }
 
-                // 4. Monthly Quick Glance Metrics
+                // 4. Monthly Quick Glance Metrics (Spacious 3-column)
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -328,7 +339,7 @@ fun HomeScreen(
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "BROKEN PRS",
+                            label = "PRS",
                             value = "3",
                             subtext = "New records",
                             isAccent = true
@@ -338,38 +349,35 @@ fun HomeScreen(
 
                 // 5. Recent Workouts & Freestyle Button
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Recent Workouts",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                )
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Recent Workouts",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
                             )
-                        }
+                        )
 
                         // Recent Workout Item
                         KumaCard(
                             modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = KumaColors.SurfaceContainer
+                            backgroundColor = KumaColors.SurfaceContainer,
+                            cornerRadius = 16.dp
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
+                                    .padding(18.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
                                     Text(
                                         text = "Push Day A",
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "Yesterday · 14,850 kg · 47 min",
                                         style = MaterialTheme.typography.bodyMedium,
@@ -387,10 +395,10 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .height(52.dp)
+                                .clip(RoundedCornerShape(14.dp))
                                 .background(KumaColors.SurfaceContainer)
-                                .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(12.dp))
+                                .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(14.dp))
                                 .clickable {
                                     workoutRepository.startEmptyWorkout()
                                     onStartFreestyle()
@@ -402,9 +410,9 @@ fun HomeScreen(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = null,
                                     tint = KumaColors.ElectricLime,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Log Empty / Freestyle Workout",
                                     style = MaterialTheme.typography.titleMedium.copy(
@@ -415,7 +423,7 @@ fun HomeScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(90.dp))
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -431,16 +439,16 @@ fun DayCircle(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
             text = day,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
             color = if (isActive) KumaColors.ElectricLime else KumaColors.TextMuted
         )
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(
                     when {
@@ -496,23 +504,32 @@ fun MetricTile(
 ) {
     KumaCard(
         modifier = modifier,
-        backgroundColor = KumaColors.SurfaceContainerLow
+        backgroundColor = KumaColors.SurfaceContainerLow,
+        cornerRadius = 14.dp
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = KumaColors.TextMuted
-                )
+                    color = KumaColors.TextMuted,
+                    letterSpacing = 0.5.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineMedium.copy(
+                style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
                     color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextWhite
-                )
+                ),
+                maxLines = 1
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -520,7 +537,9 @@ fun MetricTile(
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
                     color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextMuted
-                )
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

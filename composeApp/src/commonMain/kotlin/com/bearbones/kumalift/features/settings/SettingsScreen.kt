@@ -22,10 +22,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Remove
@@ -40,6 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +61,7 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.notification.rememberWorkoutReminderManager
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
@@ -70,6 +78,7 @@ fun SettingsScreen(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val isEnglish = settings.appearance.language == AppLanguage.EN
+    val workoutReminderManager = rememberWorkoutReminderManager()
 
     Box(
         modifier = Modifier
@@ -555,7 +564,314 @@ fun SettingsScreen(
                     }
                 }
 
-                // 5. Calculations (1RM Formula)
+                // 5. Workout Reminders & Notifications (Anti-Doze / Anti-Battery Optimization)
+                item {
+                    val isBatteryOptimized = !workoutReminderManager.isBatteryOptimizationIgnored()
+                    var testNotifSent by remember { mutableStateOf(false) }
+
+                    SettingsSection(
+                        title = if (isEnglish) "WORKOUT REMINDERS & NOTIFICATIONS" else "PENGINGAT LATIHAN & NOTIFIKASI",
+                        icon = Icons.Default.Notifications
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // Main Toggle Switch: Pengingat Latihan
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isEnglish) "Workout Reminders" else "Pengingat Jadwal Latihan",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = KumaColors.current.textPrimary
+                                        )
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Alert you before your scheduled workout time" else "Kirim notifikasi di HP sebelum waktu latihan dimulai",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.current.textSubtle)
+                                    )
+                                }
+                                Switch(
+                                    checked = settings.notifications.workoutReminders,
+                                    onCheckedChange = { checked ->
+                                        val updated = settings.notifications.copy(workoutReminders = checked)
+                                        settingsRepository.update { it.copy(notifications = updated) }
+                                        workoutReminderManager.syncSettings(updated)
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = KumaColors.current.onAccentFill,
+                                        checkedTrackColor = KumaColors.current.accentFill,
+                                        uncheckedThumbColor = KumaColors.current.textSubtle,
+                                        uncheckedTrackColor = KumaColors.current.surfaceBright
+                                    )
+                                )
+                            }
+
+                            if (settings.notifications.workoutReminders) {
+                                // Reminder Time Selector
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = "${if (isEnglish) "Reminder Time" else "Jam Pengingat"}: ${settings.notifications.reminderTime}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = KumaColors.current.textPrimary
+                                        )
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        listOf("07:00", "16:00", "17:00", "18:00", "19:00", "20:00").forEach { time ->
+                                            val isSelected = settings.notifications.reminderTime == time
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(PillShape)
+                                                    .background(if (isSelected) KumaColors.current.accentFill else KumaColors.current.surfaceVariant)
+                                                    .border(
+                                                        1.dp,
+                                                        if (isSelected) (if (KumaColors.current.isDark) Color.Transparent else KumaColors.current.accentFillBorder) else KumaColors.current.border,
+                                                        PillShape
+                                                    )
+                                                    .clickable {
+                                                        val updated = settings.notifications.copy(reminderTime = time)
+                                                        settingsRepository.update { it.copy(notifications = updated) }
+                                                        workoutReminderManager.syncSettings(updated)
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = time,
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) KumaColors.current.onAccentFill else KumaColors.current.textPrimary
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Days Multi-select
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Reminder Days" else "Hari Pengingat Latihan",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.current.textSubtle)
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        val dayLabels = if (isEnglish) {
+                                            listOf(1 to "M", 2 to "T", 3 to "W", 4 to "T", 5 to "F", 6 to "S", 7 to "S")
+                                        } else {
+                                            listOf(1 to "S", 2 to "S", 3 to "R", 4 to "K", 5 to "J", 6 to "S", 7 to "M")
+                                        }
+                                        dayLabels.forEach { (dayNum, label) ->
+                                            val isSelected = settings.notifications.reminderDays.contains(dayNum)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (isSelected) KumaColors.current.accentFill else KumaColors.current.surfaceVariant)
+                                                    .border(
+                                                        1.dp,
+                                                        if (isSelected) (if (KumaColors.current.isDark) Color.Transparent else KumaColors.current.accentFillBorder) else KumaColors.current.border,
+                                                        CircleShape
+                                                    )
+                                                    .clickable {
+                                                        val currentDays = settings.notifications.reminderDays.toMutableSet()
+                                                        if (isSelected) {
+                                                            if (currentDays.size > 1) currentDays.remove(dayNum)
+                                                        } else {
+                                                            currentDays.add(dayNum)
+                                                        }
+                                                        val updated = settings.notifications.copy(reminderDays = currentDays)
+                                                        settingsRepository.update { it.copy(notifications = updated) }
+                                                        workoutReminderManager.syncSettings(updated)
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    style = MaterialTheme.typography.labelMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isSelected) KumaColors.current.onAccentFill else KumaColors.current.textPrimary
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Streak Reminder Switch
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isEnglish) "Streak Protector" else "Pengingat Streak Aktif",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = KumaColors.current.textPrimary
+                                            )
+                                        )
+                                        Text(
+                                            text = if (isEnglish) "Alert at 20:00 if streak is active and no workout logged" else "Ingatkan jam 20:00 jika streak aktif belum latihan hari ini",
+                                            style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.current.textSubtle)
+                                        )
+                                    }
+                                    Switch(
+                                        checked = settings.notifications.streakReminder,
+                                        onCheckedChange = { checked ->
+                                            val updated = settings.notifications.copy(streakReminder = checked)
+                                            settingsRepository.update { it.copy(notifications = updated) }
+                                            workoutReminderManager.syncSettings(updated)
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = KumaColors.current.onAccentFill,
+                                            checkedTrackColor = KumaColors.current.accentFill,
+                                            uncheckedThumbColor = KumaColors.current.textSubtle,
+                                            uncheckedTrackColor = KumaColors.current.surfaceBright
+                                        )
+                                    )
+                                }
+
+                                // Battery Optimization Exemption Card (Anti-Killer)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isBatteryOptimized) KumaColors.current.surfaceBright else KumaColors.current.accentTint)
+                                        .border(
+                                            1.dp,
+                                            if (isBatteryOptimized) KumaColors.current.borderStrong else KumaColors.current.accentFillBorder,
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .padding(14.dp)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isBatteryOptimized) Icons.Default.BatteryAlert else Icons.Default.BatteryChargingFull,
+                                                contentDescription = null,
+                                                tint = if (isBatteryOptimized) KumaColors.current.accentText else KumaColors.current.accentTextOnTint,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = if (isBatteryOptimized) {
+                                                    if (isEnglish) "Battery Optimization Active" else "Optimasi Baterai Masih Aktif"
+                                                } else {
+                                                    if (isEnglish) "Protected from Battery Optimization" else "Bebas dari Optimasi Baterai"
+                                                },
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isBatteryOptimized) KumaColors.current.textPrimary else KumaColors.current.accentTextOnTint
+                                                )
+                                            )
+                                        }
+                                        Text(
+                                            text = if (isBatteryOptimized) {
+                                                if (isEnglish) {
+                                                    "Android/OEM may delay or kill reminder alarms in Doze mode. Tap below to exempt KumaLift."
+                                                } else {
+                                                    "Sistem Android/OEM mungkin menunda notifikasi saat HP tidur/Doze. Ketuk tombol di bawah agar selalu tepat waktu."
+                                                }
+                                            } else {
+                                                if (isEnglish) {
+                                                    "KumaLift is unrestricted. Reminders will wake up the device and arrive on time."
+                                                } else {
+                                                    "KumaLift sudah bebas pembatasan. Pengingat akan membangunkan HP dan tiba tepat waktu."
+                                                }
+                                            },
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = if (isBatteryOptimized) KumaColors.current.textSecondary else KumaColors.current.accentTextOnTint,
+                                                fontSize = 12.sp
+                                            )
+                                        )
+                                        if (isBatteryOptimized) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(PillShape)
+                                                    .background(KumaColors.current.accentFill)
+                                                    .border(
+                                                        1.dp,
+                                                        if (KumaColors.current.isDark) Color.Transparent else KumaColors.current.accentFillBorder,
+                                                        PillShape
+                                                    )
+                                                    .clickable {
+                                                        workoutReminderManager.requestIgnoreBatteryOptimization()
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isEnglish) "Exempt from Battery Optimization" else "Bebaskan Dari Optimasi Baterai",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = KumaColors.current.onAccentFill
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Send Test Notification Action
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KumaColors.current.surfaceVariant)
+                                        .border(1.dp, KumaColors.current.border, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            workoutReminderManager.sendTestNotification(
+                                                title = if (isEnglish) "Time to Lift! 🏋️‍♂️" else "Waktunya Latihan! 🏋️‍♂️",
+                                                message = if (isEnglish) {
+                                                    "Test reminder received! KumaLift is ready to keep your streak going."
+                                                } else {
+                                                    "Notifikasi uji coba berhasil! KumaLift siap menjaga konsistensi latihanmu."
+                                                }
+                                            )
+                                            testNotifSent = true
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Send,
+                                            contentDescription = null,
+                                            tint = KumaColors.current.accentText,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = if (testNotifSent) {
+                                                if (isEnglish) "Test Notification Sent! ✓" else "Notifikasi Uji Coba Terkirim! ✓"
+                                            } else {
+                                                if (isEnglish) "Send Test Notification Now" else "Kirim Notifikasi Uji Coba Sekarang"
+                                            },
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = KumaColors.current.accentText
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 6. Calculations (1RM Formula)
                 item {
                     SettingsSection(
                         title = if (isEnglish) "ESTIMATED 1RM FORMULA" else "RUMUS ESTIMASI 1RM",

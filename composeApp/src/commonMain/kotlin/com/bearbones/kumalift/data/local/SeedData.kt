@@ -23,6 +23,15 @@ object SeedData {
             movementType = MovementType.COMPOUND,
             level = ExperienceLevel.INTERMEDIATE,
             instructions = "Berbaring di bench, turunkan bar ke tengah dada, dorong ke atas sampai lengan lurus.",
+            instructionSteps = listOf(
+                "Lie on the bench.",
+                "Extend your arms and grab the bar evenly, having your hands slightly wider than shoulder-width apart.",
+                "Bring your shoulder blades back and dig them into the bench.",
+                "Arch your lower back and plant your feet flat on the floor.",
+                "Take a breath, unrack the bar, and bring it over your chest.",
+                "Inhale again and lower the barbell to your lower chest, tapping it slightly.",
+                "Hold for a moment and press the bar until your elbows are straight. Exhale."
+            ),
             defaultIncrementKg = 2.5,
             currentPrWeightKg = 118.0,
             currentPrReps = 3,

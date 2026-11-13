@@ -45,8 +45,26 @@ data class Exercise(
     val movementType: MovementType = MovementType.COMPOUND,
     val level: ExperienceLevel = ExperienceLevel.BEGINNER,
     val instructions: String = "",
+    val instructionSteps: List<String> = emptyList(),
     val defaultIncrementKg: Double = 2.5,
     val currentPrWeightKg: Double? = null,
     val currentPrReps: Int? = null,
-    val lastLoggedDate: String? = null
-)
+    val lastLoggedDate: String? = null,
+    val gifUrl: String? = null,
+    val thumbnailUrl: String? = null,
+    val pinnedNote: String = ""
+) {
+    fun getEffectiveSteps(): List<String> {
+        if (instructionSteps.isNotEmpty()) return instructionSteps
+        if (instructions.isBlank()) return listOf(
+            "Posisikan tubuh dengan stabil dan nyaman.",
+            "Lakukan gerakan secara terkontrol dengan menjaga postur yang benar.",
+            "Rasakan kontraksi otot target pada puncak gerakan.",
+            "Kembali perlahan ke posisi awal sambil mengatur pernapasan."
+        )
+        val lines = instructions.split("\n").map { it.trim().removePrefix("-").trim() }.filter { it.isNotBlank() }
+        if (lines.size > 1) return lines
+        val sentences = instructions.split(Regex("(?<=[.!?])\\s+")).map { it.trim() }.filter { it.isNotBlank() }
+        return if (sentences.isNotEmpty()) sentences else listOf(instructions)
+    }
+}

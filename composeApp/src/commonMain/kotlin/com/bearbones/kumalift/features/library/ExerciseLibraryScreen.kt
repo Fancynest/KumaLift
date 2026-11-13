@@ -1,7 +1,6 @@
 package com.bearbones.kumalift.features.library
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,14 +23,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -55,6 +56,7 @@ import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
@@ -65,24 +67,55 @@ fun ExerciseLibraryScreen(
     workoutRepository: WorkoutRepository? = null,
     onExerciseSelected: ((Exercise) -> Unit)? = null
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
-    var selectedSubMuscle by remember { mutableStateOf<String?>(null) }
-    var selectedType by remember { mutableStateOf<MovementType?>(null) }
-
-    // Single-card accordion state: only one exercise expanded at a time
-    var expandedExerciseId by remember { mutableStateOf<String?>(null) }
-
+    var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
     val allExercises by exerciseRepository.exercises.collectAsState()
 
-    // Available sub-muscles for the currently selected muscle group
-    val availableSubMuscles = remember(selectedMuscle, allExercises) {
-        if (selectedMuscle == null) emptyList()
-        else allExercises
-            .filter { it.primaryMuscle == selectedMuscle && it.subMuscle.isNotBlank() }
-            .map { it.subMuscle }
-            .distinct()
+    Crossfade(targetState = selectedExerciseForDetail) { detailedExercise ->
+        if (detailedExercise != null) {
+            // Keep detailed exercise updated with latest repository state (e.g. pinned notes)
+            val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
+            ExerciseDetailScreen(
+                exercise = liveExercise,
+                onNavigateBack = { selectedExerciseForDetail = null },
+                onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
+                    {
+                        workoutRepository.addExerciseToActiveWorkout(liveExercise)
+                        onExerciseSelected?.invoke(liveExercise)
+                    }
+                } else null,
+                onSaveNote = { note ->
+                    exerciseRepository.updatePinnedNote(liveExercise.id, note)
+                }
+            )
+        } else {
+            ExerciseCatalogList(
+                exerciseRepository = exerciseRepository,
+                workoutRepository = workoutRepository,
+                onOpenDetail = { selectedExerciseForDetail = it },
+                onAddExercise = { exercise ->
+                    workoutRepository?.addExerciseToActiveWorkout(exercise)
+                    onExerciseSelected?.invoke(exercise)
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun ExerciseCatalogList(
+    exerciseRepository: ExerciseRepository,
+    workoutRepository: WorkoutRepository?,
+    onOpenDetail: (Exercise) -> Unit,
+    onAddExercise: (Exercise) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
+    var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+
+    val allExercises by exerciseRepository.exercises.collectAsState()
+    val activeWorkout = workoutRepository?.activeWorkout?.collectAsState()?.value
+    val colors = LocalKumaColors.current
 
     val filteredExercises = allExercises.filter { exercise ->
         val query = searchQuery.trim()
@@ -91,16 +124,12 @@ fun ExerciseLibraryScreen(
             exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
             exercise.subMuscle.contains(query, ignoreCase = true) ||
             exercise.equipment.displayName.contains(query, ignoreCase = true) ||
-            exercise.equipment.code.contains(query, ignoreCase = true) ||
-            exercise.equipmentDetail.contains(query, ignoreCase = true) ||
-            exercise.secondaryMuscleDetails.contains(query, ignoreCase = true) ||
-            exercise.secondaryMuscles.any { it.displayName.contains(query, ignoreCase = true) }
+            exercise.equipment.code.contains(query, ignoreCase = true)
 
         val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
-        val matchesSubMuscle = selectedSubMuscle == null || exercise.subMuscle == selectedSubMuscle
-        val matchesType = selectedType == null || exercise.movementType == selectedType
+        val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment
 
-        matchesQuery && matchesMuscle && matchesSubMuscle && matchesType
+        matchesQuery && matchesMuscle && matchesEquipment
     }
 
     Box(
@@ -109,7 +138,7 @@ fun ExerciseLibraryScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Screen Top Header with statusBarsPadding
+            // Header Bar: "Exercises", "Create"
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -120,19 +149,21 @@ fun ExerciseLibraryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Katalog Gerakan",
+                    text = "Exercises",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        color = KumaColors.TextWhite
+                        color = colors.textPrimary,
+                        fontSize = 22.sp
                     )
                 )
 
                 Text(
-                    text = "${filteredExercises.size} Gerakan",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = LocalKumaColors.current.accentText,
-                        fontWeight = FontWeight.Bold
-                    )
+                    text = "Create",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentText
+                    ),
+                    modifier = Modifier.clickable { showCreateDialog = true }
                 )
             }
 
@@ -143,22 +174,22 @@ fun ExerciseLibraryScreen(
             ) {
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Compact Search Bar (Sleek 44dp height)
+                // Search Bar matching screenshot
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .height(48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(12.dp))
+                        .border(1.dp, colors.border, RoundedCornerShape(12.dp))
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = KumaColors.TextMuted,
-                        modifier = Modifier.size(18.dp)
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Box(
@@ -167,11 +198,9 @@ fun ExerciseLibraryScreen(
                     ) {
                         if (searchQuery.isEmpty()) {
                             Text(
-                                text = "Cari nama gerakan, alat, atau otot...",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp),
-                                color = KumaColors.TextMuted,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = "Search exercise",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                                color = colors.textSecondary.copy(alpha = 0.6f)
                             )
                         }
                         BasicTextField(
@@ -179,10 +208,10 @@ fun ExerciseLibraryScreen(
                             onValueChange = { searchQuery = it },
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                fontSize = 13.5.sp,
-                                color = KumaColors.TextWhite
+                                fontSize = 14.sp,
+                                color = colors.textPrimary
                             ),
-                            cursorBrush = SolidColor(KumaColors.ElectricLime),
+                            cursorBrush = SolidColor(colors.accentText),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -190,7 +219,7 @@ fun ExerciseLibraryScreen(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Clear",
-                            tint = KumaColors.TextMuted,
+                            tint = colors.textSecondary,
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable { searchQuery = "" }
@@ -200,37 +229,44 @@ fun ExerciseLibraryScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Primary Muscle Group Filter Chips
+                // Filter Buttons Row: All Equipment | All Muscles | Popular Muscle Groups
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 2.dp)
                 ) {
                     item {
-                        val isAllSelected = selectedMuscle == null
-                        Box(
-                            modifier = Modifier
-                                .clip(PillShape)
-                                .background(if (isAllSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
-                                .border(
-                                    1.dp,
-                                    if (isAllSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
-                                    PillShape
-                                )
-                                .clickable {
-                                    selectedMuscle = null
-                                    selectedSubMuscle = null
+                        FilterDropdownPill(
+                            label = selectedEquipment?.displayName ?: "All Equipment",
+                            isSelected = selectedEquipment != null,
+                            onClick = {
+                                // Cycle popular equipment
+                                selectedEquipment = when (selectedEquipment) {
+                                    null -> Equipment.BARBELL
+                                    Equipment.BARBELL -> Equipment.DUMBBELL
+                                    Equipment.DUMBBELL -> Equipment.MACHINE
+                                    Equipment.MACHINE -> Equipment.BODYWEIGHT
+                                    else -> null
                                 }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                        ) {
-                            Text(
-                                text = "Semua Otot",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isAllSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
-                                )
-                            )
-                        }
+                            }
+                        )
+                    }
+
+                    item {
+                        FilterDropdownPill(
+                            label = selectedMuscle?.displayName ?: "All Muscles",
+                            isSelected = selectedMuscle != null,
+                            onClick = {
+                                selectedMuscle = when (selectedMuscle) {
+                                    null -> MuscleGroup.CHEST
+                                    MuscleGroup.CHEST -> MuscleGroup.BACK
+                                    MuscleGroup.BACK -> MuscleGroup.LEGS
+                                    MuscleGroup.LEGS -> MuscleGroup.SHOULDERS
+                                    MuscleGroup.SHOULDERS -> MuscleGroup.ARMS
+                                    else -> null
+                                }
+                            }
+                        )
                     }
 
                     items(MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }) { muscle ->
@@ -238,148 +274,228 @@ fun ExerciseLibraryScreen(
                         Box(
                             modifier = Modifier
                                 .clip(PillShape)
-                                .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
-                                .border(
-                                    1.dp,
-                                    if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
-                                    PillShape
-                                )
+                                .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
                                 .clickable {
-                                    selectedMuscle = muscle
-                                    selectedSubMuscle = null
+                                    selectedMuscle = if (isSelected) null else muscle
                                 }
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = muscle.displayName,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) colors.onAccentFill else colors.textPrimary
                                 )
                             )
                         }
                     }
                 }
 
-                // Sub-Muscle Filter Chips (Appears when specific muscle is selected)
-                AnimatedVisibility(visible = availableSubMuscles.isNotEmpty()) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            modifier = Modifier.isolateHorizontalScroll(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            contentPadding = PaddingValues(vertical = 2.dp)
-                        ) {
-                            item {
-                                val isAllSub = selectedSubMuscle == null
-                                Box(
-                                    modifier = Modifier
-                                        .clip(PillShape)
-                                        .background(if (isAllSub) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerLow)
-                                        .border(
-                                            1.dp,
-                                            if (isAllSub) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
-                                            PillShape
-                                        )
-                                        .clickable { selectedSubMuscle = null }
-                                        .padding(horizontal = 12.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = "Semua Bagian",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = if (isAllSub) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isAllSub) LocalKumaColors.current.accentText else KumaColors.TextMuted
-                                        )
-                                    )
-                                }
-                            }
+                Spacer(modifier = Modifier.height(18.dp))
 
-                            items(availableSubMuscles) { sub ->
-                                val isSelected = selectedSubMuscle == sub
-                                Box(
-                                    modifier = Modifier
-                                        .clip(PillShape)
-                                        .background(if (isSelected) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerLow)
-                                        .border(
-                                            1.dp,
-                                            if (isSelected) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
-                                            PillShape
-                                        )
-                                        .clickable { selectedSubMuscle = sub }
-                                        .padding(horizontal = 12.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = sub,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) LocalKumaColors.current.accentText else KumaColors.TextMuted
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Movement Type Filter (Semua, Compound, Isolasi)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TypeFilterChip(
-                        label = "Semua Tipe",
-                        isSelected = selectedType == null,
-                        onClick = { selectedType = null }
+                // Section Header: "Popular Exercises"
+                Text(
+                    text = if (searchQuery.isBlank() && selectedMuscle == null && selectedEquipment == null) {
+                        "Popular Exercises"
+                    } else {
+                        "Exercises (${filteredExercises.size})"
+                    },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                        fontSize = 16.sp
                     )
-                    TypeFilterChip(
-                        label = "Compound",
-                        isSelected = selectedType == MovementType.COMPOUND,
-                        onClick = { selectedType = MovementType.COMPOUND }
-                    )
-                    TypeFilterChip(
-                        label = "Isolasi",
-                        isSelected = selectedType == MovementType.ISOLATION,
-                        onClick = { selectedType = MovementType.ISOLATION }
-                    )
-                }
+                )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Exercise List with single-card accordion
+                // Exercise Rows List
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxSize()
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 90.dp)
                 ) {
                     items(filteredExercises, key = { it.id }) { exercise ->
-                        val isExpanded = expandedExerciseId == exercise.id
-                        ExerciseListItem(
+                        ExerciseRowItem(
                             exercise = exercise,
-                            isExpanded = isExpanded,
-                            onToggleExpand = {
-                                expandedExerciseId = if (isExpanded) null else exercise.id
-                            },
-                            onAdd = {
-                                if (workoutRepository != null) {
-                                    workoutRepository.addExerciseToActiveWorkout(exercise)
-                                }
-                                onExerciseSelected?.invoke(exercise)
-                            }
+                            hasActiveWorkout = activeWorkout != null,
+                            onItemClick = { onOpenDetail(exercise) },
+                            onAddClick = { onAddExercise(exercise) }
                         )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(100.dp))
                     }
                 }
             }
         }
     }
+
+    // Create Custom Exercise Dialog
+    if (showCreateDialog) {
+        var nameInput by remember { mutableStateOf("") }
+        var selectedMuscleGroup by remember { mutableStateOf(MuscleGroup.CHEST) }
+        var selectedEq by remember { mutableStateOf(Equipment.BARBELL) }
+
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("Create Exercise", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Exercise Name:", style = MaterialTheme.typography.labelMedium.copy(color = colors.textSecondary))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .padding(12.dp)
+                    ) {
+                        BasicTextField(
+                            value = nameInput,
+                            onValueChange = { nameInput = it },
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
+                            cursorBrush = SolidColor(colors.accentText),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Text("Target Muscle:", style = MaterialTheme.typography.labelMedium.copy(color = colors.textSecondary))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(MuscleGroup.CHEST, MuscleGroup.BACK, MuscleGroup.LEGS).forEach { m ->
+                            val isSel = selectedMuscleGroup == m
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) colors.accentFill else KumaColors.SurfaceContainer)
+                                    .clickable { selectedMuscleGroup = m }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = m.displayName,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = if (isSel) colors.onAccentFill else colors.textPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (nameInput.isNotBlank()) {
+                            exerciseRepository.addCustomExercise(
+                                name = nameInput.trim(),
+                                primaryMuscle = selectedMuscleGroup,
+                                equipment = selectedEq
+                            )
+                        }
+                        showCreateDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
+                    )
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false }) {
+                    Text("Cancel", color = colors.textSecondary)
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun TypeFilterChip(
+private fun ExerciseRowItem(
+    exercise: Exercise,
+    hasActiveWorkout: Boolean,
+    onItemClick: () -> Unit,
+    onAddClick: () -> Unit
+) {
+    val colors = LocalKumaColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KumaColors.SurfaceDim)
+            .clickable(onClick = onItemClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Circular thumbnail with anatomical illustration (180x180 dataset style)
+        ExerciseThumbnail(
+            exercise = exercise,
+            size = 48.dp
+        )
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        // Title & Muscle Subtitle
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = exercise.name,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    fontSize = 15.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            val subOtot = if (exercise.subMuscle.isNotBlank()) " · ${exercise.subMuscle}" else ""
+            Text(
+                text = "${exercise.primaryMuscle.displayName}$subOtot",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.textSecondary,
+                    fontSize = 13.sp
+                )
+            )
+        }
+
+        // Action: "+ Tambah" if active workout is running, else chevron right
+        if (hasActiveWorkout) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.accentFill)
+                    .clickable(onClick = onAddClick)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "+ Tambah",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onAccentFill
+                    )
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textSecondary.copy(alpha = 0.5f),
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun FilterDropdownPill(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -387,217 +503,17 @@ private fun TypeFilterChip(
     val colors = LocalKumaColors.current
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) colors.surfaceBright else colors.surfaceVariant)
-            .border(
-                1.dp,
-                if (isSelected) (if (colors.isDark) colors.accentFill else colors.accentChart) else colors.border,
-                RoundedCornerShape(8.dp)
-            )
+            .clip(PillShape)
+            .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 11.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) colors.accentText else colors.textSubtle
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) colors.onAccentFill else colors.textPrimary
             )
         )
-    }
-}
-
-@Composable
-fun ExerciseListItem(
-    exercise: Exercise,
-    isExpanded: Boolean,
-    onToggleExpand: () -> Unit,
-    onAdd: () -> Unit
-) {
-    KumaCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onToggleExpand)
-            .animateContentSize(),
-        backgroundColor = if (isExpanded) KumaColors.SurfaceContainer else KumaColors.SurfaceContainerLow,
-        cornerRadius = 16.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-        ) {
-            // Header: Badges & Add Button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Badges: Alat · Tipe · Level
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    KumaBadge(text = exercise.equipment.code)
-                    KumaBadge(text = exercise.movementType.displayName)
-                    if (isExpanded) {
-                        KumaBadge(text = exercise.level.displayName)
-                    }
-                }
-
-                // Add Button (+ Tambah)
-                val colors = LocalKumaColors.current
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colors.surfaceBright)
-                        .border(
-                            1.dp,
-                            if (colors.isDark) Color.Transparent else colors.accentFillBorder,
-                            RoundedCornerShape(10.dp)
-                        )
-                        .clickable(onClick = onAdd)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Tambah",
-                            tint = if (colors.isDark) colors.accentText else colors.accentTextOnTint,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "Tambah",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = if (colors.isDark) colors.accentText else colors.accentTextOnTint,
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Subtitle: Otot Utama & Sub-Otot
-            val subOtotInfo = if (exercise.subMuscle.isNotBlank()) " · ${exercise.subMuscle}" else ""
-            Text(
-                text = "${exercise.primaryMuscle.displayName}$subOtotInfo",
-                style = MaterialTheme.typography.labelSmall,
-                color = KumaColors.TextMuted
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // Nama Latihan & Expand Chevron
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = exercise.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = KumaColors.TextWhite,
-                        fontSize = 17.sp
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (isExpanded) "Tutup" else "Detail",
-                    tint = if (isExpanded) LocalKumaColors.current.accentText else KumaColors.TextMuted,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Expanded Details Section (Only visible for the clicked item)
-            AnimatedVisibility(visible = isExpanded) {
-                Column {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(KumaColors.BorderDefault.copy(alpha = 0.5f))
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Detail Alat & Level
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Alat: ${exercise.equipmentDetail.ifBlank { exercise.equipment.displayName }}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = KumaColors.TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        )
-                        Text(
-                            text = "Level: ${exercise.level.displayName}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = KumaColors.TextMuted,
-                                fontSize = 12.sp
-                            )
-                        )
-                    }
-
-                    // Otot Sekunder (Bantu)
-                    if (exercise.secondaryMuscleDetails.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Otot bantu: ${exercise.secondaryMuscleDetails}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = KumaColors.TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        )
-                    }
-
-                    // Panduan Teknik Gerakan
-                    if (exercise.instructions.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Panduan Teknik:",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = LocalKumaColors.current.accentText
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = exercise.instructions,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = LocalKumaColors.current.textPrimary.copy(alpha = 0.88f),
-                                fontSize = 12.sp,
-                                lineHeight = 17.sp
-                            )
-                        )
-                    }
-
-                    // Rekor Angkatan (PR) jika ada
-                    if (exercise.currentPrWeightKg != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Rekor Pribadi (PR): ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = LocalKumaColors.current.accentText,
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
-                }
-            }
-        }
     }
 }

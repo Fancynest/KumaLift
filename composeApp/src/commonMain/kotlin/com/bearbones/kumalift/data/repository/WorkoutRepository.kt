@@ -43,6 +43,14 @@ class ExerciseRepository {
         )
         _exercises.update { it + newEx }
     }
+
+    fun updatePinnedNote(exerciseId: String, note: String) {
+        _exercises.update { list ->
+            list.map { ex ->
+                if (ex.id == exerciseId) ex.copy(pinnedNote = note) else ex
+            }
+        }
+    }
 }
 
 class RoutineRepository {

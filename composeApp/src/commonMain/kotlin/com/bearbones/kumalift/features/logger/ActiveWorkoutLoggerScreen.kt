@@ -340,7 +340,7 @@ fun ActiveWorkoutLoggerScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "+ Tambah Gerakan",
+                                        text = "Tambah Gerakan",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             color = LocalKumaColors.current.textPrimary,
                                             fontWeight = FontWeight.Bold
@@ -517,7 +517,7 @@ fun ExerciseLoggingCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "+ Tambah Set",
+                    text = "Tambah Set",
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = KumaColors.OnSurface,
                         fontWeight = FontWeight.SemiBold

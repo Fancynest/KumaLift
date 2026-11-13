@@ -375,7 +375,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "+ Latihan Bebas (Freestyle)",
+                                    text = "Latihan Bebas (Freestyle)",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         color = LocalKumaColors.current.textPrimary,
                                         fontWeight = FontWeight.Bold

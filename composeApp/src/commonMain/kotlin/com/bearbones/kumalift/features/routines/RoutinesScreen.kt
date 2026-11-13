@@ -104,23 +104,13 @@ fun RoutinesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
-                                    Text(
-                                        text = "PROGRAM LATIHAN",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.ElectricLime,
-                                            letterSpacing = 0.8.sp
-                                        )
+                                Text(
+                                    text = "PROGRAM LATIHAN",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.ElectricLime,
+                                        letterSpacing = 0.8.sp
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "PPL Hypertrophy Phase 2",
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
+                                )
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
@@ -132,10 +122,21 @@ fun RoutinesScreen(
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.TextWhite,
                                             fontWeight = FontWeight.Bold
-                                        )
+                                        ),
+                                        maxLines = 1
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "PPL Hypertrophy Phase 2",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
 
                             Spacer(modifier = Modifier.height(16.dp))
 

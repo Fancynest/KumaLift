@@ -31,6 +31,8 @@ kotlin {
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
+            implementation("io.coil-kt:coil-compose:2.7.0")
+            implementation("io.coil-kt:coil-gif:2.7.0")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

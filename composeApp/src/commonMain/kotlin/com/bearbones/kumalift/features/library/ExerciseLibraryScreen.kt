@@ -229,7 +229,7 @@ private fun ExerciseCatalogList(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Filter Buttons Row: All Equipment | All Muscles | Popular Muscle Groups
+                // Filter Buttons Row: All Equipment | All Muscles | Muscle Groups
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -240,11 +240,11 @@ private fun ExerciseCatalogList(
                             label = selectedEquipment?.displayName ?: "All Equipment",
                             isSelected = selectedEquipment != null,
                             onClick = {
-                                // Cycle popular equipment
                                 selectedEquipment = when (selectedEquipment) {
                                     null -> Equipment.BARBELL
                                     Equipment.BARBELL -> Equipment.DUMBBELL
-                                    Equipment.DUMBBELL -> Equipment.MACHINE
+                                    Equipment.DUMBBELL -> Equipment.CABLE
+                                    Equipment.CABLE -> Equipment.MACHINE
                                     Equipment.MACHINE -> Equipment.BODYWEIGHT
                                     else -> null
                                 }
@@ -255,16 +255,9 @@ private fun ExerciseCatalogList(
                     item {
                         FilterDropdownPill(
                             label = selectedMuscle?.displayName ?: "All Muscles",
-                            isSelected = selectedMuscle != null,
+                            isSelected = selectedMuscle == null,
                             onClick = {
-                                selectedMuscle = when (selectedMuscle) {
-                                    null -> MuscleGroup.CHEST
-                                    MuscleGroup.CHEST -> MuscleGroup.BACK
-                                    MuscleGroup.BACK -> MuscleGroup.LEGS
-                                    MuscleGroup.LEGS -> MuscleGroup.SHOULDERS
-                                    MuscleGroup.SHOULDERS -> MuscleGroup.ARMS
-                                    else -> null
-                                }
+                                selectedMuscle = null
                             }
                         )
                     }
@@ -293,13 +286,9 @@ private fun ExerciseCatalogList(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Section Header: "Popular Exercises"
+                // Section Header: "Exercises (count)"
                 Text(
-                    text = if (searchQuery.isBlank() && selectedMuscle == null && selectedEquipment == null) {
-                        "Popular Exercises"
-                    } else {
-                        "Exercises (${filteredExercises.size})"
-                    },
+                    text = "Exercises (${filteredExercises.size})",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,

@@ -96,21 +96,7 @@ fun ExerciseDetailScreen(
     var showTipDialog by remember { mutableStateOf(false) }
 
     val steps = remember(exercise) {
-        if (exercise.instructionSteps.isNotEmpty()) {
-            exercise.instructionSteps
-        } else if (exercise.id == "ex_bench_press" || exercise.name.contains("Bench Press", ignoreCase = true)) {
-            listOf(
-                "Lie on the bench.",
-                "Extend your arms and grab the bar evenly, having your hands slightly wider than shoulder-width apart.",
-                "Bring your shoulder blades back and dig them into the bench.",
-                "Arch your lower back and plant your feet flat on the floor.",
-                "Take a breath, unrack the bar, and bring it over your chest.",
-                "Inhale again and lower the barbell to your lower chest, tapping it slightly.",
-                "Hold for a moment and press the bar until your elbows are straight. Exhale."
-            )
-        } else {
-            exercise.getEffectiveSteps()
-        }
+        exercise.getEffectiveSteps()
     }
 
     val colors = LocalKumaColors.current

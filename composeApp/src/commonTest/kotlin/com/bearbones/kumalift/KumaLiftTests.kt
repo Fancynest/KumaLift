@@ -72,8 +72,8 @@ class KumaLiftTests {
     fun testPersonalRecordDetection() {
         val prRepo = PersonalRecordRepository()
         val squat = Exercise(
-            id = "ex_squat",
-            name = "Barbell Back Squat",
+            id = "0043",
+            name = "Barbell Full Squat",
             primaryMuscle = MuscleGroup.LEGS,
             equipment = Equipment.BARBELL,
             currentPrWeightKg = 150.0

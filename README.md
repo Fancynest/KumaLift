@@ -62,3 +62,15 @@ or open in Android Studio and select the **composeApp** run configuration.
 
 ### iOS (on macOS)
 Open `iosApp/` in Xcode or run via CI/CD runner.
+
+---
+
+## 📜 Media Attribution & License Notice
+
+This project utilizes the fitness exercises dataset and media from:
+**https://github.com/hasaneyldrm/exercises-dataset** (1,324 exercises with animation GIFs, 180×180 thumbnails, muscle group metadata, and step-by-step instructions).
+
+- **Media Copyright:** The exercise thumbnail images and animation GIFs are property of **Gym visual** and used with attribution:
+  > **© Gym visual — https://gymvisual.com/**
+- **Licensing Requirement:** As per Gym visual's terms, any public, commercial, or production release of this application requires obtaining an independent license directly from **Gym visual** (https://gymvisual.com/content/3-terms-and-conditions-of-use).
+- **Dataset (non-media):** The text dataset (names, categories, body parts, equipment, targets, and multilingual instructions) is distributed under the MIT License.

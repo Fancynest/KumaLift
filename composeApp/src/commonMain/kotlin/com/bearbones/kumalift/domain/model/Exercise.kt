@@ -7,6 +7,8 @@ enum class MuscleGroup(val displayName: String) {
     SHOULDERS("Bahu"),
     ARMS("Lengan"),
     CORE("Core"),
+    CARDIO("Kardio"),
+    NECK("Leher"),
     FULL_BODY("Seluruh Tubuh")
 }
 
@@ -52,6 +54,7 @@ data class Exercise(
     val lastLoggedDate: String? = null,
     val gifUrl: String? = null,
     val thumbnailUrl: String? = null,
+    val attribution: String = "© Gym visual — https://gymvisual.com/",
     val pinnedNote: String = ""
 ) {
     fun getEffectiveSteps(): List<String> {

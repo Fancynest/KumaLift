@@ -34,6 +34,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,8 +45,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -73,6 +76,29 @@ fun ActiveWorkoutLoggerScreen(
 
     val workout = activeWorkout
 
+    var elapsedSeconds by remember(workout?.id) {
+        val initial = workout?.durationSeconds?.takeIf { it > 0 } ?: (34 * 60 + 18L)
+        mutableStateOf(initial)
+    }
+
+    LaunchedEffect(workout?.id) {
+        while (true) {
+            delay(1000)
+            elapsedSeconds++
+        }
+    }
+
+    val formattedTimer = remember(elapsedSeconds) {
+        val hours = elapsedSeconds / 3600
+        val minutes = (elapsedSeconds % 3600) / 60
+        val seconds = elapsedSeconds % 60
+        if (hours > 0) {
+            "${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+        } else {
+            "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -98,7 +124,10 @@ fun ActiveWorkoutLoggerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f, fill = false),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(
                             onClick = onNavigateBack,
                             modifier = Modifier
@@ -118,6 +147,29 @@ fun ActiveWorkoutLoggerScreen(
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = KumaColors.TextWhite
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Selesai Button in Top Bar
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KumaColors.ElectricLime)
+                            .clickable {
+                                workoutRepository.finishWorkout()
+                                onFinishWorkout()
+                            }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Selesai",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = KumaColors.OnElectricLime
                             )
                         )
                     }
@@ -144,7 +196,11 @@ fun ActiveWorkoutLoggerScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 12.dp)
+                                    ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(
                                                 modifier = Modifier
@@ -164,60 +220,41 @@ fun ActiveWorkoutLoggerScreen(
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = workout.title,
-                                            style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontSize = 26.sp
-                                            )
+                                            style = MaterialTheme.typography.headlineSmall.copy(
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = LocalKumaColors.current.textPrimary
+                                            ),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
 
+                                    // Timer Box (Always single horizontal line with stopwatch icon)
                                     Row(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(KumaColors.SurfaceContainerHigh)
+                                            .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
-                                        // Timer Box
-                                        Row(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(KumaColors.SurfaceContainerHigh)
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Timer,
-                                                contentDescription = null,
-                                                tint = KumaColors.TextMuted,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "34:18",
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    color = KumaColors.TextWhite,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            )
-                                        }
-
-                                        // Finish Button
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(KumaColors.ElectricLime)
-                                                .clickable {
-                                                    workoutRepository.finishWorkout()
-                                                    onFinishWorkout()
-                                                }
-                                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "Selesai",
-                                                style = MaterialTheme.typography.labelLarge.copy(
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = KumaColors.OnElectricLime
-                                                )
-                                            )
-                                        }
+                                        Icon(
+                                            imageVector = Icons.Default.Timer,
+                                            contentDescription = null,
+                                            tint = LocalKumaColors.current.accentText,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = formattedTimer,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                color = LocalKumaColors.current.textPrimary,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
                                     }
                                 }
 
@@ -310,6 +347,27 @@ fun ActiveWorkoutLoggerScreen(
                                         )
                                     )
                                 }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(KumaColors.ElectricLime)
+                                    .clickable {
+                                        workoutRepository.finishWorkout()
+                                        onFinishWorkout()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Selesai Latihan",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = KumaColors.OnElectricLime,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.height(120.dp))

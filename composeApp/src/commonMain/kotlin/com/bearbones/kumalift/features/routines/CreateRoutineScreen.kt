@@ -461,7 +461,7 @@ fun CreateRoutineScreen(
                         )
 
                         Text(
-                            text = "+ Tambah",
+                            text = "Tambah",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold
@@ -500,7 +500,7 @@ fun CreateRoutineScreen(
                                         .padding(horizontal = 18.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        text = "+ Tambah Gerakan",
+                                        text = "Tambah Gerakan",
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             color = colors.onAccentFill,
                                             fontWeight = FontWeight.Bold
@@ -540,24 +540,13 @@ fun CreateRoutineScreen(
                                     .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Tambah Lagi",
-                                        tint = colors.accentText,
-                                        modifier = Modifier.size(18.dp)
+                                Text(
+                                    text = "Tambah Gerakan Lainnya",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        color = colors.accentText,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Text(
-                                        text = "Tambah Gerakan Lainnya",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = colors.accentText,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
+                                )
                             }
                         }
                     }
@@ -925,7 +914,7 @@ private fun ExercisePickerModal(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "+ Tambah",
+                                        text = "Tambah",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = colors.onAccentFill,
                                             fontWeight = FontWeight.Bold

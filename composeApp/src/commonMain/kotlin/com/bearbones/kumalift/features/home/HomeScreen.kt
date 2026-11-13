@@ -460,22 +460,13 @@ fun HomeScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = LocalKumaColors.current.accentText,
-                                    modifier = Modifier.size(20.dp)
+                            Text(
+                                text = "Latihan Bebas (Freestyle)",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = LocalKumaColors.current.textPrimary,
+                                    fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Latihan Bebas (Freestyle)",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = LocalKumaColors.current.textPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(100.dp))

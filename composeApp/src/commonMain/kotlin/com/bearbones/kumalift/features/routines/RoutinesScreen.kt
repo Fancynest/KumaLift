@@ -96,7 +96,7 @@ fun RoutinesScreen(
                     )
                 )
 
-                // Button "+ Buat Pola"
+                // Button "Buat Pola"
                 Box(
                     modifier = Modifier
                         .clip(PillShape)
@@ -105,24 +105,13 @@ fun RoutinesScreen(
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Buat Pola",
-                            tint = LocalKumaColors.current.onAccentFill,
-                            modifier = Modifier.size(16.dp)
+                    Text(
+                        text = "Buat Pola",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = LocalKumaColors.current.onAccentFill
                         )
-                        Text(
-                            text = "Buat Pola",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = LocalKumaColors.current.onAccentFill
-                            )
-                        )
-                    }
+                    )
                 }
             }
 

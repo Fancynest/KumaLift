@@ -156,14 +156,8 @@ fun ExerciseDetailScreen(
                             contentColor = colors.onAccentFill
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
                         Text("Tambah", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }

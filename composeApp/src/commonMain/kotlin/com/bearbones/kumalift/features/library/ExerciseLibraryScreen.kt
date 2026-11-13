@@ -465,18 +465,18 @@ private fun ExerciseRowItem(
             )
         }
 
-        // Action: "+ Tambah" if active workout is running, else chevron right
+        // Action: "Tambah" if active workout is running, else chevron right
         if (hasActiveWorkout) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.accentFill)
                     .clickable(onClick = onAddClick)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "+ Tambah",
+                    text = "Tambah",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.onAccentFill

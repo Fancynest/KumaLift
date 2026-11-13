@@ -398,22 +398,13 @@ fun ActiveWorkoutLoggerScreen(
                                     .clickable(onClick = onAddExerciseClick),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = LocalKumaColors.current.accentText,
-                                        modifier = Modifier.size(20.dp)
+                                Text(
+                                    text = "Tambah Gerakan",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = LocalKumaColors.current.textPrimary,
+                                        fontWeight = FontWeight.Bold
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Tambah Gerakan",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            color = LocalKumaColors.current.textPrimary,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
+                                )
                             }
 
                             Box(
@@ -579,24 +570,16 @@ fun ExerciseLoggingCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // + Add Set Button
-            Row(
+            // Add Set Button
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(KumaColors.SurfaceContainer)
                     .clickable(onClick = onAddSet),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = KumaColors.TextMuted,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Tambah Set",
                     style = MaterialTheme.typography.labelLarge.copy(

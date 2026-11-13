@@ -300,12 +300,12 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             // Exercise Preview Chips
-                            Row(
+                            LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                KumaBadge(text = "Deadlift")
-                                KumaBadge(text = "Barbell Row")
-                                KumaBadge(text = "Lat Pulldown")
+                                item { KumaBadge(text = "Deadlift") }
+                                item { KumaBadge(text = "Barbell Row") }
+                                item { KumaBadge(text = "Lat Pulldown") }
                             }
 
                             Spacer(modifier = Modifier.height(20.dp))

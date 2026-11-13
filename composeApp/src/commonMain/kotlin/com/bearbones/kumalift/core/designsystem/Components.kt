@@ -166,6 +166,8 @@ fun KumaBadge(
         }
         Text(
             text = text,
+            maxLines = 1,
+            softWrap = false,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = textColor

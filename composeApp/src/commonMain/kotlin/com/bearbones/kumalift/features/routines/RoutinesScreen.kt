@@ -271,10 +271,10 @@ fun RoutineCardItem(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Exercise Preview Tags
-            Row(
+            LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                routine.exerciseTemplates.take(3).forEach { ex ->
+                items(routine.exerciseTemplates) { ex ->
                     KumaBadge(text = ex.name)
                 }
             }

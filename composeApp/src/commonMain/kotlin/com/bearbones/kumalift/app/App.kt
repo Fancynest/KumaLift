@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,10 +29,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
 import com.bearbones.kumalift.data.repository.ExerciseRepository
@@ -68,8 +73,30 @@ fun App() {
     val personalRecordRepository = remember { PersonalRecordRepository() }
     val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
 
+    val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS) }
+    val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
+    val coroutineScope = rememberCoroutineScope()
+
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
+
+    // Sync pager swipe with currentScreen state
+    LaunchedEffect(pagerState.currentPage) {
+        val tab = mainTabs[pagerState.currentPage]
+        if (currentScreen in mainTabs && currentScreen != tab) {
+            currentScreen = tab
+        }
+    }
+
+    // Sync programmatic navigation with pager state
+    LaunchedEffect(currentScreen) {
+        if (currentScreen in mainTabs) {
+            val targetIndex = mainTabs.indexOf(currentScreen)
+            if (targetIndex >= 0 && pagerState.currentPage != targetIndex) {
+                pagerState.scrollToPage(targetIndex)
+            }
+        }
+    }
 
     KumaLiftTheme {
         Scaffold(
@@ -77,10 +104,19 @@ fun App() {
             bottomBar = {
                 // Show bottom navigation bar only on main screens (not inside fullscreen active logger or summary)
                 if (currentScreen != Screen.ACTIVE_LOGGER && currentScreen != Screen.SUMMARY) {
+                    val activeTab = if (currentScreen in mainTabs) mainTabs[pagerState.currentPage] else currentScreen
                     KumaBottomNavigation(
-                        currentScreen = currentScreen,
+                        currentScreen = activeTab,
                         hasActiveWorkout = activeWorkout != null,
-                        onTabSelected = { currentScreen = it },
+                        onTabSelected = { targetScreen ->
+                            currentScreen = targetScreen
+                            val targetIndex = mainTabs.indexOf(targetScreen)
+                            if (targetIndex >= 0) {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(targetIndex)
+                                }
+                            }
+                        },
                         onActiveLoggerClick = { currentScreen = Screen.ACTIVE_LOGGER }
                     )
                 }
@@ -91,39 +127,63 @@ fun App() {
                     .fillMaxSize()
                     .padding(bottom = paddingValues.calculateBottomPadding())
             ) {
-                Crossfade(targetState = currentScreen) { screen ->
-                    when (screen) {
-                        Screen.HOME -> HomeScreen(
+                when (currentScreen) {
+                    Screen.ACTIVE_LOGGER -> {
+                        ActiveWorkoutLoggerScreen(
                             workoutRepository = workoutRepository,
-                            onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
-                            onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER }
-                        )
-                        Screen.ROUTINES -> RoutinesScreen(
-                            routineRepository = routineRepository,
-                            workoutRepository = workoutRepository,
-                            onStartRoutine = { currentScreen = Screen.ACTIVE_LOGGER }
-                        )
-                        Screen.LIBRARY -> ExerciseLibraryScreen(
-                            exerciseRepository = exerciseRepository,
-                            workoutRepository = workoutRepository,
-                            onExerciseSelected = {
-                                if (activeWorkout != null) {
-                                    currentScreen = Screen.ACTIVE_LOGGER
+                            onNavigateBack = {
+                                currentScreen = mainTabs[pagerState.currentPage]
+                            },
+                            onFinishWorkout = { currentScreen = Screen.SUMMARY },
+                            onAddExerciseClick = {
+                                currentScreen = Screen.LIBRARY
+                                coroutineScope.launch {
+                                    pagerState.scrollToPage(mainTabs.indexOf(Screen.LIBRARY))
                                 }
                             }
                         )
-                        Screen.PROGRESS -> ProgressAnalyticsScreen(
-                            personalRecordRepository = personalRecordRepository
+                    }
+                    Screen.SUMMARY -> {
+                        WorkoutSummaryScreen(
+                            onSaveAndClose = {
+                                currentScreen = Screen.HOME
+                                coroutineScope.launch {
+                                    pagerState.scrollToPage(0)
+                                }
+                            }
                         )
-                        Screen.ACTIVE_LOGGER -> ActiveWorkoutLoggerScreen(
-                            workoutRepository = workoutRepository,
-                            onNavigateBack = { currentScreen = Screen.HOME },
-                            onFinishWorkout = { currentScreen = Screen.SUMMARY },
-                            onAddExerciseClick = { currentScreen = Screen.LIBRARY }
-                        )
-                        Screen.SUMMARY -> WorkoutSummaryScreen(
-                            onSaveAndClose = { currentScreen = Screen.HOME }
-                        )
+                    }
+                    else -> {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { page ->
+                            when (mainTabs[page]) {
+                                Screen.HOME -> HomeScreen(
+                                    workoutRepository = workoutRepository,
+                                    onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
+                                    onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER }
+                                )
+                                Screen.ROUTINES -> RoutinesScreen(
+                                    routineRepository = routineRepository,
+                                    workoutRepository = workoutRepository,
+                                    onStartRoutine = { currentScreen = Screen.ACTIVE_LOGGER }
+                                )
+                                Screen.LIBRARY -> ExerciseLibraryScreen(
+                                    exerciseRepository = exerciseRepository,
+                                    workoutRepository = workoutRepository,
+                                    onExerciseSelected = {
+                                        if (activeWorkout != null) {
+                                            currentScreen = Screen.ACTIVE_LOGGER
+                                        }
+                                    }
+                                )
+                                Screen.PROGRESS -> ProgressAnalyticsScreen(
+                                    personalRecordRepository = personalRecordRepository
+                                )
+                                else -> Unit
+                            }
+                        }
                     }
                 }
             }

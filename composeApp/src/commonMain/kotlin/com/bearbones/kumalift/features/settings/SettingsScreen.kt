@@ -131,7 +131,7 @@ fun SettingsScreen(
                             // Name Input
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = if (isEnglish) "Name (used in greeting)" else "Nama Panggilan (untuk sapaan beranda)",
+                                    text = if (isEnglish) "Name" else "Nama Panggilan",
                                     style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
                                 )
                                 SettingsInputField(
@@ -359,7 +359,7 @@ fun SettingsScreen(
                             // Sex
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = if (isEnglish) "Sex (for strength standards)" else "Jenis Kelamin (untuk standar kekuatan)",
+                                    text = if (isEnglish) "Sex" else "Jenis Kelamin",
                                     style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
                                 )
                                 Row(

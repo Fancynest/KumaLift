@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaLogoMark
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -79,11 +80,10 @@ fun HomeScreen(
                             .background(KumaColors.SurfaceContainer),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = KumaColors.ElectricLime,
-                            modifier = Modifier.size(24.dp)
+                        KumaLogoMark(
+                            modifier = Modifier.size(24.dp),
+                            accentColor = KumaColors.ElectricLime,
+                            darkColor = KumaColors.SurfaceContainer
                         )
                     }
                     Text(

@@ -63,7 +63,8 @@ fun ExerciseThumbnail(
 /**
  * Large animated visual card for the exercise detail screen.
  * Displays the authentic GIF animation from exercises-dataset `gif_url`.
- * Always includes the required attribution notice: "© Gym visual — https://gymvisual.com/".
+ * Seamlessly expands across full width with white background matching the GIF artwork.
+ * Shows attribution notice "© Gym visual" without URL per user design preference.
  */
 @Composable
 fun ExerciseVisualAnimation(
@@ -76,20 +77,17 @@ fun ExerciseVisualAnimation(
         modifier = modifier
             .fillMaxWidth()
             .height(280.dp)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0D0F14), Color(0xFF161A22))
-                )
-            ),
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
         // Authentic GIF Animation from dataset (videos/....gif)
+        // Set on pure white background to span seamlessly edge-to-edge
         ExerciseGifMedia(
             assetPath = exercise.gifUrl,
             contentDescription = exercise.name,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 12.dp, horizontal = 24.dp)
+                .padding(vertical = 8.dp)
         )
 
         // Muscle label badge — top-left
@@ -98,7 +96,7 @@ fun ExerciseVisualAnimation(
                 .align(Alignment.TopStart)
                 .padding(14.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF1C2028).copy(alpha = 0.85f))
+                .background(Color(0xFF14171F).copy(alpha = 0.85f))
                 .padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -113,8 +111,8 @@ fun ExerciseVisualAnimation(
                 text = exercise.primaryMuscle.displayName,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    color = Color(0xFFCDD5E0),
-                    fontWeight = FontWeight.Medium
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
                 )
             )
         }
@@ -125,7 +123,7 @@ fun ExerciseVisualAnimation(
                 .align(Alignment.TopEnd)
                 .padding(14.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF1C2028).copy(alpha = 0.85f))
+                .background(Color(0xFF14171F).copy(alpha = 0.85f))
                 .padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -133,33 +131,39 @@ fun ExerciseVisualAnimation(
             Icon(
                 imageVector = Icons.Default.FitnessCenter,
                 contentDescription = null,
-                tint = Color(0xFF8899AA),
+                tint = Color(0xFFC6FF3D),
                 modifier = Modifier.size(11.dp)
             )
             Text(
                 text = exercise.equipment.displayName,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    color = Color(0xFF8899AA)
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium
                 )
             )
         }
 
-        // Mandatory Copyright Attribution Banner — bottom-center (Do not remove per License)
+        // Attribution Notice — bottom (without URL per user request)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(Color(0xFF0C0E12).copy(alpha = 0.85f))
-                .padding(vertical = 6.dp, horizontal = 12.dp),
+                .background(Color.White.copy(alpha = 0.85f))
+                .padding(vertical = 4.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
+            val cleanAttribution = exercise.attribution
+                .replace(" — https://gymvisual.com/", "")
+                .replace(" - https://gymvisual.com/", "")
+                .ifBlank { "© Gym visual" }
+
             Text(
-                text = exercise.attribution.ifBlank { "© Gym visual — https://gymvisual.com/" },
+                text = cleanAttribution,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = Color(0xFF9CA3AF),
-                    fontWeight = FontWeight.Normal
+                    color = Color(0xFF6B7280),
+                    fontWeight = FontWeight.Medium
                 )
             )
         }

@@ -111,6 +111,7 @@ private fun ExerciseCatalogList(
     var searchQuery by remember { mutableStateOf("") }
     var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
     var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
+    var selectedMovementType by remember { mutableStateOf<MovementType?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
 
     val allExercises by exerciseRepository.exercises.collectAsState()
@@ -124,12 +125,14 @@ private fun ExerciseCatalogList(
             exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
             exercise.subMuscle.contains(query, ignoreCase = true) ||
             exercise.equipment.displayName.contains(query, ignoreCase = true) ||
-            exercise.equipment.code.contains(query, ignoreCase = true)
+            exercise.equipment.code.contains(query, ignoreCase = true) ||
+            exercise.movementType.displayName.contains(query, ignoreCase = true)
 
         val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
         val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment
+        val matchesMovementType = selectedMovementType == null || exercise.movementType == selectedMovementType
 
-        matchesQuery && matchesMuscle && matchesEquipment
+        matchesQuery && matchesMuscle && matchesEquipment && matchesMovementType
     }
 
     Box(
@@ -227,74 +230,124 @@ private fun ExerciseCatalogList(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Filter Buttons Row: All Equipment | All Muscles | Muscle Groups
+                // Filter Row 1: Target Otot (Semua Otot, Dada, Punggung, Kaki, Bahu, Lengan, Core, Kardio, Leher)
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 2.dp)
                 ) {
                     item {
-                        FilterDropdownPill(
-                            label = selectedEquipment?.displayName ?: "All Equipment",
-                            isSelected = selectedEquipment != null,
-                            onClick = {
-                                selectedEquipment = when (selectedEquipment) {
-                                    null -> Equipment.BARBELL
-                                    Equipment.BARBELL -> Equipment.DUMBBELL
-                                    Equipment.DUMBBELL -> Equipment.CABLE
-                                    Equipment.CABLE -> Equipment.MACHINE
-                                    Equipment.MACHINE -> Equipment.BODYWEIGHT
-                                    else -> null
-                                }
-                            }
-                        )
-                    }
-
-                    item {
-                        FilterDropdownPill(
-                            label = selectedMuscle?.displayName ?: "All Muscles",
+                        FilterPill(
+                            label = "Semua Otot",
                             isSelected = selectedMuscle == null,
-                            onClick = {
-                                selectedMuscle = null
-                            }
+                            onClick = { selectedMuscle = null }
                         )
                     }
 
                     items(MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }) { muscle ->
-                        val isSelected = selectedMuscle == muscle
-                        Box(
-                            modifier = Modifier
-                                .clip(PillShape)
-                                .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
-                                .clickable {
-                                    selectedMuscle = if (isSelected) null else muscle
-                                }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                        ) {
-                            Text(
-                                text = muscle.displayName,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) colors.onAccentFill else colors.textPrimary
-                                )
-                            )
-                        }
+                        FilterPill(
+                            label = muscle.displayName,
+                            isSelected = selectedMuscle == muscle,
+                            onClick = {
+                                selectedMuscle = if (selectedMuscle == muscle) null else muscle
+                            }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Section Header: "Exercises (count)"
-                Text(
-                    text = "Exercises (${filteredExercises.size})",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        fontSize = 16.sp
+                // Filter Row 2: Alat / Equipment (Semua Alat, Barbell, Dumbbell, Machine, Cable, Bodyweight, etc.)
+                LazyRow(
+                    modifier = Modifier.isolateHorizontalScroll(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp)
+                ) {
+                    item {
+                        FilterPill(
+                            label = "Semua Alat",
+                            isSelected = selectedEquipment == null,
+                            onClick = { selectedEquipment = null }
+                        )
+                    }
+
+                    items(Equipment.entries) { eq ->
+                        FilterPill(
+                            label = eq.displayName,
+                            isSelected = selectedEquipment == eq,
+                            onClick = {
+                                selectedEquipment = if (selectedEquipment == eq) null else eq
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Filter Row 3: Tipe Gerakan (Semua Tipe, Compound, Isolasi)
+                LazyRow(
+                    modifier = Modifier.isolateHorizontalScroll(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp)
+                ) {
+                    item {
+                        FilterPill(
+                            label = "Semua Tipe",
+                            isSelected = selectedMovementType == null,
+                            onClick = { selectedMovementType = null }
+                        )
+                    }
+
+                    items(MovementType.entries) { mt ->
+                        FilterPill(
+                            label = mt.displayName,
+                            isSelected = selectedMovementType == mt,
+                            onClick = {
+                                selectedMovementType = if (selectedMovementType == mt) null else mt
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Section Header: "Exercises (count)" + Reset Filter
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Exercises (${filteredExercises.size})",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary,
+                            fontSize = 16.sp
+                        )
                     )
-                )
+
+                    if (selectedMuscle != null || selectedEquipment != null || selectedMovementType != null || searchQuery.isNotBlank()) {
+                        Text(
+                            text = "Reset Filter",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.accentText,
+                                fontSize = 12.sp
+                            ),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    selectedMuscle = null
+                                    selectedEquipment = null
+                                    selectedMovementType = null
+                                    searchQuery = ""
+                                }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -428,8 +481,12 @@ private fun ExerciseRowItem(
 
         Spacer(modifier = Modifier.width(14.dp))
 
-        // Title & Muscle Subtitle
-        Column(modifier = Modifier.weight(1f)) {
+        // Title & Muscle Subtitle with end padding to prevent overlap with buttons
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp)
+        ) {
             Text(
                 text = exercise.name,
                 style = MaterialTheme.typography.bodyLarge.copy(
@@ -438,7 +495,8 @@ private fun ExerciseRowItem(
                     fontSize = 15.sp
                 ),
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(2.dp))
@@ -449,7 +507,10 @@ private fun ExerciseRowItem(
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = colors.textSecondary,
                     fontSize = 13.sp
-                )
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
             )
         }
 
@@ -460,7 +521,7 @@ private fun ExerciseRowItem(
                     .clip(RoundedCornerShape(8.dp))
                     .background(colors.accentFill)
                     .clickable(onClick = onAddClick)
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -484,7 +545,7 @@ private fun ExerciseRowItem(
 }
 
 @Composable
-private fun FilterDropdownPill(
+private fun FilterPill(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit

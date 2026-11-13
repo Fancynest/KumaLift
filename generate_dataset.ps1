@@ -75,6 +75,48 @@ function Map-Equipment([string]$eq) {
     }
 }
 
+function Get-MovementType($ex) {
+    $name = $ex.name.ToLower().Trim()
+    $target = $ex.target.ToLower().Trim()
+    $bodyPart = $ex.body_part.ToLower().Trim()
+    $secCount = if ($ex.secondary_muscles) { $ex.secondary_muscles.Count } else { 0 }
+
+    # Major compound indicators (multi-joint movements)
+    if ($name -match "squat|press|deadlift|clean|snatch|row|pull-up|chin-up|dip|lunge|thruster|burpee|step-up|push-up|pushup") {
+        if ($name -notmatch "pressdown|wrist") {
+            return "MovementType.COMPOUND"
+        }
+    }
+
+    # Major isolation indicators (single joint motions)
+    if ($name -match "curl|extension|fly|raise|lateral|shrug|crunch|kickback|pushdown|wrist|abduction|adduction|side bend|calf|twist|sit-up|pullover|hyper|hyperextension") {
+        return "MovementType.ISOLATION"
+    }
+
+    # If body part is arms or lower legs and few secondary muscles, it's isolation
+    if (($bodyPart -match "arm|lower leg") -and ($secCount -le 1)) {
+        return "MovementType.ISOLATION"
+    }
+
+    # If target is specific isolation target
+    if ($target -match "biceps|triceps|forearms|calves|brachialis" -and ($secCount -le 1)) {
+        return "MovementType.ISOLATION"
+    }
+
+    # Core exercises
+    if ($bodyPart -eq "waist") {
+        if ($name -match "crunch|twist|bend|rollout|sit-up|toucher|bridge|flutter|scissor|hollow") {
+            return "MovementType.ISOLATION"
+        }
+    }
+
+    if ($secCount -ge 2) {
+        return "MovementType.COMPOUND"
+    }
+
+    return "MovementType.COMPOUND"
+}
+
 $sb = [System.Text.StringBuilder]::new()
 [void]$sb.AppendLine("// Code generated from exercises-dataset/data/exercises.json. DO NOT EDIT DIRECTLY.")
 [void]$sb.AppendLine("package com.bearbones.kumalift.data.local")
@@ -128,7 +170,8 @@ for ($c = 0; $c -lt $totalChunks; $c++) {
 
         $imagePath = Escape-Kt $ex.image
         $gifPath = Escape-Kt $ex.gif_url
-        $attributionStr = "© Gym visual — https://gymvisual.com/"
+        $attributionStr = "© Gym visual"
+        $movementTypeCode = Get-MovementType $ex
 
         $prCode = ""
         if ($id -eq "0025") {
@@ -144,7 +187,7 @@ for ($c = 0; $c -lt $totalChunks; $c++) {
         [void]$sb.AppendLine("            secondaryMuscleDetails = `"$secDetailsStr`",")
         [void]$sb.AppendLine("            equipment = $equipmentCode,")
         [void]$sb.AppendLine("            equipmentDetail = `"$eqDetail`",")
-        [void]$sb.AppendLine("            movementType = MovementType.COMPOUND,")
+        [void]$sb.AppendLine("            movementType = $movementTypeCode,")
         [void]$sb.AppendLine("            level = ExperienceLevel.BEGINNER,")
         [void]$sb.AppendLine("            instructions = `"$instr`",")
         [void]$sb.AppendLine("            instructionSteps = $stepsCode,")

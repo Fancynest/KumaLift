@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,12 +37,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
+import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
@@ -50,12 +55,16 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 fun RoutinesScreen(
     routineRepository: RoutineRepository,
     workoutRepository: WorkoutRepository,
+    exerciseRepository: ExerciseRepository = remember { ExerciseRepository() },
     onStartRoutine: () -> Unit
 ) {
     val routines by routineRepository.routines.collectAsState()
     var selectedCategory by remember { mutableStateOf("Semua Program") }
+    var showCreateRoutineScreen by remember { mutableStateOf(false) }
 
-    val categories = listOf("Semua Program", "PPL Split", "Upper / Lower", "Full Body")
+    val categories = remember(routines) {
+        listOf("Semua Program") + routines.map { it.splitCategory }.distinct()
+    }
 
     val filteredRoutines = if (selectedCategory == "Semua Program") {
         routines
@@ -76,6 +85,7 @@ fun RoutinesScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -85,6 +95,35 @@ fun RoutinesScreen(
                         color = KumaColors.TextWhite
                     )
                 )
+
+                // Button "+ Buat Pola"
+                Box(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(LocalKumaColors.current.accentFill)
+                        .clickable { showCreateRoutineScreen = true }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Buat Pola",
+                            tint = LocalKumaColors.current.onAccentFill,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Buat Pola",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = LocalKumaColors.current.onAccentFill
+                            )
+                        )
+                    }
+                }
             }
 
             LazyColumn(
@@ -214,7 +253,10 @@ fun RoutinesScreen(
                         onStart = {
                             workoutRepository.startWorkoutFromRoutine(routine)
                             onStartRoutine()
-                        }
+                        },
+                        onDelete = if (routine.id.startsWith("custom_")) {
+                            { routineRepository.deleteRoutine(routine.id) }
+                        } else null
                     )
                 }
 
@@ -223,13 +265,25 @@ fun RoutinesScreen(
                 }
             }
         }
+
+        if (showCreateRoutineScreen) {
+            CreateRoutineScreen(
+                exerciseRepository = exerciseRepository,
+                onNavigateBack = { showCreateRoutineScreen = false },
+                onSaveRoutine = { newRoutine ->
+                    routineRepository.addRoutine(newRoutine)
+                    showCreateRoutineScreen = false
+                }
+            )
+        }
     }
 }
 
 @Composable
 fun RoutineCardItem(
     routine: RoutineBlueprint,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
@@ -243,11 +297,26 @@ fun RoutineCardItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 KumaBadge(text = routine.splitCategory)
-                Text(
-                    text = routine.lastPerformedDaysAgo?.let { "Last: $it" } ?: "New",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = KumaColors.TextMuted
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = routine.lastPerformedDaysAgo?.let { "Last: $it" } ?: "New",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = KumaColors.TextMuted
+                    )
+                    if (onDelete != null) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Hapus Pola",
+                            tint = KumaColors.TextMuted,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable(onClick = onDelete)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

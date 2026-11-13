@@ -53,6 +53,8 @@ import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.data.repository.rememberExerciseRepository
+import com.bearbones.kumalift.data.repository.rememberRoutineRepository
 import com.bearbones.kumalift.data.repository.rememberSettingsRepository
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
@@ -76,8 +78,8 @@ enum class Screen {
 
 @Composable
 fun App() {
-    val exerciseRepository = remember { ExerciseRepository() }
-    val routineRepository = remember { RoutineRepository() }
+    val exerciseRepository = rememberExerciseRepository()
+    val routineRepository = rememberRoutineRepository(exerciseRepository)
     val personalRecordRepository = remember { PersonalRecordRepository() }
     val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
     val settingsRepository = rememberSettingsRepository()
@@ -190,6 +192,7 @@ fun App() {
                                 Screen.ROUTINES -> RoutinesScreen(
                                     routineRepository = routineRepository,
                                     workoutRepository = workoutRepository,
+                                    exerciseRepository = exerciseRepository,
                                     onStartRoutine = { currentScreen = Screen.ACTIVE_LOGGER }
                                 )
                                 Screen.LIBRARY -> ExerciseLibraryScreen(

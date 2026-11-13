@@ -15,9 +15,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class ExerciseRepository {
-    private val _exercises = MutableStateFlow(SeedData.defaultExercises)
+class ExerciseRepository(
+    initialExercises: List<Exercise> = SeedData.defaultExercises,
+    private val onSaveCustom: ((List<Exercise>) -> Unit)? = null
+) {
+    private val _exercises = MutableStateFlow(initialExercises)
     val exercises: StateFlow<List<Exercise>> = _exercises.asStateFlow()
+
+    fun getExerciseById(id: String): Exercise? {
+        return _exercises.value.find { it.id == id }
+    }
 
     fun searchExercises(
         query: String = "",
@@ -53,7 +60,11 @@ class ExerciseRepository {
             defaultIncrementKg = 2.5
         )
         // Prepend to top of list so the user immediately sees the new exercise in the catalog
-        _exercises.update { listOf(newEx) + it }
+        _exercises.update { current ->
+            val updated = listOf(newEx) + current
+            onSaveCustom?.invoke(updated.filter { it.id.startsWith("custom_") })
+            updated
+        }
         return newEx
     }
 
@@ -66,12 +77,31 @@ class ExerciseRepository {
     }
 }
 
-class RoutineRepository {
-    private val _routines = MutableStateFlow(SeedData.defaultRoutines)
+class RoutineRepository(
+    initialRoutines: List<RoutineBlueprint> = SeedData.defaultRoutines,
+    private val onSave: ((List<RoutineBlueprint>) -> Unit)? = null
+) {
+    private val _routines = MutableStateFlow(initialRoutines)
     val routines: StateFlow<List<RoutineBlueprint>> = _routines.asStateFlow()
 
     fun getRoutineById(id: String): RoutineBlueprint? {
         return _routines.value.find { it.id == id }
+    }
+
+    fun addRoutine(routine: RoutineBlueprint) {
+        _routines.update { current ->
+            val updated = listOf(routine) + current
+            onSave?.invoke(updated)
+            updated
+        }
+    }
+
+    fun deleteRoutine(routineId: String) {
+        _routines.update { current ->
+            val updated = current.filterNot { it.id == routineId }
+            onSave?.invoke(updated)
+            updated
+        }
     }
 }
 

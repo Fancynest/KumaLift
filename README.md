@@ -1,0 +1,64 @@
+# KumaLift 🐻⚡
+
+**Minimalist High-Precision Strength Telemetry & Training Logger**
+
+Built with **Compose Multiplatform (CMP)** targeting **Android** and **iOS** from a shared Kotlin codebase.
+
+---
+
+## 🎨 Design System: "Iron & Electric Minimalist Athletic"
+- **Backgrounds:** `#0C0E12` (Lowest), `#111317` (Surface)
+- **Cards & Surfaces:** `#1A1C20`, `#1E2024`, `#282A2E`
+- **Primary Accent:** `#C6FF3D` (Electric Lime - strictly for completions, PRs, active telemetry, and CTAs)
+- **Typography:** Inter with Tabular Numerals (`tnum`) for zero jitter during active sets and timers
+- **Touch Ergonomics:** 48px+ touch targets, bottom-weighted controls for one-handed gym usage
+
+---
+
+## 📁 Project Structure
+
+```text
+KumaLift/
+├── composeApp/
+│   └── src/
+│       ├── commonMain/kotlin/com/bearbones/kumalift/
+│       │   ├── app/              # App(), Navigation Shell, Bottom Tabs
+│       │   ├── core/
+│       │   │   ├── designsystem/ # Color, Type, Shape, Theme, Reusable Components
+│       │   │   ├── timer/        # RestTimer + Expect/Actual feedback
+│       │   │   └── util/         # 1RM (Epley & Brzycki), Volume & Distribution
+│       │   ├── data/
+│       │   │   ├── local/        # Pre-seeded exercises, routines, PRs
+│       │   │   └── repository/   # WorkoutRepository, ExerciseRepository, etc.
+│       │   ├── domain/model/     # Workout, Exercise, SetLog, PersonalRecord, Routine
+│       │   └── features/
+│       │       ├── home/         # Home Dashboard & 7-day Weekly Horizon
+│       │       ├── logger/       # Active Workout Logger & Persistent Rest Timer
+│       │       ├── routines/     # Mesocycle & Routine Blueprints
+│       │       ├── library/      # Exercise Library & Muscle Filters
+│       │       ├── summary/      # Post-session debrief & Volume Breakdown
+│       │       └── progress/     # 1RM Trajectory & Volume Charts
+│       ├── commonTest/           # Unit tests (1RM, Volume, PR Detection)
+│       ├── androidMain/          # Android MainActivity, Manifest
+│       └── iosMain/              # iOS MainViewController
+├── iosApp/                       # iOS Xcode SwiftUI wrapper
+└── gradle/libs.versions.toml     # Version catalog
+```
+
+---
+
+## 🚀 Running the Project
+
+### Android
+```bash
+./gradlew :composeApp:installDebug
+```
+or open in Android Studio and select the **composeApp** run configuration.
+
+### Tests
+```bash
+./gradlew :composeApp:allTests
+```
+
+### iOS (on macOS)
+Open `iosApp/` in Xcode or run via CI/CD runner.

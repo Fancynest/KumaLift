@@ -71,6 +71,7 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 @Composable
 fun CreateRoutineScreen(
     exerciseRepository: ExerciseRepository,
+    isEnglish: Boolean = false,
     onNavigateBack: () -> Unit,
     onSaveRoutine: (RoutineBlueprint) -> Unit
 ) {
@@ -100,9 +101,9 @@ fun CreateRoutineScreen(
         selectedCategory
     }
 
-    val autoMuscleFocus = remember(selectedExercises.toList()) {
-        val muscles = selectedExercises.map { it.primaryMuscle.displayName }.distinct()
-        if (muscles.isEmpty()) "Full Body" else muscles.joinToString(" · ")
+    val autoMuscleFocus = remember(selectedExercises.toList(), isEnglish) {
+        val muscles = selectedExercises.map { it.primaryMuscle.localizedName(isEnglish) }.distinct()
+        if (muscles.isEmpty()) (if (isEnglish) "Full Body" else "Seluruh Tubuh") else muscles.joinToString(" · ")
     }
 
     val isTitleValid = routineTitle.trim().isNotEmpty()
@@ -524,6 +525,7 @@ fun CreateRoutineScreen(
                                 SelectedExerciseRow(
                                     index = index + 1,
                                     exercise = exercise,
+                                    isEnglish = isEnglish,
                                     onRemove = { selectedExercises.removeAt(index) }
                                 )
                             }
@@ -541,7 +543,7 @@ fun CreateRoutineScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Tambah Gerakan Lainnya",
+                                    text = if (isEnglish) "Add Another Exercise" else "Tambah Gerakan Lainnya",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         color = colors.accentText,
                                         fontWeight = FontWeight.Bold
@@ -561,6 +563,7 @@ fun CreateRoutineScreen(
             ExercisePickerModal(
                 exerciseRepository = exerciseRepository,
                 selectedIds = selectedExercises.map { it.id }.toSet(),
+                isEnglish = isEnglish,
                 onAddExercise = { ex ->
                     if (!selectedExercises.any { it.id == ex.id }) {
                         selectedExercises.add(ex)
@@ -576,6 +579,7 @@ fun CreateRoutineScreen(
 private fun SelectedExerciseRow(
     index: Int,
     exercise: Exercise,
+    isEnglish: Boolean = false,
     onRemove: () -> Unit
 ) {
     val colors = LocalKumaColors.current
@@ -637,7 +641,7 @@ private fun SelectedExerciseRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${exercise.primaryMuscle.displayName} · ${exercise.equipment.displayName}",
+                    text = "${exercise.primaryMuscle.localizedName(isEnglish)} · ${exercise.equipment.localizedName(isEnglish)}",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textSecondary
                     ),
@@ -655,7 +659,7 @@ private fun SelectedExerciseRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Hapus",
+                    contentDescription = if (isEnglish) "Remove" else "Hapus",
                     tint = colors.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -669,6 +673,7 @@ private fun SelectedExerciseRow(
 private fun ExercisePickerModal(
     exerciseRepository: ExerciseRepository,
     selectedIds: Set<String>,
+    isEnglish: Boolean = false,
     onAddExercise: (Exercise) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -680,14 +685,14 @@ private fun ExercisePickerModal(
     var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
 
     val muscleOptions = listOf(
-        null to "Semua",
-        MuscleGroup.CHEST to "Dada",
-        MuscleGroup.BACK to "Punggung",
-        MuscleGroup.LEGS to "Kaki",
-        MuscleGroup.SHOULDERS to "Bahu",
-        MuscleGroup.ARMS to "Lengan",
-        MuscleGroup.CORE to "Core",
-        MuscleGroup.CARDIO to "Kardio"
+        null to (if (isEnglish) "All" else "Semua"),
+        MuscleGroup.CHEST to MuscleGroup.CHEST.localizedName(isEnglish),
+        MuscleGroup.BACK to MuscleGroup.BACK.localizedName(isEnglish),
+        MuscleGroup.LEGS to MuscleGroup.LEGS.localizedName(isEnglish),
+        MuscleGroup.SHOULDERS to MuscleGroup.SHOULDERS.localizedName(isEnglish),
+        MuscleGroup.ARMS to MuscleGroup.ARMS.localizedName(isEnglish),
+        MuscleGroup.CORE to MuscleGroup.CORE.localizedName(isEnglish),
+        MuscleGroup.CARDIO to MuscleGroup.CARDIO.localizedName(isEnglish)
     )
 
     val filteredList = remember(searchQuery, selectedMuscle, allExercises) {

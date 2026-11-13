@@ -260,7 +260,7 @@ fun HomeScreen(
                                         .padding(horizontal = 10.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "88% · PRIMA",
+                                        text = if (isEnglish) "88% · OPTIMAL" else "88% · PRIMA",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = colors.accentText,
                                             fontWeight = FontWeight.Bold
@@ -271,7 +271,7 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Pemulihan jantung & otot optimal (RHR: 56 BPM). Siap mendorong beban berat atau mencoba PR hari ini.",
+                                text = if (isEnglish) "Heart & muscle recovery optimal (RHR: 56 BPM). Ready for heavy lifting or a PR attempt today." else "Pemulihan jantung & otot optimal (RHR: 56 BPM). Siap mendorong beban berat atau mencoba PR hari ini.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KumaColors.TextSecondary,
                                     lineHeight = 18.sp
@@ -295,7 +295,7 @@ fun HomeScreen(
                                             .background(colors.accentFill)
                                     )
                                     Text(
-                                        text = "Sinkron via Health Connect",
+                                        text = if (isEnglish) "Synced via Health Connect" else "Sinkron via Health Connect",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = colors.accentText,
                                             fontSize = 11.sp
@@ -303,7 +303,7 @@ fun HomeScreen(
                                     )
                                 }
                                 Text(
-                                    text = "Tidur 7j 42m",
+                                    text = if (isEnglish) "Sleep 7h 42m" else "Tidur 7j 42m",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.TextMuted,
                                         fontSize = 11.sp
@@ -347,7 +347,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "4 gerakan · 16 set · ~55 mnt",
+                                text = if (isEnglish) "4 exercises · 16 sets · ~55 min" else "4 gerakan · 16 set · ~55 mnt",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextSecondary
                             )
@@ -367,7 +367,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(20.dp))
 
                             KumaPrimaryButton(
-                                text = "MULAI LATIHAN",
+                                text = if (isEnglish) "START WORKOUT" else "MULAI LATIHAN",
                                 onClick = onStartWorkout
                             )
                         }
@@ -382,21 +382,21 @@ fun HomeScreen(
                     ) {
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "TOTAL SESI",
+                            label = if (isEnglish) "TOTAL SESSIONS" else "TOTAL SESI",
                             value = "18",
-                            subtext = "+3 dr bln lalu"
+                            subtext = if (isEnglish) "+3 vs last mo" else "+3 dr bln lalu"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "TOTAL BEBAN",
+                            label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
                             value = "64.2k",
-                            subtext = "+12% tonase"
+                            subtext = if (isEnglish) "+12% tonnage" else "+12% tonase"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "REKOR (PR)",
+                            label = if (isEnglish) "RECORDS (PR)" else "REKOR (PR)",
                             value = "3",
-                            subtext = "Rekor baru",
+                            subtext = if (isEnglish) "New records" else "Rekor baru",
                             isAccent = true
                         )
                     }
@@ -406,7 +406,7 @@ fun HomeScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Riwayat Latihan",
+                            text = if (isEnglish) "Recent Workouts" else "Riwayat Latihan",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             )
@@ -434,7 +434,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Kemarin · 14.850 kg · 47 mnt",
+                                        text = if (isEnglish) "Yesterday · 14,850 kg · 47 min" else "Kemarin · 14.850 kg · 47 mnt",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = KumaColors.TextMuted
                                     )
@@ -455,13 +455,13 @@ fun HomeScreen(
                                 .background(KumaColors.SurfaceContainer)
                                 .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(14.dp))
                                 .clickable {
-                                    workoutRepository.startEmptyWorkout()
+                                    workoutRepository.startEmptyWorkout(if (isEnglish) "Freestyle Workout" else "Latihan Bebas")
                                     onStartFreestyle()
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Latihan Bebas (Freestyle)",
+                                text = if (isEnglish) "Freestyle Workout" else "Latihan Bebas",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     color = LocalKumaColors.current.textPrimary,
                                     fontWeight = FontWeight.Bold

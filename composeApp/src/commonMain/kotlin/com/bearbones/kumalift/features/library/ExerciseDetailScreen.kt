@@ -84,6 +84,7 @@ enum class MetricSwitcherType {
 @Composable
 fun ExerciseDetailScreen(
     exercise: Exercise,
+    isEnglish: Boolean = false,
     onNavigateBack: () -> Unit,
     onAddExercise: (() -> Unit)? = null,
     onSaveNote: ((String) -> Unit)? = null
@@ -158,12 +159,12 @@ fun ExerciseDetailScreen(
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text("Tambah", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(if (isEnglish) "Add" else "Tambah", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
 
-            // Top Tab Navigation: Summary | How to (History & Leaderboard crossed out per red X)
+            // Top Tab Navigation: Summary | How to
             TabRow(
                 selectedTabIndex = if (selectedTab == ExerciseDetailTab.SUMMARY) 0 else 1,
                 containerColor = KumaColors.SurfaceDim,
@@ -189,7 +190,7 @@ fun ExerciseDetailScreen(
                     onClick = { selectedTab = ExerciseDetailTab.SUMMARY },
                     text = {
                         Text(
-                            text = "Summary",
+                            text = if (isEnglish) "Summary" else "Ringkasan",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = if (selectedTab == ExerciseDetailTab.SUMMARY) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == ExerciseDetailTab.SUMMARY) colors.accentText else colors.textSecondary
@@ -202,7 +203,7 @@ fun ExerciseDetailScreen(
                     onClick = { selectedTab = ExerciseDetailTab.HOW_TO },
                     text = {
                         Text(
-                            text = "How to",
+                            text = if (isEnglish) "How to" else "Panduan",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = if (selectedTab == ExerciseDetailTab.HOW_TO) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == ExerciseDetailTab.HOW_TO) colors.accentText else colors.textSecondary
@@ -245,9 +246,8 @@ fun ExerciseDetailScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                val subMuscleStr = if (exercise.subMuscle.isNotBlank()) " · ${exercise.subMuscle}" else ""
                                 Text(
-                                    text = "Primary: ${exercise.primaryMuscle.displayName}$subMuscleStr",
+                                    text = if (isEnglish) "Target: ${exercise.localizedMuscleSubtitle(true)}" else "Otot Utama: ${exercise.localizedMuscleSubtitle(false)}",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary,
                                         fontWeight = FontWeight.Medium
@@ -257,13 +257,13 @@ fun ExerciseDetailScreen(
                                 val secondaryStr = if (exercise.secondaryMuscleDetails.isNotBlank()) {
                                     exercise.secondaryMuscleDetails
                                 } else if (exercise.secondaryMuscles.isNotEmpty()) {
-                                    exercise.secondaryMuscles.joinToString(", ") { it.displayName }
+                                    exercise.secondaryMuscles.joinToString(", ") { it.localizedName(isEnglish) }
                                 } else {
-                                    "Otot stabilisator pendukung"
+                                    if (isEnglish) "Stabilizer muscles" else "Otot stabilisator pendukung"
                                 }
 
                                 Text(
-                                    text = "Secondary: $secondaryStr",
+                                    text = if (isEnglish) "Secondary: $secondaryStr" else "Otot Pendukung: $secondaryStr",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary
                                     )
@@ -293,7 +293,7 @@ fun ExerciseDetailScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
-                                        text = "How to log ${exercise.equipment.displayName.lowercase()} exercises",
+                                        text = if (isEnglish) "How to log ${exercise.equipment.localizedName(true).lowercase()} exercises" else "Cara mencatat gerakan ${exercise.equipment.localizedName(false).lowercase()}",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.Medium
@@ -328,7 +328,7 @@ fun ExerciseDetailScreen(
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         Text(
-                                            text = "No data yet",
+                                            text = if (isEnglish) "No workout logs yet" else "Belum ada riwayat beban",
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = colors.textSecondary
                                             )
@@ -344,9 +344,9 @@ fun ExerciseDetailScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     listOf(
-                                        MetricSwitcherType.HEAVIEST_WEIGHT to "Heaviest Weight",
-                                        MetricSwitcherType.ONE_REP_MAX to "One Rep Max",
-                                        MetricSwitcherType.BEST_SET_VOLUME to "Best Set Vol"
+                                        MetricSwitcherType.HEAVIEST_WEIGHT to (if (isEnglish) "Heaviest Weight" else "Beban Terberat"),
+                                        MetricSwitcherType.ONE_REP_MAX to (if (isEnglish) "One Rep Max" else "Beban 1RM"),
+                                        MetricSwitcherType.BEST_SET_VOLUME to (if (isEnglish) "Best Set Vol" else "Volume Terbaik")
                                     ).forEach { (metric, label) ->
                                         val isSelected = selectedMetric == metric
                                         Box(

@@ -56,6 +56,7 @@ import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
 import com.bearbones.kumalift.data.repository.rememberSettingsRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
@@ -91,6 +92,7 @@ fun App() {
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
+    val isEnglish = settings.appearance.language == AppLanguage.EN
 
     // Sync pager swipe with currentScreen state
     LaunchedEffect(pagerState.currentPage) {
@@ -123,6 +125,7 @@ fun App() {
                     KumaBottomNavigation(
                         currentScreen = activeTab,
                         hasActiveWorkout = activeWorkout != null,
+                        isEnglish = isEnglish,
                         onTabSelected = { targetScreen ->
                             currentScreen = targetScreen
                             val targetIndex = mainTabs.indexOf(targetScreen)
@@ -146,6 +149,7 @@ fun App() {
                     Screen.ACTIVE_LOGGER -> {
                         ActiveWorkoutLoggerScreen(
                             workoutRepository = workoutRepository,
+                            settingsRepository = settingsRepository,
                             onNavigateBack = {
                                 currentScreen = mainTabs[pagerState.currentPage]
                             },
@@ -160,6 +164,9 @@ fun App() {
                     }
                     Screen.SUMMARY -> {
                         WorkoutSummaryScreen(
+                            workout = activeWorkout,
+                            workoutRepository = workoutRepository,
+                            settingsRepository = settingsRepository,
                             onSaveAndClose = {
                                 currentScreen = Screen.HOME
                                 coroutineScope.launch {
@@ -193,11 +200,13 @@ fun App() {
                                     routineRepository = routineRepository,
                                     workoutRepository = workoutRepository,
                                     exerciseRepository = exerciseRepository,
+                                    settingsRepository = settingsRepository,
                                     onStartRoutine = { currentScreen = Screen.ACTIVE_LOGGER }
                                 )
                                 Screen.LIBRARY -> ExerciseLibraryScreen(
                                     exerciseRepository = exerciseRepository,
                                     workoutRepository = workoutRepository,
+                                    settingsRepository = settingsRepository,
                                     onExerciseSelected = {
                                         if (activeWorkout != null) {
                                             currentScreen = Screen.ACTIVE_LOGGER
@@ -205,7 +214,8 @@ fun App() {
                                     }
                                 )
                                 Screen.PROGRESS -> ProgressAnalyticsScreen(
-                                    personalRecordRepository = personalRecordRepository
+                                    personalRecordRepository = personalRecordRepository,
+                                    settingsRepository = settingsRepository
                                 )
                                 Screen.ME -> MeScreen(
                                     workoutRepository = workoutRepository,
@@ -246,6 +256,7 @@ fun App() {
 fun KumaBottomNavigation(
     currentScreen: Screen,
     hasActiveWorkout: Boolean,
+    isEnglish: Boolean = false,
     onTabSelected: (Screen) -> Unit,
     onActiveLoggerClick: () -> Unit
 ) {
@@ -275,7 +286,7 @@ fun KumaBottomNavigation(
                             .background(KumaColors.OnElectricLime)
                     )
                     Text(
-                        text = "  SESI LATIHAN BERJALAN",
+                        text = if (isEnglish) "  WORKOUT IN PROGRESS" else "  SESI LATIHAN BERJALAN",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime,
@@ -285,7 +296,7 @@ fun KumaBottomNavigation(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "LANJUT",
+                        text = if (isEnglish) "RESUME" else "LANJUT",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime
@@ -312,31 +323,31 @@ fun KumaBottomNavigation(
         ) {
             NavItem(
                 icon = Icons.Default.Home,
-                label = "Beranda",
+                label = if (isEnglish) "Home" else "Beranda",
                 isSelected = currentScreen == Screen.HOME,
                 onClick = { onTabSelected(Screen.HOME) }
             )
             NavItem(
                 icon = Icons.Default.FitnessCenter,
-                label = "Latihan",
+                label = if (isEnglish) "Workouts" else "Latihan",
                 isSelected = currentScreen == Screen.ROUTINES,
                 onClick = { onTabSelected(Screen.ROUTINES) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                label = "Gerakan",
+                label = if (isEnglish) "Exercises" else "Gerakan",
                 isSelected = currentScreen == Screen.LIBRARY,
                 onClick = { onTabSelected(Screen.LIBRARY) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.ShowChart,
-                label = "Progres",
+                label = if (isEnglish) "Progress" else "Progres",
                 isSelected = currentScreen == Screen.PROGRESS,
                 onClick = { onTabSelected(Screen.PROGRESS) }
             )
             NavItem(
                 icon = Icons.Default.Person,
-                label = "Me",
+                label = if (isEnglish) "Profile" else "Profil",
                 isSelected = currentScreen == Screen.ME,
                 onClick = { onTabSelected(Screen.ME) }
             )

@@ -55,7 +55,9 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.ExerciseRepository
+import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
@@ -71,11 +73,13 @@ private enum class LibraryViewState {
 fun ExerciseLibraryScreen(
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository? = null,
+    settingsRepository: SettingsRepository? = null,
     onExerciseSelected: ((Exercise) -> Unit)? = null
 ) {
     var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
     var isCreatingExercise by remember { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
+    val isEnglish = settingsRepository?.settings?.collectAsState()?.value?.appearance?.language == AppLanguage.EN
 
     Crossfade(
         targetState = when {
@@ -92,6 +96,7 @@ fun ExerciseLibraryScreen(
                     val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
                     ExerciseDetailScreen(
                         exercise = liveExercise,
+                        isEnglish = isEnglish,
                         onNavigateBack = { selectedExerciseForDetail = null },
                         onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
                             {
@@ -125,6 +130,7 @@ fun ExerciseLibraryScreen(
                 ExerciseCatalogList(
                     exerciseRepository = exerciseRepository,
                     workoutRepository = workoutRepository,
+                    isEnglish = isEnglish,
                     onOpenDetail = { selectedExerciseForDetail = it },
                     onOpenCreate = { isCreatingExercise = true },
                     onAddExercise = { exercise ->
@@ -141,6 +147,7 @@ fun ExerciseLibraryScreen(
 private fun ExerciseCatalogList(
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository?,
+    isEnglish: Boolean = false,
     onOpenDetail: (Exercise) -> Unit,
     onOpenCreate: () -> Unit,
     onAddExercise: (Exercise) -> Unit
@@ -188,7 +195,7 @@ private fun ExerciseCatalogList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Exercises",
+                    text = if (isEnglish) "Exercises" else "Katalog Gerakan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = colors.textPrimary,
@@ -197,7 +204,7 @@ private fun ExerciseCatalogList(
                 )
 
                 Text(
-                    text = "Create",
+                    text = if (isEnglish) "Create" else "Buat Gerakan",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.accentText
@@ -237,7 +244,7 @@ private fun ExerciseCatalogList(
                     ) {
                         if (searchQuery.isEmpty()) {
                             Text(
-                                text = "Search exercise",
+                                text = if (isEnglish) "Search exercise..." else "Cari nama gerakan...",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                                 color = colors.textSecondary.copy(alpha = 0.6f)
                             )
@@ -268,7 +275,7 @@ private fun ExerciseCatalogList(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Filter Row 1: Target Otot (Semua Otot, Dada, Punggung, Kaki, Bahu, Lengan, Core, Kardio, Leher)
+                // Filter Row 1: Target Otot
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -276,7 +283,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = "Semua Otot",
+                            label = if (isEnglish) "All Muscles" else "Semua Otot",
                             isSelected = selectedMuscle == null,
                             onClick = { selectedMuscle = null }
                         )
@@ -284,7 +291,7 @@ private fun ExerciseCatalogList(
 
                     items(MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }) { muscle ->
                         FilterPill(
-                            label = muscle.displayName,
+                            label = muscle.localizedName(isEnglish),
                             isSelected = selectedMuscle == muscle,
                             onClick = {
                                 selectedMuscle = if (selectedMuscle == muscle) null else muscle
@@ -295,7 +302,7 @@ private fun ExerciseCatalogList(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Filter Row 2: Alat / Equipment (Semua Alat, Barbell, Dumbbell, Machine, Cable, Bodyweight, etc.)
+                // Filter Row 2: Alat / Equipment
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -303,7 +310,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = "Semua Alat",
+                            label = if (isEnglish) "All Equipment" else "Semua Alat",
                             isSelected = selectedEquipment == null,
                             onClick = { selectedEquipment = null }
                         )
@@ -311,7 +318,7 @@ private fun ExerciseCatalogList(
 
                     items(Equipment.entries) { eq ->
                         FilterPill(
-                            label = eq.displayName,
+                            label = eq.localizedName(isEnglish),
                             isSelected = selectedEquipment == eq,
                             onClick = {
                                 selectedEquipment = if (selectedEquipment == eq) null else eq
@@ -322,7 +329,7 @@ private fun ExerciseCatalogList(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Filter Row 3: Tipe Gerakan (Semua Tipe, Compound, Isolasi)
+                // Filter Row 3: Tipe Gerakan
                 LazyRow(
                     modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -330,7 +337,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = "Semua Tipe",
+                            label = if (isEnglish) "All Types" else "Semua Tipe",
                             isSelected = selectedMovementType == null,
                             onClick = { selectedMovementType = null }
                         )
@@ -338,7 +345,7 @@ private fun ExerciseCatalogList(
 
                     items(MovementType.entries) { mt ->
                         FilterPill(
-                            label = mt.displayName,
+                            label = mt.localizedName(isEnglish),
                             isSelected = selectedMovementType == mt,
                             onClick = {
                                 selectedMovementType = if (selectedMovementType == mt) null else mt
@@ -356,7 +363,7 @@ private fun ExerciseCatalogList(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Exercises (${filteredExercises.size})",
+                        text = if (isEnglish) "Exercises (${filteredExercises.size})" else "Daftar Gerakan (${filteredExercises.size})",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary,
@@ -366,7 +373,7 @@ private fun ExerciseCatalogList(
 
                     if (selectedMuscle != null || selectedEquipment != null || selectedMovementType != null || searchQuery.isNotBlank()) {
                         Text(
-                            text = "Reset Filter",
+                            text = if (isEnglish) "Reset Filters" else "Atur Ulang",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -397,6 +404,7 @@ private fun ExerciseCatalogList(
                         ExerciseRowItem(
                             exercise = exercise,
                             hasActiveWorkout = activeWorkout != null,
+                            isEnglish = isEnglish,
                             onItemClick = { onOpenDetail(exercise) },
                             onAddClick = { onAddExercise(exercise) }
                         )
@@ -411,6 +419,7 @@ private fun ExerciseCatalogList(
 private fun ExerciseRowItem(
     exercise: Exercise,
     hasActiveWorkout: Boolean,
+    isEnglish: Boolean = false,
     onItemClick: () -> Unit,
     onAddClick: () -> Unit
 ) {
@@ -452,9 +461,8 @@ private fun ExerciseRowItem(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            val subOtot = if (exercise.subMuscle.isNotBlank()) " · ${exercise.subMuscle}" else ""
             Text(
-                text = "${exercise.primaryMuscle.displayName}$subOtot",
+                text = exercise.localizedMuscleSubtitle(isEnglish),
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = colors.textSecondary,
                     fontSize = 13.sp
@@ -465,7 +473,7 @@ private fun ExerciseRowItem(
             )
         }
 
-        // Action: "Tambah" if active workout is running, else chevron right
+        // Action: "Tambah" / "Add" if active workout is running, else chevron right
         if (hasActiveWorkout) {
             Box(
                 modifier = Modifier
@@ -476,7 +484,7 @@ private fun ExerciseRowItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Tambah",
+                    text = if (isEnglish) "Add" else "Tambah",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.onAccentFill

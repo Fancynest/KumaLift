@@ -42,12 +42,17 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.SettingsRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.PersonalRecord
 
 @Composable
 fun ProgressAnalyticsScreen(
-    personalRecordRepository: PersonalRecordRepository
+    personalRecordRepository: PersonalRecordRepository,
+    settingsRepository: SettingsRepository? = null
 ) {
+    val settings = settingsRepository?.settings?.collectAsState()?.value
+    val isEnglish = settings?.appearance?.language == AppLanguage.EN
     val prs by personalRecordRepository.personalRecords.collectAsState()
     var selectedTimeframe by remember { mutableStateOf("3M") }
     val timeframes = listOf("1M", "3M", "6M", "1Y", "ALL")
@@ -68,7 +73,7 @@ fun ProgressAnalyticsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Perkembangan Latihan",
+                    text = if (isEnglish) "Progress & Analytics" else "Perkembangan Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -269,7 +274,7 @@ fun ProgressAnalyticsScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Rekor Angkatan Terbaik (PR)",
+                            text = if (isEnglish) "Personal Records (PR)" else "Rekor Angkatan Terbaik (PR)",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             )

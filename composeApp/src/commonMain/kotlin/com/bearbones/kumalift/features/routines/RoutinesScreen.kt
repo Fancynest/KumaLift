@@ -48,7 +48,9 @@ import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
+import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 
 @Composable
@@ -56,17 +58,21 @@ fun RoutinesScreen(
     routineRepository: RoutineRepository,
     workoutRepository: WorkoutRepository,
     exerciseRepository: ExerciseRepository = remember { ExerciseRepository() },
+    settingsRepository: SettingsRepository? = null,
     onStartRoutine: () -> Unit
 ) {
+    val settings = settingsRepository?.settings?.collectAsState()?.value
+    val isEnglish = settings?.appearance?.language == AppLanguage.EN
     val routines by routineRepository.routines.collectAsState()
-    var selectedCategory by remember { mutableStateOf("Semua Program") }
+    val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"
+    var selectedCategory by remember(isEnglish) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by remember { mutableStateOf(false) }
 
-    val categories = remember(routines) {
-        listOf("Semua Program") + routines.map { it.splitCategory }.distinct()
+    val categories = remember(routines, isEnglish) {
+        listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
     }
 
-    val filteredRoutines = if (selectedCategory == "Semua Program") {
+    val filteredRoutines = if (selectedCategory == allCategoryLabel) {
         routines
     } else {
         routines.filter { it.splitCategory == selectedCategory }
@@ -89,7 +95,7 @@ fun RoutinesScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Program & Pola Latihan",
+                    text = if (isEnglish) "Workout Routines" else "Program & Pola Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -106,7 +112,7 @@ fun RoutinesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Buat Pola",
+                        text = if (isEnglish) "Create Routine" else "Buat Pola",
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = LocalKumaColors.current.onAccentFill
@@ -239,6 +245,7 @@ fun RoutinesScreen(
                 items(filteredRoutines, key = { it.id }) { routine ->
                     RoutineCardItem(
                         routine = routine,
+                        isEnglish = isEnglish,
                         onStart = {
                             workoutRepository.startWorkoutFromRoutine(routine)
                             onStartRoutine()
@@ -258,6 +265,7 @@ fun RoutinesScreen(
         if (showCreateRoutineScreen) {
             CreateRoutineScreen(
                 exerciseRepository = exerciseRepository,
+                isEnglish = isEnglish,
                 onNavigateBack = { showCreateRoutineScreen = false },
                 onSaveRoutine = { newRoutine ->
                     routineRepository.addRoutine(newRoutine)
@@ -271,6 +279,7 @@ fun RoutinesScreen(
 @Composable
 fun RoutineCardItem(
     routine: RoutineBlueprint,
+    isEnglish: Boolean = false,
     onStart: () -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
@@ -291,14 +300,14 @@ fun RoutineCardItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = routine.lastPerformedDaysAgo?.let { "Last: $it" } ?: "New",
+                        text = routine.lastPerformedDaysAgo?.let { if (isEnglish) "Last: $it d ago" else "$it hari lalu" } ?: (if (isEnglish) "New" else "Baru"),
                         style = MaterialTheme.typography.labelSmall,
                         color = KumaColors.TextMuted
                     )
                     if (onDelete != null) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Hapus Pola",
+                            contentDescription = if (isEnglish) "Delete Routine" else "Hapus Pola",
                             tint = KumaColors.TextMuted,
                             modifier = Modifier
                                 .size(18.dp)
@@ -321,7 +330,7 @@ fun RoutineCardItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} min · ${routine.targetRpeTier}",
+                text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} ${if (isEnglish) "min" else "mnt"} · ${routine.targetRpeTier}",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = KumaColors.TextSecondary,
                     fontSize = 13.sp
@@ -353,7 +362,7 @@ fun RoutineCardItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Mulai Latihan Ini",
+                    text = if (isEnglish) "Start Routine" else "Mulai Latihan Ini",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.OnElectricLime

@@ -25,6 +25,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,13 +40,20 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.data.repository.SettingsRepository
+import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Workout
 
 @Composable
 fun WorkoutSummaryScreen(
     workout: Workout? = null,
+    workoutRepository: WorkoutRepository? = null,
+    settingsRepository: SettingsRepository? = null,
     onSaveAndClose: () -> Unit
 ) {
+    val settings = settingsRepository?.settings?.collectAsState()?.value
+    val isEnglish = settings?.appearance?.language == AppLanguage.EN
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -61,7 +70,7 @@ fun WorkoutSummaryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Rangkuman Latihan",
+                    text = if (isEnglish) "Workout Summary" else "Rangkuman Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -96,7 +105,7 @@ fun WorkoutSummaryScreen(
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "LATIHAN TUNTAS",
+                                        text = if (isEnglish) "WORKOUT COMPLETED" else "LATIHAN TUNTAS",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -113,7 +122,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
-                                text = "Push Day Selesai",
+                                text = workout?.title ?: (if (isEnglish) "Workout Complete" else "Latihan Selesai"),
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -122,7 +131,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "Hari ini · 11:30 – 12:17",
+                                text = if (isEnglish) "Today · 11:30 – 12:17" else "Hari ini · 11:30 – 12:17",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextMuted
                             )
@@ -139,16 +148,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "DURASI",
+                                label = if (isEnglish) "DURATION" else "DURASI",
                                 value = "47:20",
-                                subtext = "Target: +4 mnt",
+                                subtext = if (isEnglish) "Target: +4 min" else "Target: +4 mnt",
                                 icon = Icons.Default.Timer
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "TOTAL BEBAN",
+                                label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
                                 value = "14,850 kg",
-                                subtext = "+8% dr sesi lalu",
+                                subtext = if (isEnglish) "+8% vs last session" else "+8% dr sesi lalu",
                                 icon = Icons.Default.FitnessCenter,
                                 isAccent = true
                             )
@@ -160,16 +169,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "SET TUNTAS",
+                                label = if (isEnglish) "COMPLETED SETS" else "SET TUNTAS",
                                 value = "16 / 16",
-                                subtext = "100% disiplin",
+                                subtext = if (isEnglish) "100% completed" else "100% disiplin",
                                 icon = Icons.Default.CheckCircle
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "RATA-RATA REHAT",
-                                value = "88 dtk",
-                                subtext = "Est. 420 kkal",
+                                label = if (isEnglish) "AVG REST" else "RATA-RATA REHAT",
+                                value = if (isEnglish) "88 sec" else "88 dtk",
+                                subtext = if (isEnglish) "Est. 420 kcal" else "Est. 420 kkal",
                                 icon = Icons.Default.Speed
                             )
                         }
@@ -205,7 +214,7 @@ fun WorkoutSummaryScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
-                                        text = "Biometrik & Detak Jantung",
+                                        text = if (isEnglish) "Biometrics & Heart Rate" else "Biometrik & Detak Jantung",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -462,7 +471,7 @@ fun WorkoutSummaryScreen(
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
                     KumaPrimaryButton(
-                        text = "SIMPAN & AKHIRI SESI",
+                        text = if (isEnglish) "SAVE & FINISH SESSION" else "SIMPAN & AKHIRI SESI",
                         onClick = onSaveAndClose
                     )
                     Spacer(modifier = Modifier.height(100.dp))

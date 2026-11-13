@@ -67,6 +67,8 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.media.ProfileAvatarMedia
+import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.core.notification.rememberWorkoutReminderManager
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -391,6 +393,14 @@ private fun ProfileSettingsPage(
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
     var bwInput by remember { mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "75.0") }
     var htInput by remember { mutableStateOf(settings.profile.heightCm?.toString() ?: "175.0") }
+    var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
+
+    val imagePicker = rememberProfileImagePicker { newPath ->
+        avatarUriState = newPath
+        settingsRepository.update { current ->
+            current.copy(profile = current.profile.copy(avatarUri = newPath))
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -437,6 +447,7 @@ private fun ProfileSettingsPage(
                         settingsRepository.update { current ->
                             current.copy(
                                 profile = current.profile.copy(
+                                    avatarUri = avatarUriState,
                                     name = nameInput.trim(),
                                     bio = bioInput.trim(),
                                     link = linkInput.trim(),
@@ -478,15 +489,14 @@ private fun ProfileSettingsPage(
                                 .size(90.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF111317))
-                                .border(2.dp, colors.accentText, CircleShape),
+                                .border(2.dp, colors.accentText, CircleShape)
+                                .clickable { imagePicker() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = nameInput.take(1).ifBlank { "G" }.uppercase(),
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = colors.accentText
-                                )
+                            ProfileAvatarMedia(
+                                avatarUri = avatarUriState,
+                                fallbackInitial = nameInput.take(1).ifBlank { "G" },
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
 
@@ -497,7 +507,8 @@ private fun ProfileSettingsPage(
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.SemiBold
-                            )
+                            ),
+                            modifier = Modifier.clickable { imagePicker() }
                         )
                     }
                 }

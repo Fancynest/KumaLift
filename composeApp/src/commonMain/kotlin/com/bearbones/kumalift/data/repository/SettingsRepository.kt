@@ -17,56 +17,61 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 class SettingsRepository(
-    initialSettings: UserSettings = UserSettings()
+    initialSettings: UserSettings = UserSettings(),
+    private val onSave: ((UserSettings) -> Unit)? = null
 ) {
     private val _settings = MutableStateFlow(initialSettings)
     val settings: StateFlow<UserSettings> = _settings.asStateFlow()
 
     fun update(transform: (UserSettings) -> UserSettings) {
-        _settings.update(transform)
+        _settings.update { current ->
+            val updated = transform(current)
+            onSave?.invoke(updated)
+            updated
+        }
     }
 
     fun resetAll() {
-        _settings.update { UserSettings() }
+        update { UserSettings() }
     }
 
     fun resetProfile() {
-        _settings.update { it.copy(profile = ProfileSettings()) }
+        update { it.copy(profile = ProfileSettings()) }
     }
 
     fun resetUnits() {
-        _settings.update { it.copy(units = UnitSettings()) }
+        update { it.copy(units = UnitSettings()) }
     }
 
     fun resetLogging() {
-        _settings.update { it.copy(logging = LoggingSettings()) }
+        update { it.copy(logging = LoggingSettings()) }
     }
 
     fun resetEquipment() {
-        _settings.update { it.copy(equipment = EquipmentSettings()) }
+        update { it.copy(equipment = EquipmentSettings()) }
     }
 
     fun resetNotifications() {
-        _settings.update { it.copy(notifications = NotificationSettings()) }
+        update { it.copy(notifications = NotificationSettings()) }
     }
 
     fun resetCalculations() {
-        _settings.update { it.copy(calculations = CalculationSettings()) }
+        update { it.copy(calculations = CalculationSettings()) }
     }
 
     fun resetAppearance() {
-        _settings.update { it.copy(appearance = AppearanceSettings()) }
+        update { it.copy(appearance = AppearanceSettings()) }
     }
 
     fun resetDataBackup() {
-        _settings.update { it.copy(dataBackup = DataBackupSettings()) }
+        update { it.copy(dataBackup = DataBackupSettings()) }
     }
 
     fun resetSecurity() {
-        _settings.update { it.copy(security = SecuritySettings()) }
+        update { it.copy(security = SecuritySettings()) }
     }
 
     fun resetHealth() {
-        _settings.update { it.copy(health = HealthSettings()) }
+        update { it.copy(health = HealthSettings()) }
     }
 }

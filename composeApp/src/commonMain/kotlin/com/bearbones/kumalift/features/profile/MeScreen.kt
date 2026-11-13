@@ -65,6 +65,8 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.media.ProfileAvatarMedia
+import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -202,12 +204,10 @@ fun MeScreen(
                                 .clickable { showEditProfileDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = athleteName.take(1).uppercase(),
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = colors.accentText
-                                )
+                            ProfileAvatarMedia(
+                                avatarUri = settings.profile.avatarUri,
+                                fallbackInitial = athleteName.take(1).ifBlank { "G" },
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
 
@@ -756,6 +756,14 @@ private fun EditProfileModal(
     var linkInput by remember { mutableStateOf(settings.profile.link) }
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
     var birthdayInput by remember { mutableStateOf(settings.profile.birthday) }
+    var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
+
+    val imagePicker = rememberProfileImagePicker { newPath ->
+        avatarUriState = newPath
+        settingsRepository.update { current ->
+            current.copy(profile = current.profile.copy(avatarUri = newPath))
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -796,6 +804,7 @@ private fun EditProfileModal(
                         settingsRepository.update { current ->
                             current.copy(
                                 profile = current.profile.copy(
+                                    avatarUri = avatarUriState,
                                     name = nameInput.trim(),
                                     username = usernameInput.trim().lowercase().replace(" ", "_"),
                                     bio = bioInput.trim(),
@@ -829,15 +838,14 @@ private fun EditProfileModal(
                         .size(80.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF111317))
-                        .border(2.dp, colors.accentText, CircleShape),
+                        .border(2.dp, colors.accentText, CircleShape)
+                        .clickable { imagePicker() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = nameInput.take(1).ifBlank { "G" }.uppercase(),
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.accentText
-                        )
+                    ProfileAvatarMedia(
+                        avatarUri = avatarUriState,
+                        fallbackInitial = nameInput.take(1).ifBlank { "G" },
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
@@ -849,7 +857,7 @@ private fun EditProfileModal(
                         color = colors.accentText,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    modifier = Modifier.clickable { /* Picture picker placeholder */ }
+                    modifier = Modifier.clickable { imagePicker() }
                 )
             }
 

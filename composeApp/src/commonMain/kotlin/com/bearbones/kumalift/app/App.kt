@@ -53,6 +53,7 @@ import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.data.repository.rememberSettingsRepository
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
@@ -79,7 +80,7 @@ fun App() {
     val routineRepository = remember { RoutineRepository() }
     val personalRecordRepository = remember { PersonalRecordRepository() }
     val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
-    val settingsRepository = remember { SettingsRepository() }
+    val settingsRepository = rememberSettingsRepository()
 
     val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS, Screen.ME) }
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }

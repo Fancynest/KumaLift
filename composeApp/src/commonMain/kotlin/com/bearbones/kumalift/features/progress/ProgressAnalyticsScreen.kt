@@ -32,12 +32,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.domain.model.PersonalRecord
@@ -101,7 +103,7 @@ fun ProgressAnalyticsScreen(
                                     .background(if (isSelected) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainer)
                                     .border(
                                         width = if (isSelected) 1.dp else 0.dp,
-                                        color = if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                        color = if (isSelected) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
                                         shape = RoundedCornerShape(10.dp)
                                     )
                                     .clickable { selectedTimeframe = tf },
@@ -111,7 +113,7 @@ fun ProgressAnalyticsScreen(
                                     text = tf,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted
+                                        color = if (isSelected) LocalKumaColors.current.accentText else KumaColors.TextMuted
                                     )
                                 )
                             }
@@ -136,7 +138,7 @@ fun ProgressAnalyticsScreen(
                                     Text(
                                         text = "ESTIMASI BEBAN MAKSIMAL (1RM)",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.ElectricLime,
+                                            color = LocalKumaColors.current.accentText,
                                             letterSpacing = 0.8.sp
                                         )
                                     )
@@ -152,22 +154,26 @@ fun ProgressAnalyticsScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
-                                        .background(KumaColors.ElectricLimeGlow)
-                                        .border(1.dp, KumaColors.ElectricLime, PillShape)
+                                        .background(LocalKumaColors.current.accentTint)
+                                        .border(
+                                            1.dp,
+                                            if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentFillBorder,
+                                            PillShape
+                                        )
                                         .padding(horizontal = 10.dp, vertical = 5.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                             contentDescription = null,
-                                            tint = KumaColors.ElectricLime,
+                                            tint = LocalKumaColors.current.accentTextOnTint,
                                             modifier = Modifier.size(16.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "+7.5 kg (+6.8%)",
                                             style = MaterialTheme.typography.labelSmall.copy(
-                                                color = KumaColors.ElectricLime,
+                                                color = LocalKumaColors.current.accentTextOnTint,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )
@@ -232,7 +238,7 @@ fun ProgressAnalyticsScreen(
                                 Text(
                                     text = "Rata-rata 54.200 kg (+14%)",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime,
+                                        color = LocalKumaColors.current.accentText,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -282,6 +288,7 @@ fun ProgressAnalyticsScreen(
 
 @Composable
 fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Boolean = false) {
+    val colors = LocalKumaColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
@@ -290,7 +297,12 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
             Box(
                 modifier = Modifier
                     .clip(PillShape)
-                    .background(KumaColors.ElectricLime)
+                    .background(colors.accentFill)
+                    .border(
+                        1.dp,
+                        if (colors.isDark) Color.Transparent else colors.accentFillBorder,
+                        PillShape
+                    )
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
@@ -298,7 +310,7 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = KumaColors.OnElectricLime
+                        color = colors.onAccentFill
                     )
                 )
             }
@@ -308,14 +320,14 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
             modifier = Modifier
                 .size(if (isPeak) 12.dp else 8.dp)
                 .clip(CircleShape)
-                .background(if (isPeak) KumaColors.ElectricLime else KumaColors.TextMuted)
+                .background(if (isPeak) (if (colors.isDark) colors.accentFill else colors.accentChart) else colors.textSubtle)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
-                color = if (isPeak) KumaColors.ElectricLime else KumaColors.TextMuted,
+                color = if (isPeak) colors.accentText else colors.textSubtle,
                 fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal
             )
         )
@@ -324,6 +336,7 @@ fun ChartPoint(label: String, heightFraction: Float, value: String, isPeak: Bool
 
 @Composable
 fun VolumeBar(week: String, heightFraction: Float, isCurrent: Boolean = false) {
+    val colors = LocalKumaColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Bottom
@@ -333,14 +346,14 @@ fun VolumeBar(week: String, heightFraction: Float, isCurrent: Boolean = false) {
                 .width(32.dp)
                 .height((90 * heightFraction).dp)
                 .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                .background(if (isCurrent) KumaColors.ElectricLime else KumaColors.SurfaceContainerHigh)
+                .background(if (isCurrent) (if (colors.isDark) colors.accentFill else colors.accentChart) else colors.surfaceBright)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = week,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
-                color = if (isCurrent) KumaColors.ElectricLime else KumaColors.TextMuted,
+                color = if (isCurrent) colors.accentText else colors.textSubtle,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
             )
         )

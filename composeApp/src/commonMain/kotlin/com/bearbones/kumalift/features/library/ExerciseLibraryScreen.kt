@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.ExerciseRepository
@@ -128,7 +130,7 @@ fun ExerciseLibraryScreen(
                 Text(
                     text = "${filteredExercises.size} Gerakan",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.ElectricLime,
+                        color = LocalKumaColors.current.accentText,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -209,10 +211,10 @@ fun ExerciseLibraryScreen(
                         Box(
                             modifier = Modifier
                                 .clip(PillShape)
-                                .background(if (isAllSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                .background(if (isAllSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
                                 .border(
                                     1.dp,
-                                    if (isAllSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                    if (isAllSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
                                     PillShape
                                 )
                                 .clickable {
@@ -225,7 +227,7 @@ fun ExerciseLibraryScreen(
                                 text = "Semua Otot",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isAllSelected) KumaColors.OnElectricLime else KumaColors.OnSurface
+                                    color = if (isAllSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
                                 )
                             )
                         }
@@ -236,10 +238,10 @@ fun ExerciseLibraryScreen(
                         Box(
                             modifier = Modifier
                                 .clip(PillShape)
-                                .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
                                 .border(
                                     1.dp,
-                                    if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                    if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
                                     PillShape
                                 )
                                 .clickable {
@@ -252,7 +254,7 @@ fun ExerciseLibraryScreen(
                                 text = muscle.displayName,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) KumaColors.OnElectricLime else KumaColors.OnSurface
+                                    color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
                                 )
                             )
                         }
@@ -276,7 +278,7 @@ fun ExerciseLibraryScreen(
                                         .background(if (isAllSub) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerLow)
                                         .border(
                                             1.dp,
-                                            if (isAllSub) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                            if (isAllSub) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
                                             PillShape
                                         )
                                         .clickable { selectedSubMuscle = null }
@@ -286,7 +288,7 @@ fun ExerciseLibraryScreen(
                                         text = "Semua Bagian",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isAllSub) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isAllSub) KumaColors.ElectricLime else KumaColors.TextMuted
+                                            color = if (isAllSub) LocalKumaColors.current.accentText else KumaColors.TextMuted
                                         )
                                     )
                                 }
@@ -300,7 +302,7 @@ fun ExerciseLibraryScreen(
                                         .background(if (isSelected) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerLow)
                                         .border(
                                             1.dp,
-                                            if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                            if (isSelected) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
                                             PillShape
                                         )
                                         .clickable { selectedSubMuscle = sub }
@@ -310,7 +312,7 @@ fun ExerciseLibraryScreen(
                                         text = sub,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted
+                                            color = if (isSelected) LocalKumaColors.current.accentText else KumaColors.TextMuted
                                         )
                                     )
                                 }
@@ -382,13 +384,14 @@ private fun TypeFilterChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = LocalKumaColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainer)
+            .background(if (isSelected) colors.surfaceBright else colors.surfaceVariant)
             .border(
                 1.dp,
-                if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                if (isSelected) (if (colors.isDark) colors.accentFill else colors.accentChart) else colors.border,
                 RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)
@@ -399,7 +402,7 @@ private fun TypeFilterChip(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted
+                color = if (isSelected) colors.accentText else colors.textSubtle
             )
         )
     }
@@ -445,10 +448,16 @@ fun ExerciseListItem(
                 }
 
                 // Add Button (+ Tambah)
+                val colors = LocalKumaColors.current
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(KumaColors.SurfaceContainerHigh)
+                        .background(colors.surfaceBright)
+                        .border(
+                            1.dp,
+                            if (colors.isDark) Color.Transparent else colors.accentFillBorder,
+                            RoundedCornerShape(10.dp)
+                        )
                         .clickable(onClick = onAdd)
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
@@ -460,13 +469,13 @@ fun ExerciseListItem(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Tambah",
-                            tint = KumaColors.ElectricLime,
+                            tint = if (colors.isDark) colors.accentText else colors.accentTextOnTint,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
                             text = "Tambah",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = KumaColors.ElectricLime,
+                                color = if (colors.isDark) colors.accentText else colors.accentTextOnTint,
                                 fontWeight = FontWeight.Bold
                             )
                         )
@@ -505,7 +514,7 @@ fun ExerciseListItem(
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (isExpanded) "Tutup" else "Detail",
-                    tint = if (isExpanded) KumaColors.ElectricLime else KumaColors.TextMuted,
+                    tint = if (isExpanded) LocalKumaColors.current.accentText else KumaColors.TextMuted,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -562,14 +571,14 @@ fun ExerciseListItem(
                             text = "Panduan Teknik:",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = KumaColors.ElectricLime
+                                color = LocalKumaColors.current.accentText
                             )
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = exercise.instructions,
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = KumaColors.TextWhite.copy(alpha = 0.88f),
+                                color = LocalKumaColors.current.textPrimary.copy(alpha = 0.88f),
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp
                             )
@@ -582,7 +591,7 @@ fun ExerciseListItem(
                         Text(
                             text = "Rekor Pribadi (PR): ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = KumaColors.ElectricLime,
+                                color = LocalKumaColors.current.accentText,
                                 fontWeight = FontWeight.Bold
                             )
                         )

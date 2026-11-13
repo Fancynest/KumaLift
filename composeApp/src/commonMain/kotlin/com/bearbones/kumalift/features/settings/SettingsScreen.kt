@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -244,7 +245,7 @@ fun SettingsScreen(
                                         text = "${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "days" else "hari"}",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = KumaColors.ElectricLime
+                                            color = LocalKumaColors.current.accentText
                                         ),
                                         modifier = Modifier.padding(horizontal = 4.dp)
                                     )
@@ -576,7 +577,7 @@ fun SettingsScreen(
                                         .background(if (isSelected) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainer)
                                         .border(
                                             1.dp,
-                                            if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                            if (isSelected) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
@@ -596,7 +597,7 @@ fun SettingsScreen(
                                                 text = formula.name,
                                                 style = MaterialTheme.typography.bodyMedium.copy(
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextWhite
+                                                    color = if (isSelected) LocalKumaColors.current.accentText else LocalKumaColors.current.textPrimary
                                                 )
                                             )
                                             Text(
@@ -608,7 +609,7 @@ fun SettingsScreen(
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = null,
-                                                tint = KumaColors.ElectricLime,
+                                                tint = LocalKumaColors.current.accentText,
                                                 modifier = Modifier.size(18.dp)
                                             )
                                         }
@@ -683,7 +684,7 @@ fun SettingsScreen(
                                     Icon(
                                         imageVector = Icons.Default.RestartAlt,
                                         contentDescription = null,
-                                        tint = Color(0xFFFF5C5C),
+                                        tint = LocalKumaColors.current.error,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Column {
@@ -691,7 +692,7 @@ fun SettingsScreen(
                                             text = if (isEnglish) "Reset All Settings" else "Reset Semua Pengaturan",
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFFFF5C5C)
+                                                color = LocalKumaColors.current.error
                                             )
                                         )
                                         Text(
@@ -772,13 +773,13 @@ private fun SettingsSection(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = KumaColors.ElectricLime,
+                    tint = LocalKumaColors.current.accentText,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.ElectricLime,
+                        color = LocalKumaColors.current.accentText,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
@@ -804,7 +805,7 @@ private fun LanguageOptionRow(
             .background(if (isSelected) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainer)
             .border(
                 1.dp,
-                if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                if (isSelected) (if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart) else KumaColors.BorderDefault,
                 RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
@@ -820,7 +821,7 @@ private fun LanguageOptionRow(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextWhite
+                        color = if (isSelected) LocalKumaColors.current.accentText else LocalKumaColors.current.textPrimary
                     )
                 )
                 Text(
@@ -832,7 +833,7 @@ private fun LanguageOptionRow(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = KumaColors.ElectricLime,
+                    tint = LocalKumaColors.current.accentText,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -850,10 +851,10 @@ private fun UnitSelectChip(
     Box(
         modifier = modifier
             .clip(PillShape)
-            .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+            .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
             .border(
                 1.dp,
-                if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
                 PillShape
             )
             .clickable(onClick = onClick)
@@ -864,7 +865,7 @@ private fun UnitSelectChip(
             text = label,
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold,
-                color = if (isSelected) KumaColors.OnElectricLime else KumaColors.TextWhite
+                color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
             )
         )
     }

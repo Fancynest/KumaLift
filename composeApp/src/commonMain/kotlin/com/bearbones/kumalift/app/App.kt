@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
@@ -312,6 +313,7 @@ fun NavItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = KumaColors.current
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
@@ -323,7 +325,7 @@ fun NavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted,
+            tint = if (isSelected) colors.accentText else colors.textSubtle,
             modifier = Modifier.size(24.dp)
         )
         Text(
@@ -331,7 +333,7 @@ fun NavItem(
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                color = if (isSelected) KumaColors.ElectricLime else KumaColors.TextMuted
+                color = if (isSelected) colors.accentText else colors.textSecondary
             )
         )
     }

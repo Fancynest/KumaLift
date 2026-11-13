@@ -63,6 +63,16 @@ data class KumaColors(
         val ElectricLimeContainer: Color @Composable get() = LocalKumaColors.current.accentTint
         val OnElectricLimeContainer: Color @Composable get() = LocalKumaColors.current.accentTextOnTint
         val ElectricLimeGlow: Color @Composable get() = LocalKumaColors.current.accentTint
+        val ElectricLimeText: Color @Composable get() = LocalKumaColors.current.accentText
+        val ElectricLimeTextOnTint: Color @Composable get() = LocalKumaColors.current.accentTextOnTint
+        val ElectricLimeBorder: Color @Composable get() = if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart
+        val AccentText: Color @Composable get() = LocalKumaColors.current.accentText
+        val AccentTextOnTint: Color @Composable get() = LocalKumaColors.current.accentTextOnTint
+        val AccentChart: Color @Composable get() = LocalKumaColors.current.accentChart
+        val AccentFill: Color @Composable get() = LocalKumaColors.current.accentFill
+        val OnAccentFill: Color @Composable get() = LocalKumaColors.current.onAccentFill
+        val AccentFillBorder: Color @Composable get() = LocalKumaColors.current.accentFillBorder
+        val ChartSeriesPrimary: Color @Composable get() = if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart
 
         val TextWhite: Color @Composable get() = LocalKumaColors.current.textPrimary
         val OnSurface: Color @Composable get() = LocalKumaColors.current.textPrimary

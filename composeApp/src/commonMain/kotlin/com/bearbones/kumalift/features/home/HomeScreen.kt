@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLogoMark
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
@@ -117,23 +118,33 @@ fun HomeScreen(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(KumaColors.SurfaceContainer),
+                            .background(Color(0xFF111317)),
                         contentAlignment = Alignment.Center
                     ) {
                         KumaLogoMark(
                             modifier = Modifier.size(24.dp),
-                            accentColor = KumaColors.ElectricLime,
-                            darkColor = KumaColors.SurfaceContainer
+                            accentColor = Color(0xFFC6FF3D),
+                            darkColor = Color(0xFF111317)
                         )
                     }
-                    Text(
-                        text = "KUMALIFT",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.2.sp,
-                            color = KumaColors.TextWhite
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "KUMA",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp,
+                                color = LocalKumaColors.current.textPrimary
+                            )
                         )
-                    )
+                        Text(
+                            text = "LIFT",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.2.sp,
+                                color = LocalKumaColors.current.accentText
+                            )
+                        )
+                    }
                 }
             }
 
@@ -150,7 +161,7 @@ fun HomeScreen(
                         Text(
                             text = phaseText,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                color = KumaColors.ElectricLime,
+                                color = LocalKumaColors.current.accentText,
                                 letterSpacing = 1.sp
                             )
                         )
@@ -208,7 +219,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
                                         contentDescription = null,
-                                        tint = KumaColors.ElectricLime,
+                                        tint = LocalKumaColors.current.accentText,
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
@@ -222,6 +233,11 @@ fun HomeScreen(
                                     modifier = Modifier
                                         .clip(PillShape)
                                         .background(KumaColors.ElectricLime)
+                                        .border(
+                                            1.dp,
+                                            if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder,
+                                            PillShape
+                                        )
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
@@ -405,14 +421,14 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.Add,
                                     contentDescription = null,
-                                    tint = KumaColors.ElectricLime,
+                                    tint = LocalKumaColors.current.accentText,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "+ Latihan Bebas (Freestyle)",
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = KumaColors.TextWhite,
+                                        color = LocalKumaColors.current.textPrimary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -433,6 +449,7 @@ fun DayCircle(
     isRest: Boolean = false,
     isActive: Boolean = false
 ) {
+    val colors = LocalKumaColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -440,7 +457,7 @@ fun DayCircle(
         Text(
             text = day,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-            color = if (isActive) KumaColors.ElectricLime else KumaColors.TextMuted
+            color = if (isActive) colors.accentText else colors.textSubtle
         )
         Box(
             modifier = Modifier
@@ -448,14 +465,14 @@ fun DayCircle(
                 .clip(CircleShape)
                 .background(
                     when {
-                        isDone -> KumaColors.ElectricLime
-                        isActive -> KumaColors.SurfaceContainerHigh
-                        else -> KumaColors.SurfaceContainer
+                        isDone -> colors.accentFill
+                        isActive -> colors.surfaceVariant
+                        else -> colors.surfaceBright
                     }
                 )
                 .border(
                     width = if (isActive) 1.5.dp else 0.dp,
-                    color = if (isActive) KumaColors.ElectricLime else Color.Transparent,
+                    color = if (isActive) (if (colors.isDark) colors.accentFill else colors.accentChart) else Color.Transparent,
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -464,26 +481,26 @@ fun DayCircle(
                 isDone -> Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = KumaColors.OnElectricLime,
+                    tint = colors.onAccentFill,
                     modifier = Modifier.size(18.dp)
                 )
                 isRest -> Icon(
                     imageVector = Icons.Default.Hotel,
                     contentDescription = null,
-                    tint = KumaColors.TextMuted,
+                    tint = colors.textSubtle,
                     modifier = Modifier.size(14.dp)
                 )
                 isActive -> Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = KumaColors.ElectricLime,
+                    tint = colors.accentText,
                     modifier = Modifier.size(18.dp)
                 )
                 else -> Box(
                     modifier = Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(KumaColors.SurfaceContainerHighest)
+                        .background(colors.surfaceBright)
                 )
             }
         }
@@ -498,9 +515,10 @@ fun MetricTile(
     modifier: Modifier = Modifier,
     isAccent: Boolean = false
 ) {
+    val colors = LocalKumaColors.current
     KumaCard(
         modifier = modifier,
-        backgroundColor = KumaColors.SurfaceContainerLow,
+        backgroundColor = colors.surface,
         cornerRadius = 14.dp
     ) {
         Column(
@@ -511,7 +529,7 @@ fun MetricTile(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = KumaColors.TextMuted,
+                    color = colors.textSubtle,
                     letterSpacing = 0.5.sp
                 ),
                 maxLines = 1,
@@ -523,7 +541,7 @@ fun MetricTile(
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 20.sp,
-                    color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextWhite
+                    color = if (isAccent) colors.accentText else colors.textPrimary
                 ),
                 maxLines = 1
             )
@@ -532,7 +550,7 @@ fun MetricTile(
                 text = subtext,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextMuted
+                    color = if (isAccent) colors.accentText else colors.textSecondary
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

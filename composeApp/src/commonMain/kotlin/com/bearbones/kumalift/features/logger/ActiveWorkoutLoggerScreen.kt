@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaSetCheckbox
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.timer.RestTimer
@@ -149,13 +150,13 @@ fun ActiveWorkoutLoggerScreen(
                                                 modifier = Modifier
                                                     .size(8.dp)
                                                     .clip(CircleShape)
-                                                    .background(KumaColors.ElectricLime)
+                                                    .background(if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentChart)
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = "SEDANG LATIHAN",
                                                 style = MaterialTheme.typography.labelSmall.copy(
-                                                    color = KumaColors.ElectricLime,
+                                                    color = LocalKumaColors.current.accentText,
                                                     letterSpacing = 0.8.sp
                                                 )
                                             )
@@ -236,7 +237,7 @@ fun ActiveWorkoutLoggerScreen(
                                         text = "${workout.totalCompletedSets} dari ${workout.totalSets} set (${(workout.progressFraction * 100).toInt()}%)",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = KumaColors.ElectricLime
+                                            color = LocalKumaColors.current.accentText
                                         )
                                     )
                                 }
@@ -247,7 +248,7 @@ fun ActiveWorkoutLoggerScreen(
                                         .fillMaxWidth()
                                         .height(6.dp)
                                         .clip(PillShape),
-                                    color = KumaColors.ElectricLime,
+                                    color = LocalKumaColors.current.accentChart,
                                     trackColor = KumaColors.SurfaceContainerHighest
                                 )
                             }
@@ -297,14 +298,14 @@ fun ActiveWorkoutLoggerScreen(
                                     Icon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = null,
-                                        tint = KumaColors.ElectricLime,
+                                        tint = LocalKumaColors.current.accentText,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "+ Tambah Gerakan",
                                         style = MaterialTheme.typography.titleMedium.copy(
-                                            color = KumaColors.TextWhite,
+                                            color = LocalKumaColors.current.textPrimary,
                                             fontWeight = FontWeight.Bold
                                         )
                                     )
@@ -492,7 +493,9 @@ fun SetRowItem(
                 text = "${set.setNumber}",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (set.isCompleted) KumaColors.ElectricLime else KumaColors.TextWhite
+                    color = if (set.isCompleted) {
+                        if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentText else LocalKumaColors.current.accentTextOnTint
+                    } else LocalKumaColors.current.textPrimary
                 )
             )
         }
@@ -571,11 +574,16 @@ fun FloatingRestTimerCard(
     onMinus15s: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = LocalKumaColors.current
     Row(
         modifier = Modifier
             .clip(PillShape)
-            .background(KumaColors.SurfaceContainerHigh)
-            .border(1.5.dp, KumaColors.ElectricLime, PillShape)
+            .background(colors.surfaceBright)
+            .border(
+                1.5.dp,
+                if (colors.isDark) colors.accentFill else colors.accentChart,
+                PillShape
+            )
             .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -584,13 +592,13 @@ fun FloatingRestTimerCard(
             CircularProgressIndicator(
                 progress = { timerState.progressFraction },
                 modifier = Modifier.size(32.dp),
-                color = KumaColors.ElectricLime,
-                trackColor = KumaColors.SurfaceContainer
+                color = colors.accentChart,
+                trackColor = colors.surfaceVariant
             )
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = null,
-                tint = KumaColors.ElectricLime,
+                tint = colors.accentText,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -600,7 +608,7 @@ fun FloatingRestTimerCard(
                 text = "WAKTU ISTIRAHAT",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = KumaColors.TextMuted,
+                    color = colors.textSubtle,
                     letterSpacing = 0.5.sp
                 )
             )
@@ -608,7 +616,7 @@ fun FloatingRestTimerCard(
                 text = timerState.formattedTime,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = KumaColors.ElectricLime
+                    color = colors.accentText
                 )
             )
         }
@@ -617,14 +625,14 @@ fun FloatingRestTimerCard(
             Box(
                 modifier = Modifier
                     .clip(PillShape)
-                    .background(KumaColors.SurfaceContainer)
+                    .background(colors.surfaceVariant)
                     .clickable(onClick = onMinus15s)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = "-15s",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.OnSurface,
+                        color = colors.textPrimary,
                         fontWeight = FontWeight.Bold
                     )
                 )
@@ -632,14 +640,14 @@ fun FloatingRestTimerCard(
             Box(
                 modifier = Modifier
                     .clip(PillShape)
-                    .background(KumaColors.SurfaceContainer)
+                    .background(colors.surfaceVariant)
                     .clickable(onClick = onAdd30s)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = "+30s",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.ElectricLime,
+                        color = colors.accentText,
                         fontWeight = FontWeight.Bold
                     )
                 )

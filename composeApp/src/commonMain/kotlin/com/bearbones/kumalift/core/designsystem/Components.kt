@@ -50,12 +50,15 @@ fun KumaPrimaryButton(
     icon: ImageVector? = null,
     enabled: Boolean = true
 ) {
+    val colors = LocalKumaColors.current
+    val buttonBorder = if (colors.isDark || !enabled) Color.Transparent else colors.accentFillBorder
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
             .clip(PillShape)
-            .background(if (enabled) KumaColors.ElectricLime else KumaColors.SurfaceContainerHigh)
+            .background(if (enabled) colors.accentFill else colors.surfaceBright)
+            .border(1.dp, buttonBorder, PillShape)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -67,7 +70,7 @@ fun KumaPrimaryButton(
                 text = text,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (enabled) KumaColors.OnElectricLime else KumaColors.TextMuted,
+                    color = if (enabled) colors.onAccentFill else colors.textSubtle,
                     letterSpacing = 0.5.sp
                 )
             )
@@ -76,7 +79,7 @@ fun KumaPrimaryButton(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (enabled) KumaColors.OnElectricLime else KumaColors.TextMuted,
+                        tint = if (enabled) colors.onAccentFill else colors.textSubtle,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -152,9 +155,14 @@ fun KumaBadge(
     isPr: Boolean = false,
     icon: ImageVector? = null
 ) {
-    val bg = if (isPr) KumaColors.ElectricLimeGlow else KumaColors.SurfaceContainer
-    val border = if (isPr) KumaColors.ElectricLime else KumaColors.BorderDefault
-    val textColor = if (isPr) KumaColors.ElectricLime else KumaColors.OnSurface
+    val colors = LocalKumaColors.current
+    val bg = if (isPr) colors.accentTint else colors.surfaceVariant
+    val border = if (isPr) {
+        if (colors.isDark) colors.accentFill else colors.accentFillBorder
+    } else colors.border
+    val textColor = if (isPr) {
+        if (colors.isDark) colors.accentText else colors.accentTextOnTint
+    } else colors.textPrimary
 
     Row(
         modifier = modifier
@@ -260,8 +268,8 @@ fun KumaNumericStepper(
 @Composable
 fun KumaLogoMark(
     modifier: Modifier = Modifier,
-    accentColor: Color = KumaColors.ElectricLime,
-    darkColor: Color = KumaColors.SurfaceContainer
+    accentColor: Color = Color(0xFFC6FF3D),
+    darkColor: Color = Color(0xFF111317)
 ) {
     Canvas(modifier = modifier) {
         val s = size.minDimension / 512f

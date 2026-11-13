@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.domain.model.Workout
@@ -194,7 +195,7 @@ fun WorkoutSummaryScreen(
                                 Text(
                                     text = "REKOR BARU (PR)",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime,
+                                        color = LocalKumaColors.current.accentText,
                                         fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.8.sp
                                     )
@@ -273,7 +274,7 @@ fun WorkoutSummaryScreen(
                                 Text(
                                     text = "Dada: 52%",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime,
+                                        color = LocalKumaColors.current.accentText,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -336,7 +337,7 @@ fun SummaryMetricCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isAccent) KumaColors.ElectricLime else KumaColors.TextMuted,
+                    tint = if (isAccent) LocalKumaColors.current.accentText else KumaColors.TextMuted,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -345,7 +346,7 @@ fun SummaryMetricCard(
                 text = value,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextWhite
+                    color = if (isAccent) LocalKumaColors.current.accentText else LocalKumaColors.current.textPrimary
                 )
             )
             Spacer(modifier = Modifier.height(2.dp))
@@ -353,7 +354,7 @@ fun SummaryMetricCard(
                 text = subtext,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 11.sp,
-                    color = if (isAccent) KumaColors.ElectricLime else KumaColors.TextMuted
+                    color = if (isAccent) LocalKumaColors.current.accentText else KumaColors.TextMuted
                 )
             )
         }

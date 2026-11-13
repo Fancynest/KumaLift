@@ -32,12 +32,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.RoutineRepository
@@ -108,7 +110,7 @@ fun RoutinesScreen(
                                 Text(
                                     text = "PROGRAM LATIHAN",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime,
+                                        color = LocalKumaColors.current.accentText,
                                         letterSpacing = 0.8.sp
                                     )
                                 )
@@ -153,7 +155,7 @@ fun RoutinesScreen(
                                 Text(
                                     text = "75%",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.ElectricLime,
+                                        color = LocalKumaColors.current.accentText,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -165,7 +167,7 @@ fun RoutinesScreen(
                                     .fillMaxWidth()
                                     .height(6.dp)
                                     .clip(PillShape),
-                                color = KumaColors.ElectricLime,
+                                color = LocalKumaColors.current.accentChart,
                                 trackColor = KumaColors.SurfaceContainerHighest
                             )
                         }
@@ -184,10 +186,10 @@ fun RoutinesScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(PillShape)
-                                    .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                    .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
                                     .border(
                                         width = 1.dp,
-                                        color = if (isSelected) KumaColors.ElectricLime else KumaColors.BorderDefault,
+                                        color = if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
                                         shape = PillShape
                                     )
                                     .clickable { selectedCategory = category }
@@ -197,7 +199,7 @@ fun RoutinesScreen(
                                     text = category,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) KumaColors.OnElectricLime else KumaColors.OnSurface
+                                        color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
                                     )
                                 )
                             }

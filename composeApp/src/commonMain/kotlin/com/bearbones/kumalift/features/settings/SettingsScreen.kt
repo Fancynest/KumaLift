@@ -450,8 +450,8 @@ private fun ProfileSettingsPage(
                         onNavigateBack()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentText,
-                        contentColor = Color.White
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -576,7 +576,7 @@ private fun ProfileSettingsPage(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(
-                                            if (isSelected) colors.accentText else KumaColors.SurfaceContainer
+                                            if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
                                         )
                                         .clickable { selectedSex = sex }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -585,7 +585,7 @@ private fun ProfileSettingsPage(
                                         text = label,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) Color.White else colors.textSecondary
+                                            color = if (isSelected) colors.onAccentFill else colors.textSecondary
                                         )
                                     )
                                 }
@@ -731,8 +731,8 @@ private fun ChangeUsernamePage(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentText,
-                        contentColor = Color.White
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -958,7 +958,7 @@ private fun NotificationSettingsPage(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .background(
-                                                    if (isSelected) colors.accentText else KumaColors.SurfaceContainer
+                                                    if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
                                                 )
                                                 .clickable {
                                                     settingsRepository.update {
@@ -972,7 +972,7 @@ private fun NotificationSettingsPage(
                                                 text = timeStr,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) Color.White else colors.textSecondary
+                                                    color = if (isSelected) colors.onAccentFill else colors.textSecondary
                                                 )
                                             )
                                         }
@@ -996,7 +996,7 @@ private fun NotificationSettingsPage(
                                                 .size(34.dp)
                                                 .clip(CircleShape)
                                                 .background(
-                                                    if (isDayActive) colors.accentText else KumaColors.SurfaceContainer
+                                                    if (isDayActive) colors.accentFill else KumaColors.SurfaceContainer
                                                 )
                                                 .clickable {
                                                     val newDays = if (isDayActive) {
@@ -1015,7 +1015,7 @@ private fun NotificationSettingsPage(
                                                 text = label,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (isDayActive) Color.White else colors.textSecondary
+                                                    color = if (isDayActive) colors.onAccentFill else colors.textSecondary
                                                 )
                                             )
                                         }
@@ -1070,8 +1070,8 @@ private fun NotificationSettingsPage(
                                 Button(
                                     onClick = { workoutReminderManager.requestIgnoreBatteryOptimization() },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = colors.accentText,
-                                        contentColor = Color.White
+                                        containerColor = colors.accentFill,
+                                        contentColor = colors.onAccentFill
                                     ),
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -1241,7 +1241,7 @@ private fun WorkoutSettingsPage(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(
-                                                if (isSelected) colors.accentText else KumaColors.SurfaceContainer
+                                                if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
                                             )
                                             .clickable {
                                                 settingsRepository.update {
@@ -1254,7 +1254,7 @@ private fun WorkoutSettingsPage(
                                             text = label,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) Color.White else colors.textSecondary
+                                                color = if (isSelected) colors.onAccentFill else colors.textSecondary
                                             )
                                         )
                                     }
@@ -1284,7 +1284,7 @@ private fun WorkoutSettingsPage(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(if (isSel) colors.accentText else KumaColors.SurfaceContainer)
+                                                .background(if (isSel) colors.accentFill else KumaColors.SurfaceContainer)
                                                 .clickable {
                                                     settingsRepository.update {
                                                         it.copy(units = it.units.copy(firstDayOfWeek = day))
@@ -1296,7 +1296,7 @@ private fun WorkoutSettingsPage(
                                                 text = label,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSel) Color.White else colors.textSecondary
+                                                    color = if (isSel) colors.onAccentFill else colors.textSecondary
                                                 )
                                             )
                                         }
@@ -1567,7 +1567,7 @@ private fun <T> UnitOptionGroup(
                         .height(48.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(
-                            if (isSelected) colors.accentText else Color.Transparent
+                            if (isSelected) colors.accentFill else Color.Transparent
                         )
                         .clickable { onSelect(option) },
                     contentAlignment = Alignment.Center
@@ -1576,7 +1576,7 @@ private fun <T> UnitOptionGroup(
                         text = label,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else colors.textSecondary
+                            color = if (isSelected) colors.onAccentFill else colors.textSecondary
                         )
                     )
                 }

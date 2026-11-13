@@ -83,7 +83,7 @@ fun HomeScreen(
         in 15..18 -> if (isEnglish) "Good afternoon" else "Selamat sore"
         else -> if (isEnglish) "Good evening" else "Selamat malam"
     }
-    val athleteName = settings.profile.name.ifBlank { "Alex" }
+    val athleteGreeting = settings.profile.username.ifBlank { settings.profile.name.ifBlank { "Alex" } }
     val phaseText = when (settings.profile.goal) {
         TrainingGoal.HYPERTROPHY -> if (isEnglish) "WEEK 6 · HYPERTROPHY PHASE" else "MINGGU 6 · FASE TAMBAH OTOT"
         TrainingGoal.STRENGTH -> if (isEnglish) "WEEK 6 · STRENGTH PHASE" else "MINGGU 6 · FASE KEKUATAN"
@@ -96,66 +96,15 @@ fun HomeScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header bar: Clickable KumaLift icon/logo navigates to Settings
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(KumaColors.SurfaceDim)
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onOpenSettings)
-                        .padding(end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF111317)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        KumaLogoMark(
-                            modifier = Modifier.size(24.dp),
-                            accentColor = Color(0xFFC6FF3D),
-                            darkColor = Color(0xFF111317)
-                        )
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "KUMA",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.2.sp,
-                                color = LocalKumaColors.current.textPrimary
-                            )
-                        )
-                        Text(
-                            text = "LIFT",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.2.sp,
-                                color = LocalKumaColors.current.accentText
-                            )
-                        )
-                    }
-                }
-            }
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(22.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     // 1. Athlete Header & Dynamic Real-time Greeting
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
@@ -167,7 +116,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "$timeGreeting, $athleteName",
+                            text = "$timeGreeting, $athleteGreeting",
                             style = MaterialTheme.typography.headlineMedium.copy(
                                 fontSize = 24.sp
                             )

@@ -100,7 +100,6 @@ fun MeScreen(
     var selectedMetric by remember { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
-    var showShareNotification by remember { mutableStateOf(false) }
 
     val athleteName = settings.profile.name.ifBlank { "Gabriel Radjali" }
     val athleteUsername = settings.profile.username.ifBlank { "gabriel_radjali" }
@@ -157,23 +156,6 @@ fun MeScreen(
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Edit Profile",
-                                tint = colors.textPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        // Share button
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(KumaColors.SurfaceDim)
-                                .clickable { showShareNotification = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Share",
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -529,8 +511,8 @@ fun MeScreen(
                                 Button(
                                     onClick = onStartWorkout,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = colors.accentText,
-                                        contentColor = Color.White
+                                        containerColor = colors.accentFill,
+                                        contentColor = colors.onAccentFill
                                     ),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
@@ -580,39 +562,6 @@ fun MeScreen(
             onDismiss = { showMeasuresDialog = false }
         )
     }
-
-    // Share confirmation alert
-    if (showShareNotification) {
-        AlertDialog(
-            onDismissRequest = { showShareNotification = false },
-            title = {
-                Text(
-                    text = if (isEnglish) "Share Profile" else "Bagikan Profil",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = if (isEnglish) {
-                        "Profil @$athleteUsername ($workoutCount workouts, $streakDays-day streak, $totalVolumeText) siap dibagikan!"
-                    } else {
-                        "Profil @$athleteUsername ($workoutCount latihan, $streakDays hari streak, $totalVolumeText) siap dibagikan!"
-                    }
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showShareNotification = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentText,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text("OK")
-                }
-            }
-        )
-    }
 }
 
 @Composable
@@ -650,8 +599,8 @@ private fun MetricPill(
     onClick: () -> Unit
 ) {
     val colors = LocalKumaColors.current
-    val bgColor = if (isSelected) colors.accentText else KumaColors.SurfaceDim
-    val textColor = if (isSelected) Color.White else colors.textSecondary
+    val bgColor = if (isSelected) colors.accentFill else KumaColors.SurfaceDim
+    val textColor = if (isSelected) colors.onAccentFill else colors.textSecondary
 
     Box(
         modifier = Modifier
@@ -859,8 +808,8 @@ private fun EditProfileModal(
                         onDismiss()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentText,
-                        contentColor = Color.White
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
@@ -978,7 +927,7 @@ private fun EditProfileModal(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (isSelected) colors.accentText else KumaColors.SurfaceContainer
+                                    if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
                                 )
                                 .clickable { selectedSex = sex }
                                 .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -987,7 +936,7 @@ private fun EditProfileModal(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else colors.textSecondary
+                                    color = if (isSelected) colors.onAccentFill else colors.textSecondary
                                 )
                             )
                         }
@@ -1127,8 +1076,8 @@ private fun MeasuresModal(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accentText,
-                    contentColor = Color.White
+                    containerColor = colors.accentFill,
+                    contentColor = colors.onAccentFill
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {

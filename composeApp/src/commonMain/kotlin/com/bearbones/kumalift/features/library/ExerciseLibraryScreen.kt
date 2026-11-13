@@ -1,6 +1,7 @@
 package com.bearbones.kumalift.features.library
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +63,9 @@ fun ExerciseLibraryScreen(
     var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
     var selectedSubMuscle by remember { mutableStateOf<String?>(null) }
     var selectedType by remember { mutableStateOf<MovementType?>(null) }
+
+    // Single-card accordion state: only one exercise expanded at a time
+    var expandedExerciseId by remember { mutableStateOf<String?>(null) }
 
     val allExercises by exerciseRepository.exercises.collectAsState()
 
@@ -137,7 +143,7 @@ fun ExerciseLibraryScreen(
                     onValueChange = { searchQuery = it },
                     placeholder = {
                         Text(
-                            text = "Cari nama latihan, alat, otot (misal: bench, dumbbell, dada)...",
+                            text = "Cari nama latihan, alat, otot (misal: bench, dumbbell)...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = KumaColors.TextMuted
                         )
@@ -309,14 +315,19 @@ fun ExerciseLibraryScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Exercise List
+                // Exercise List with single-card accordion
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(filteredExercises, key = { it.id }) { exercise ->
+                        val isExpanded = expandedExerciseId == exercise.id
                         ExerciseListItem(
                             exercise = exercise,
+                            isExpanded = isExpanded,
+                            onToggleExpand = {
+                                expandedExerciseId = if (isExpanded) null else exercise.id
+                            },
                             onAdd = {
                                 if (workoutRepository != null) {
                                     workoutRepository.addExerciseToActiveWorkout(exercise)
@@ -367,44 +378,49 @@ private fun TypeFilterChip(
 @Composable
 fun ExerciseListItem(
     exercise: Exercise,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
     onAdd: () -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
     KumaCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { isExpanded = !isExpanded },
-        backgroundColor = KumaColors.SurfaceContainerLow,
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onToggleExpand)
+            .animateContentSize(),
+        backgroundColor = if (isExpanded) KumaColors.SurfaceContainer else KumaColors.SurfaceContainerLow,
         cornerRadius = 16.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
+            // Header: Badges & Add Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Top Tag Row: Alat · Tipe · Level
+                // Badges: Alat · Tipe · Level
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     KumaBadge(text = exercise.equipment.code)
                     KumaBadge(text = exercise.movementType.displayName)
-                    KumaBadge(text = exercise.level.displayName)
+                    if (isExpanded) {
+                        KumaBadge(text = exercise.level.displayName)
+                    }
                 }
 
                 // Add Button (+ Tambah)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(KumaColors.SurfaceContainer)
+                        .background(KumaColors.SurfaceContainerHigh)
                         .clickable(onClick = onAdd)
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -430,62 +446,118 @@ fun ExerciseListItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Sub-Otot & Alat Detail
+            // Subtitle: Otot Utama & Sub-Otot
             val subOtotInfo = if (exercise.subMuscle.isNotBlank()) " · ${exercise.subMuscle}" else ""
-            val alatDetailInfo = if (exercise.equipmentDetail.isNotBlank()) " (${exercise.equipmentDetail})" else ""
             Text(
-                text = "${exercise.primaryMuscle.displayName}$subOtotInfo$alatDetailInfo",
+                text = "${exercise.primaryMuscle.displayName}$subOtotInfo",
                 style = MaterialTheme.typography.labelSmall,
                 color = KumaColors.TextMuted
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-            // Nama Latihan
-            Text(
-                text = exercise.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = KumaColors.TextWhite
-                )
-            )
-
-            // Otot Sekunder (Bantu)
-            if (exercise.secondaryMuscleDetails.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+            // Nama Latihan & Expand Chevron
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "Otot bantu: ${exercise.secondaryMuscleDetails}",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = KumaColors.TextSecondary,
-                        fontSize = 12.sp
-                    )
-                )
-            }
-
-            // Instruksi Singkat Teknik Gerakan
-            if (exercise.instructions.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = exercise.instructions,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = KumaColors.TextMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                    text = exercise.name,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = KumaColors.TextWhite,
+                        fontSize = 17.sp
                     ),
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 2
+                    modifier = Modifier.weight(1f)
+                )
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Tutup" else "Detail",
+                    tint = if (isExpanded) KumaColors.ElectricLime else KumaColors.TextMuted,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            // PR jika ada
-            if (exercise.currentPrWeightKg != null) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "PR: ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.ElectricLime,
-                        fontWeight = FontWeight.Bold
+            // Expanded Details Section (Only visible for the clicked item)
+            AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(KumaColors.BorderDefault.copy(alpha = 0.5f))
                     )
-                )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Detail Alat & Level
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Alat: ${exercise.equipmentDetail.ifBlank { exercise.equipment.displayName }}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KumaColors.TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        )
+                        Text(
+                            text = "Level: ${exercise.level.displayName}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KumaColors.TextMuted,
+                                fontSize = 12.sp
+                            )
+                        )
+                    }
+
+                    // Otot Sekunder (Bantu)
+                    if (exercise.secondaryMuscleDetails.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Otot bantu: ${exercise.secondaryMuscleDetails}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KumaColors.TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        )
+                    }
+
+                    // Panduan Teknik Gerakan
+                    if (exercise.instructions.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Panduan Teknik:",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = KumaColors.ElectricLime
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = exercise.instructions,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KumaColors.TextWhite.copy(alpha = 0.88f),
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        )
+                    }
+
+                    // Rekor Angkatan (PR) jika ada
+                    if (exercise.currentPrWeightKg != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Rekor Pribadi (PR): ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = KumaColors.ElectricLime,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
+                }
             }
         }
     }

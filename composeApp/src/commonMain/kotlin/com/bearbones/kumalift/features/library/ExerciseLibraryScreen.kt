@@ -161,21 +161,27 @@ private fun ExerciseCatalogList(
     val activeWorkout = workoutRepository?.activeWorkout?.collectAsState()?.value
     val colors = LocalKumaColors.current
 
-    val filteredExercises = allExercises.filter { exercise ->
+    val filteredExercises = remember(allExercises, searchQuery, selectedMuscle, selectedEquipment, selectedMovementType) {
         val query = searchQuery.trim()
-        val matchesQuery = query.isBlank() ||
-            exercise.name.contains(query, ignoreCase = true) ||
-            exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
-            exercise.subMuscle.contains(query, ignoreCase = true) ||
-            exercise.equipment.displayName.contains(query, ignoreCase = true) ||
-            exercise.equipment.code.contains(query, ignoreCase = true) ||
-            exercise.movementType.displayName.contains(query, ignoreCase = true)
+        if (query.isBlank() && selectedMuscle == null && selectedEquipment == null && selectedMovementType == null) {
+            allExercises
+        } else {
+            allExercises.filter { exercise ->
+                val matchesQuery = query.isBlank() ||
+                    exercise.name.contains(query, ignoreCase = true) ||
+                    exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
+                    exercise.subMuscle.contains(query, ignoreCase = true) ||
+                    exercise.equipment.displayName.contains(query, ignoreCase = true) ||
+                    exercise.equipment.code.contains(query, ignoreCase = true) ||
+                    exercise.movementType.displayName.contains(query, ignoreCase = true)
 
-        val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
-        val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment
-        val matchesMovementType = selectedMovementType == null || exercise.movementType == selectedMovementType
+                val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
+                val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment
+                val matchesMovementType = selectedMovementType == null || exercise.movementType == selectedMovementType
 
-        matchesQuery && matchesMuscle && matchesEquipment && matchesMovementType
+                matchesQuery && matchesMuscle && matchesEquipment && matchesMovementType
+            }
+        }
     }
 
     Box(
@@ -400,7 +406,11 @@ private fun ExerciseCatalogList(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 90.dp)
                 ) {
-                    items(filteredExercises, key = { it.id }) { exercise ->
+                    items(
+                        items = filteredExercises,
+                        key = { it.id },
+                        contentType = { "exercise_row" }
+                    ) { exercise ->
                         ExerciseRowItem(
                             exercise = exercise,
                             hasActiveWorkout = activeWorkout != null,

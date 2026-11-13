@@ -696,12 +696,16 @@ private fun ExercisePickerModal(
     )
 
     val filteredList = remember(searchQuery, selectedMuscle, allExercises) {
-        allExercises.filter { ex ->
-            val matchQuery = searchQuery.isBlank() ||
-                    ex.name.contains(searchQuery, ignoreCase = true) ||
-                    ex.equipment.displayName.contains(searchQuery, ignoreCase = true)
-            val matchMuscle = selectedMuscle == null || ex.primaryMuscle == selectedMuscle
-            matchQuery && matchMuscle
+        if (searchQuery.isBlank() && selectedMuscle == null) {
+            allExercises
+        } else {
+            allExercises.filter { ex ->
+                val matchQuery = searchQuery.isBlank() ||
+                        ex.name.contains(searchQuery, ignoreCase = true) ||
+                        ex.equipment.displayName.contains(searchQuery, ignoreCase = true)
+                val matchMuscle = selectedMuscle == null || ex.primaryMuscle == selectedMuscle
+                matchQuery && matchMuscle
+            }
         }
     }
 
@@ -835,7 +839,11 @@ private fun ExercisePickerModal(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(filteredList, key = { it.id }) { ex ->
+                items(
+                    items = filteredList,
+                    key = { it.id },
+                    contentType = { "exercise_picker_row" }
+                ) { ex ->
                     val isAlreadyAdded = selectedIds.contains(ex.id)
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),

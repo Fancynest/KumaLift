@@ -43,6 +43,8 @@ actual fun ProfileAvatarMedia(
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(context)
             .data(file)
+            .size(256, 256)
+            .allowHardware(true)
             .crossfade(true)
             .build(),
         contentDescription = "Profile Avatar",

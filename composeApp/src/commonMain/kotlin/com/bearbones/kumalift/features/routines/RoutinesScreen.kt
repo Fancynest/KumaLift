@@ -72,10 +72,12 @@ fun RoutinesScreen(
         listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
     }
 
-    val filteredRoutines = if (selectedCategory == allCategoryLabel) {
-        routines
-    } else {
-        routines.filter { it.splitCategory == selectedCategory }
+    val filteredRoutines = remember(selectedCategory, routines, allCategoryLabel) {
+        if (selectedCategory == allCategoryLabel) {
+            routines
+        } else {
+            routines.filter { it.splitCategory == selectedCategory }
+        }
     }
 
     Box(

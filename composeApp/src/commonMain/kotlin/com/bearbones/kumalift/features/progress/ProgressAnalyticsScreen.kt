@@ -67,7 +67,7 @@ fun ProgressAnalyticsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Progress & Telemetry",
+                    text = "Perkembangan Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -135,7 +135,7 @@ fun ProgressAnalyticsScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "ESTIMATED 1RM TRAJECTORY",
+                                        text = "ESTIMASI BEBAN MAKSIMAL (1RM)",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.ElectricLime,
                                             letterSpacing = 0.8.sp
@@ -225,13 +225,13 @@ fun ProgressAnalyticsScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Weekly Tonnage",
+                                    text = "Total Beban per Minggu",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
                                 Text(
-                                    text = "Avg 54,200 kg (+14%)",
+                                    text = "Rata-rata 54.200 kg (+14%)",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.ElectricLime,
                                         fontWeight = FontWeight.Bold
@@ -274,7 +274,7 @@ fun ProgressAnalyticsScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = "Hall of Fame (Personal Records)",
+                                text = "Rekor Angkatan Terbaik (PR)",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )

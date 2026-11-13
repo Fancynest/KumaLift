@@ -1,13 +1,13 @@
 package com.bearbones.kumalift.domain.model
 
 enum class MuscleGroup(val displayName: String) {
-    CHEST("Chest"),
-    BACK("Back"),
-    LEGS("Legs"),
-    SHOULDERS("Shoulders"),
-    ARMS("Arms"),
+    CHEST("Dada"),
+    BACK("Punggung"),
+    LEGS("Kaki"),
+    SHOULDERS("Bahu"),
+    ARMS("Lengan"),
     CORE("Core"),
-    FULL_BODY("Full Body")
+    FULL_BODY("Seluruh Tubuh")
 }
 
 enum class Equipment(val code: String, val displayName: String) {

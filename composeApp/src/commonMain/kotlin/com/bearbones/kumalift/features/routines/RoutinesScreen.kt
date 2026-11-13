@@ -53,11 +53,11 @@ fun RoutinesScreen(
     onStartRoutine: () -> Unit
 ) {
     val routines by routineRepository.routines.collectAsState()
-    var selectedCategory by remember { mutableStateOf("All Routines") }
+    var selectedCategory by remember { mutableStateOf("Semua Program") }
 
-    val categories = listOf("All Routines", "PPL Split", "Upper / Lower", "Full Body")
+    val categories = listOf("Semua Program", "PPL Split", "Upper / Lower", "Full Body")
 
-    val filteredRoutines = if (selectedCategory == "All Routines") {
+    val filteredRoutines = if (selectedCategory == "Semua Program") {
         routines
     } else {
         routines.filter { it.splitCategory == selectedCategory }
@@ -79,7 +79,7 @@ fun RoutinesScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Workout Routines",
+                    text = "Program & Pola Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -109,7 +109,7 @@ fun RoutinesScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "CURRENT MESOCYCLE",
+                                        text = "PROGRAM LATIHAN",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.ElectricLime,
                                             letterSpacing = 0.8.sp
@@ -131,7 +131,7 @@ fun RoutinesScreen(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "Week 3 of 6",
+                                        text = "Minggu 3 dari 6",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.TextWhite,
                                             fontWeight = FontWeight.Bold
@@ -147,7 +147,7 @@ fun RoutinesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Block Adherence",
+                                    text = "Disiplin Program",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -300,7 +300,7 @@ fun RoutineCardItem(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Start Workout",
+                    text = "Mulai Latihan Ini",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.OnElectricLime

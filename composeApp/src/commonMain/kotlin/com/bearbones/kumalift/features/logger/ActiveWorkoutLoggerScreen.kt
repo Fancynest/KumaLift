@@ -82,7 +82,7 @@ fun ActiveWorkoutLoggerScreen(
         if (workout == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "No active workout. Start one from Home or Routines!",
+                    text = "Belum ada sesi aktif. Yuk mulai latihan dari Beranda atau Latihan!",
                     style = MaterialTheme.typography.bodyLarge,
                     color = KumaColors.TextMuted
                 )
@@ -115,7 +115,7 @@ fun ActiveWorkoutLoggerScreen(
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Text(
-                            text = "Active Workout",
+                            text = "Catatan Latihan",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = KumaColors.TextWhite
@@ -171,7 +171,7 @@ fun ActiveWorkoutLoggerScreen(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = "ACTIVE TELEMETRY",
+                                                text = "SEDANG LATIHAN",
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = KumaColors.ElectricLime,
                                                     letterSpacing = 0.8.sp
@@ -229,7 +229,7 @@ fun ActiveWorkoutLoggerScreen(
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
-                                                    text = "Finish",
+                                                    text = "Selesai",
                                                     style = MaterialTheme.typography.labelLarge.copy(
                                                         fontWeight = FontWeight.ExtraBold,
                                                         color = KumaColors.OnElectricLime
@@ -255,12 +255,12 @@ fun ActiveWorkoutLoggerScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Progress Overview",
+                                        text = "Target Selesai",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = KumaColors.TextSecondary
                                     )
                                     Text(
-                                        text = "${workout.totalCompletedSets} of ${workout.totalSets} sets (${(workout.progressFraction * 100).toInt()}%)",
+                                        text = "${workout.totalCompletedSets} dari ${workout.totalSets} set (${(workout.progressFraction * 100).toInt()}%)",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = KumaColors.ElectricLime
@@ -329,7 +329,7 @@ fun ActiveWorkoutLoggerScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Add Exercise",
+                                        text = "+ Tambah Gerakan",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             color = KumaColors.TextWhite,
                                             fontWeight = FontWeight.Bold
@@ -440,7 +440,7 @@ fun ExerciseLoggingCard(
                     modifier = Modifier.width(36.dp)
                 )
                 Text(
-                    text = "PREV",
+                    text = "LALU",
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.weight(1.1f)
@@ -458,7 +458,7 @@ fun ExerciseLoggingCard(
                     modifier = Modifier.weight(1.0f)
                 )
                 Text(
-                    text = "LOG",
+                    text = "CEK",
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.width(48.dp)
@@ -499,7 +499,7 @@ fun ExerciseLoggingCard(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Add Set",
+                    text = "+ Tambah Set",
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = KumaColors.OnSurface,
                         fontWeight = FontWeight.SemiBold
@@ -638,7 +638,7 @@ fun FloatingRestTimerCard(
 
         Column {
             Text(
-                text = "REST INTERVAL",
+                text = "WAKTU ISTIRAHAT",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
                     color = KumaColors.TextMuted,

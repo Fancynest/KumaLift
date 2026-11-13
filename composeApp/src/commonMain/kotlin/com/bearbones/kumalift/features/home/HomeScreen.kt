@@ -133,7 +133,7 @@ fun HomeScreen(
                     ) {
                         Column {
                             Text(
-                                text = "WEEK 6 · HYPERTROPHY PHASE",
+                                text = "MINGGU 6 · FASE TAMBAH OTOT",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = KumaColors.ElectricLime,
                                     letterSpacing = 1.sp
@@ -141,7 +141,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Good morning, Alex",
+                                text = "Semangat pagi, Alex",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontSize = 24.sp
                                 )
@@ -173,19 +173,19 @@ fun HomeScreen(
                     ) {
                         item {
                             KumaBadge(
-                                text = "4 Day Streak",
+                                text = "Streak 4 Hari",
                                 icon = Icons.Default.LocalFireDepartment
                             )
                         }
                         item {
                             KumaBadge(
-                                text = "18.4k kg This Week",
+                                text = "18.4k kg Beban Minggu Ini",
                                 icon = Icons.Default.FitnessCenter
                             )
                         }
                         item {
                             KumaBadge(
-                                text = "Target Met: 80%",
+                                text = "Target Tercapai: 80%",
                                 icon = Icons.Default.Verified
                             )
                         }
@@ -216,7 +216,7 @@ fun HomeScreen(
                                         modifier = Modifier.size(18.dp)
                                     )
                                     Text(
-                                        text = "This Week",
+                                        text = "Minggu Ini",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         )
@@ -227,9 +227,9 @@ fun HomeScreen(
                                         .clip(PillShape)
                                         .background(KumaColors.ElectricLime)
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
-                                ) {
+                                        ) {
                                     Text(
-                                        text = "4/5 Workouts",
+                                        text = "4/5 Sesi Latihan",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -247,13 +247,13 @@ fun HomeScreen(
                                     .padding(horizontal = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                DayCircle("M", isDone = true)
-                                DayCircle("T", isDone = true)
-                                DayCircle("W", isRest = true)
-                                DayCircle("T", isDone = true)
-                                DayCircle("F", isActive = true)
+                                DayCircle("S", isDone = true)
+                                DayCircle("S", isDone = true)
+                                DayCircle("R", isRest = true)
+                                DayCircle("K", isDone = true)
+                                DayCircle("J", isActive = true)
                                 DayCircle("S")
-                                DayCircle("S")
+                                DayCircle("M")
                             }
                         }
                     }
@@ -272,9 +272,9 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                KumaBadge(text = "RECOMMENDED TODAY")
+                                KumaBadge(text = "JADWAL HARI INI")
                                 Text(
-                                    text = "Heavy, RPE 8–9",
+                                    text = "Beban Berat · RPE 8–9",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -292,7 +292,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "4 exercises · 16 sets · ~55 min",
+                                text = "4 gerakan · 16 set · ~55 mnt",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextSecondary
                             )
@@ -311,7 +311,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(20.dp))
 
                             KumaPrimaryButton(
-                                text = "START WORKOUT",
+                                text = "MULAI LATIHAN",
                                 icon = Icons.Default.PlayArrow,
                                 onClick = onStartWorkout
                             )
@@ -327,21 +327,21 @@ fun HomeScreen(
                     ) {
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "SESSIONS",
+                            label = "TOTAL SESI",
                             value = "18",
-                            subtext = "+3 vs last mo"
+                            subtext = "+3 dr bln lalu"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "VOLUME",
+                            label = "TOTAL BEBAN",
                             value = "64.2k",
-                            subtext = "+12% tonnage"
+                            subtext = "+12% tonase"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
-                            label = "PRS",
+                            label = "REKOR (PR)",
                             value = "3",
-                            subtext = "New records",
+                            subtext = "Rekor baru",
                             isAccent = true
                         )
                     }
@@ -351,7 +351,7 @@ fun HomeScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = "Recent Workouts",
+                            text = "Riwayat Latihan",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             )
@@ -379,7 +379,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Yesterday · 14,850 kg · 47 min",
+                                        text = "Kemarin · 14.850 kg · 47 mnt",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = KumaColors.TextMuted
                                     )
@@ -414,7 +414,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Log Empty / Freestyle Workout",
+                                    text = "+ Latihan Bebas (Freestyle)",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         color = KumaColors.TextWhite,
                                         fontWeight = FontWeight.Bold

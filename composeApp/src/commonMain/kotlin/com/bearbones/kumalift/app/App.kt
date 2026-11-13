@@ -164,7 +164,7 @@ fun KumaBottomNavigation(
                             .background(KumaColors.OnElectricLime)
                     )
                     Text(
-                        text = "  ACTIVE WORKOUT IN PROGRESS",
+                        text = "  SESI LATIHAN BERJALAN",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime,
@@ -174,7 +174,7 @@ fun KumaBottomNavigation(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "RESUME",
+                        text = "LANJUT",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime
@@ -201,25 +201,25 @@ fun KumaBottomNavigation(
         ) {
             NavItem(
                 icon = Icons.Default.Home,
-                label = "Home",
+                label = "Beranda",
                 isSelected = currentScreen == Screen.HOME,
                 onClick = { onTabSelected(Screen.HOME) }
             )
             NavItem(
                 icon = Icons.Default.FitnessCenter,
-                label = "Workouts",
+                label = "Latihan",
                 isSelected = currentScreen == Screen.ROUTINES,
                 onClick = { onTabSelected(Screen.ROUTINES) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                label = "Library",
+                label = "Gerakan",
                 isSelected = currentScreen == Screen.LIBRARY,
                 onClick = { onTabSelected(Screen.LIBRARY) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.ShowChart,
-                label = "Progress",
+                label = "Progres",
                 isSelected = currentScreen == Screen.PROGRESS,
                 onClick = { onTabSelected(Screen.PROGRESS) }
             )

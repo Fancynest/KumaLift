@@ -59,7 +59,7 @@ fun WorkoutSummaryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Workout Summary",
+                    text = "Rangkuman Latihan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -94,7 +94,7 @@ fun WorkoutSummaryScreen(
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "SESSION LOGGED",
+                                        text = "LATIHAN TUNTAS!",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -111,7 +111,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
-                                text = "Push Day Complete",
+                                text = "Push Day Selesai!",
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -120,7 +120,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "Today · 11:30 AM – 12:17 PM",
+                                text = "Hari ini · 11:30 – 12:17",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextMuted
                             )
@@ -137,16 +137,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "DURATION",
+                                label = "DURASI",
                                 value = "47:20",
-                                subtext = "Pace: +4m vs target",
+                                subtext = "Target: +4 mnt",
                                 icon = Icons.Default.Timer
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "TOTAL VOLUME",
+                                label = "TOTAL BEBAN",
                                 value = "14,850 kg",
-                                subtext = "+8% vs prev split",
+                                subtext = "+8% dr sesi lalu",
                                 icon = Icons.Default.FitnessCenter,
                                 isAccent = true
                             )
@@ -158,16 +158,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "SETS COMPLETED",
+                                label = "SET TUNTAS",
                                 value = "16 / 16",
-                                subtext = "100% adherence",
+                                subtext = "100% disiplin",
                                 icon = Icons.Default.CheckCircle
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = "AVG REST INTERVAL",
-                                value = "88 sec",
-                                subtext = "420 kcal estimated",
+                                label = "RATA-RATA REHAT",
+                                value = "88 dtk",
+                                subtext = "Est. 420 kkal",
                                 icon = Icons.Default.Speed
                             )
                         }
@@ -206,7 +206,7 @@ fun WorkoutSummaryScreen(
 
                             Column {
                                 Text(
-                                    text = "NEW PR ACHIEVED",
+                                    text = "🔥 REKOR BARU (PR)!",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.ElectricLime,
                                         letterSpacing = 0.8.sp
@@ -221,7 +221,7 @@ fun WorkoutSummaryScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "3RM PR (+3.0 kg breakthrough)",
+                                    text = "3RM PR (+3.0 kg rekor baru)",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextMuted
                                 )
@@ -239,7 +239,7 @@ fun WorkoutSummaryScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "Volume Distribution",
+                                text = "Fokus Otot yang Dilatih",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -280,19 +280,19 @@ fun WorkoutSummaryScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Chest: 52%",
+                                    text = "Dada: 52%",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.ElectricLime,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
                                 Text(
-                                    text = "Shoulders: 28%",
+                                    text = "Bahu: 28%",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
                                 Text(
-                                    text = "Triceps: 20%",
+                                    text = "Trisep: 20%",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -305,7 +305,7 @@ fun WorkoutSummaryScreen(
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
                     KumaPrimaryButton(
-                        text = "SAVE & FINISH WORKOUT",
+                        text = "SIMPAN & AKHIRI SESI",
                         onClick = onSaveAndClose
                     )
                     Spacer(modifier = Modifier.height(100.dp))

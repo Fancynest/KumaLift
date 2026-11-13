@@ -82,7 +82,7 @@ fun ExerciseLibraryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Exercise Library",
+                    text = "Katalog Gerakan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -90,7 +90,7 @@ fun ExerciseLibraryScreen(
                 )
 
                 Text(
-                    text = "${filteredExercises.size} Indexed",
+                    text = "${filteredExercises.size} Gerakan",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.ElectricLime
                     )
@@ -110,7 +110,7 @@ fun ExerciseLibraryScreen(
                     onValueChange = { searchQuery = it },
                     placeholder = {
                         Text(
-                            text = "Search movement or equipment...",
+                            text = "Cari nama latihan, barbel, dumbbell...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = KumaColors.TextMuted
                         )
@@ -157,7 +157,7 @@ fun ExerciseLibraryScreen(
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "All",
+                                text = "Semua",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isAllSelected) KumaColors.OnElectricLime else KumaColors.OnSurface

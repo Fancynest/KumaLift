@@ -61,6 +61,12 @@ import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 
+private enum class LibraryViewState {
+    CATALOG,
+    DETAIL,
+    CREATE
+}
+
 @Composable
 fun ExerciseLibraryScreen(
     exerciseRepository: ExerciseRepository,
@@ -68,35 +74,65 @@ fun ExerciseLibraryScreen(
     onExerciseSelected: ((Exercise) -> Unit)? = null
 ) {
     var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
+    var isCreatingExercise by remember { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
 
-    Crossfade(targetState = selectedExerciseForDetail) { detailedExercise ->
-        if (detailedExercise != null) {
-            // Keep detailed exercise updated with latest repository state (e.g. pinned notes)
-            val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
-            ExerciseDetailScreen(
-                exercise = liveExercise,
-                onNavigateBack = { selectedExerciseForDetail = null },
-                onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
-                    {
-                        workoutRepository.addExerciseToActiveWorkout(liveExercise)
-                        onExerciseSelected?.invoke(liveExercise)
+    Crossfade(
+        targetState = when {
+            selectedExerciseForDetail != null -> LibraryViewState.DETAIL
+            isCreatingExercise -> LibraryViewState.CREATE
+            else -> LibraryViewState.CATALOG
+        }
+    ) { state ->
+        when (state) {
+            LibraryViewState.DETAIL -> {
+                val detailedExercise = selectedExerciseForDetail
+                if (detailedExercise != null) {
+                    // Keep detailed exercise updated with latest repository state (e.g. pinned notes)
+                    val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
+                    ExerciseDetailScreen(
+                        exercise = liveExercise,
+                        onNavigateBack = { selectedExerciseForDetail = null },
+                        onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
+                            {
+                                workoutRepository.addExerciseToActiveWorkout(liveExercise)
+                                onExerciseSelected?.invoke(liveExercise)
+                            }
+                        } else null,
+                        onSaveNote = { note ->
+                            exerciseRepository.updatePinnedNote(liveExercise.id, note)
+                        }
+                    )
+                }
+            }
+            LibraryViewState.CREATE -> {
+                CreateExerciseScreen(
+                    onNavigateBack = { isCreatingExercise = false },
+                    onSaveExercise = { name, primaryMuscle, equipment, secondaryMuscles, movementType ->
+                        val created = exerciseRepository.addCustomExercise(
+                            name = name,
+                            primaryMuscle = primaryMuscle,
+                            equipment = equipment,
+                            secondaryMuscles = secondaryMuscles,
+                            movementType = movementType
+                        )
+                        isCreatingExercise = false
+                        selectedExerciseForDetail = created
                     }
-                } else null,
-                onSaveNote = { note ->
-                    exerciseRepository.updatePinnedNote(liveExercise.id, note)
-                }
-            )
-        } else {
-            ExerciseCatalogList(
-                exerciseRepository = exerciseRepository,
-                workoutRepository = workoutRepository,
-                onOpenDetail = { selectedExerciseForDetail = it },
-                onAddExercise = { exercise ->
-                    workoutRepository?.addExerciseToActiveWorkout(exercise)
-                    onExerciseSelected?.invoke(exercise)
-                }
-            )
+                )
+            }
+            LibraryViewState.CATALOG -> {
+                ExerciseCatalogList(
+                    exerciseRepository = exerciseRepository,
+                    workoutRepository = workoutRepository,
+                    onOpenDetail = { selectedExerciseForDetail = it },
+                    onOpenCreate = { isCreatingExercise = true },
+                    onAddExercise = { exercise ->
+                        workoutRepository?.addExerciseToActiveWorkout(exercise)
+                        onExerciseSelected?.invoke(exercise)
+                    }
+                )
+            }
         }
     }
 }
@@ -106,13 +142,13 @@ private fun ExerciseCatalogList(
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository?,
     onOpenDetail: (Exercise) -> Unit,
+    onOpenCreate: () -> Unit,
     onAddExercise: (Exercise) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
     var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
     var selectedMovementType by remember { mutableStateOf<MovementType?>(null) }
-    var showCreateDialog by remember { mutableStateOf(false) }
 
     val allExercises by exerciseRepository.exercises.collectAsState()
     val activeWorkout = workoutRepository?.activeWorkout?.collectAsState()?.value
@@ -166,7 +202,7 @@ private fun ExerciseCatalogList(
                         fontWeight = FontWeight.Bold,
                         color = colors.accentText
                     ),
-                    modifier = Modifier.clickable { showCreateDialog = true }
+                    modifier = Modifier.clickable { onOpenCreate() }
                 )
             }
 
@@ -368,91 +404,6 @@ private fun ExerciseCatalogList(
                 }
             }
         }
-    }
-
-    // Create Custom Exercise Dialog
-    if (showCreateDialog) {
-        var nameInput by remember { mutableStateOf("") }
-        var selectedMuscleGroup by remember { mutableStateOf(MuscleGroup.CHEST) }
-        var selectedEq by remember { mutableStateOf(Equipment.BARBELL) }
-
-        AlertDialog(
-            onDismissRequest = { showCreateDialog = false },
-            title = { Text("Create Exercise", fontWeight = FontWeight.Bold) },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Exercise Name:", style = MaterialTheme.typography.labelMedium.copy(color = colors.textSecondary))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(KumaColors.SurfaceContainer)
-                            .padding(12.dp)
-                    ) {
-                        BasicTextField(
-                            value = nameInput,
-                            onValueChange = { nameInput = it },
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.textPrimary),
-                            cursorBrush = SolidColor(colors.accentText),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Text("Target Muscle:", style = MaterialTheme.typography.labelMedium.copy(color = colors.textSecondary))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(MuscleGroup.CHEST, MuscleGroup.BACK, MuscleGroup.LEGS).forEach { m ->
-                            val isSel = selectedMuscleGroup == m
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSel) colors.accentFill else KumaColors.SurfaceContainer)
-                                    .clickable { selectedMuscleGroup = m }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = m.displayName,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = if (isSel) colors.onAccentFill else colors.textPrimary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (nameInput.isNotBlank()) {
-                            exerciseRepository.addCustomExercise(
-                                name = nameInput.trim(),
-                                primaryMuscle = selectedMuscleGroup,
-                                equipment = selectedEq
-                            )
-                        }
-                        showCreateDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.accentFill,
-                        contentColor = colors.onAccentFill
-                    )
-                ) {
-                    Text("Save", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel", color = colors.textSecondary)
-                }
-            }
-        )
     }
 }
 

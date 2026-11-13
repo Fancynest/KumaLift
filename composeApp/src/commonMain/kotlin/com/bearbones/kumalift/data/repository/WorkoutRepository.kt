@@ -33,15 +33,28 @@ class ExerciseRepository {
         }
     }
 
-    fun addCustomExercise(name: String, primaryMuscle: MuscleGroup, equipment: Equipment) {
+    fun addCustomExercise(
+        name: String,
+        primaryMuscle: MuscleGroup,
+        equipment: Equipment,
+        secondaryMuscles: List<MuscleGroup> = emptyList(),
+        movementType: com.bearbones.kumalift.domain.model.MovementType = com.bearbones.kumalift.domain.model.MovementType.COMPOUND
+    ): Exercise {
+        val cleanId = "custom_${name.lowercase().replace(Regex("[^a-z0-9]"), "_")}_${_exercises.value.size + 1}"
         val newEx = Exercise(
-            id = "custom_${name.lowercase().replace(" ", "_")}_${_exercises.value.size}",
+            id = cleanId,
             name = name,
             primaryMuscle = primaryMuscle,
+            secondaryMuscles = secondaryMuscles,
+            secondaryMuscleDetails = secondaryMuscles.joinToString(", ") { it.displayName },
             equipment = equipment,
+            equipmentDetail = equipment.displayName,
+            movementType = movementType,
             defaultIncrementKg = 2.5
         )
-        _exercises.update { it + newEx }
+        // Prepend to top of list so the user immediately sees the new exercise in the catalog
+        _exercises.update { listOf(newEx) + it }
+        return newEx
     }
 
     fun updatePinnedNote(exerciseId: String, note: String) {

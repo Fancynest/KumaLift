@@ -143,30 +143,6 @@ fun ExerciseVisualAnimation(
                 )
             )
         }
-
-        // Attribution Notice — bottom (without URL per user request)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.85f))
-                .padding(vertical = 4.dp, horizontal = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            val cleanAttribution = exercise.attribution
-                .replace(" — https://gymvisual.com/", "")
-                .replace(" - https://gymvisual.com/", "")
-                .ifBlank { "© Gym visual" }
-
-            Text(
-                text = cleanAttribution,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.sp,
-                    color = Color(0xFF6B7280),
-                    fontWeight = FontWeight.Medium
-                )
-            )
-        }
     }
 }
 

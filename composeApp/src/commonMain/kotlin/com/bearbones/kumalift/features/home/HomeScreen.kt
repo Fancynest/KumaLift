@@ -45,6 +45,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLogoMark
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 
 @Composable
@@ -128,6 +129,7 @@ fun HomeScreen(
 
                     // Metric Chips in a horizontally scrollable LazyRow (zero squeezing)
                     LazyRow(
+                        modifier = Modifier.isolateHorizontalScroll(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
@@ -252,6 +254,7 @@ fun HomeScreen(
 
                             // Exercise Preview Chips
                             LazyRow(
+                                modifier = Modifier.isolateHorizontalScroll(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 item { KumaBadge(text = "Deadlift") }

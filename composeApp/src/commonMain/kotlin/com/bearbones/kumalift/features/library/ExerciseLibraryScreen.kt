@@ -47,6 +47,7 @@ import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.Exercise
@@ -172,6 +173,7 @@ fun ExerciseLibraryScreen(
 
                 // Primary Muscle Group Filter Chips
                 LazyRow(
+                    modifier = Modifier.isolateHorizontalScroll(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 2.dp)
                 ) {
@@ -235,6 +237,7 @@ fun ExerciseLibraryScreen(
                     Column {
                         Spacer(modifier = Modifier.height(8.dp))
                         LazyRow(
+                            modifier = Modifier.isolateHorizontalScroll(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             contentPadding = PaddingValues(vertical = 2.dp)
                         ) {

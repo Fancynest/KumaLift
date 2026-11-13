@@ -39,6 +39,7 @@ import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
@@ -174,6 +175,7 @@ fun RoutinesScreen(
                 // Category Filter Pills
                 item {
                     LazyRow(
+                        modifier = Modifier.isolateHorizontalScroll(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
@@ -270,6 +272,7 @@ fun RoutineCardItem(
 
             // Exercise Preview Tags
             LazyRow(
+                modifier = Modifier.isolateHorizontalScroll(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(routine.exerciseTemplates) { ex ->

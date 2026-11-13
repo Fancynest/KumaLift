@@ -33,8 +33,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -357,4 +361,33 @@ fun KumaLogoMark(
             cornerRadius = CornerRadius(3f * s, 3f * s)
         )
     }
+}
+
+/**
+ * Isolates horizontal scrolling in child components (e.g. LazyRow filter chips)
+ * so that overscrolling or dragging at boundaries does not bubble up to the parent HorizontalPager.
+ */
+@Composable
+fun Modifier.isolateHorizontalScroll(): Modifier {
+    val connection = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                // Absorb all horizontal overscroll so parent HorizontalPager never receives it
+                return Offset(x = available.x, y = 0f)
+            }
+
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity
+            ): Velocity {
+                // Absorb any leftover horizontal fling velocity
+                return Velocity(x = available.x, y = 0f)
+            }
+        }
+    }
+    return this.nestedScroll(connection)
 }

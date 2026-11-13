@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,7 +53,8 @@ import com.bearbones.kumalift.data.repository.WorkoutRepository
 fun HomeScreen(
     workoutRepository: WorkoutRepository,
     onStartWorkout: () -> Unit,
-    onStartFreestyle: () -> Unit
+    onStartFreestyle: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -97,6 +99,22 @@ fun HomeScreen(
                     )
                 }
 
+                // Settings Gear Button
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable(onClick = onOpenSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Pengaturan",
+                        tint = KumaColors.OnSurface,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             LazyColumn(

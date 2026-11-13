@@ -49,12 +49,14 @@ import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
+import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
 import com.bearbones.kumalift.features.progress.ProgressAnalyticsScreen
 import com.bearbones.kumalift.features.routines.RoutinesScreen
+import com.bearbones.kumalift.features.settings.SettingsScreen
 import com.bearbones.kumalift.features.summary.WorkoutSummaryScreen
 
 enum class Screen {
@@ -63,7 +65,8 @@ enum class Screen {
     LIBRARY,
     PROGRESS,
     ACTIVE_LOGGER,
-    SUMMARY
+    SUMMARY,
+    SETTINGS
 }
 
 @Composable
@@ -72,6 +75,7 @@ fun App() {
     val routineRepository = remember { RoutineRepository() }
     val personalRecordRepository = remember { PersonalRecordRepository() }
     val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
+    val settingsRepository = remember { SettingsRepository() }
 
     val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS) }
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
@@ -102,8 +106,8 @@ fun App() {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                // Show bottom navigation bar only on main screens (not inside fullscreen active logger or summary)
-                if (currentScreen != Screen.ACTIVE_LOGGER && currentScreen != Screen.SUMMARY) {
+                // Show bottom navigation bar only on main screens (not inside fullscreen active logger, summary, or settings)
+                if (currentScreen != Screen.ACTIVE_LOGGER && currentScreen != Screen.SUMMARY && currentScreen != Screen.SETTINGS) {
                     val activeTab = if (currentScreen in mainTabs) mainTabs[pagerState.currentPage] else currentScreen
                     KumaBottomNavigation(
                         currentScreen = activeTab,
@@ -153,6 +157,14 @@ fun App() {
                             }
                         )
                     }
+                    Screen.SETTINGS -> {
+                        SettingsScreen(
+                            settingsRepository = settingsRepository,
+                            onNavigateBack = {
+                                currentScreen = Screen.HOME
+                            }
+                        )
+                    }
                     else -> {
                         HorizontalPager(
                             state = pagerState,
@@ -162,7 +174,8 @@ fun App() {
                                 Screen.HOME -> HomeScreen(
                                     workoutRepository = workoutRepository,
                                     onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
-                                    onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER }
+                                    onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER },
+                                    onOpenSettings = { currentScreen = Screen.SETTINGS }
                                 )
                                 Screen.ROUTINES -> RoutinesScreen(
                                     routineRepository = routineRepository,

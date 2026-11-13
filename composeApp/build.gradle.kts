@@ -33,6 +33,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation("io.coil-kt:coil-compose:2.7.0")
             implementation("io.coil-kt:coil-gif:2.7.0")
+            implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

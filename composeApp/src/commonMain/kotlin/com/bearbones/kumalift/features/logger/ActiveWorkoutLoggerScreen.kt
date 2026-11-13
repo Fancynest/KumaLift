@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,12 +77,18 @@ fun ActiveWorkoutLoggerScreen(
 
     val workout = activeWorkout
 
+    val wearableManager = com.bearbones.kumalift.core.wearable.rememberWearableManager()
+    val wearableTelemetry by wearableManager.telemetry.collectAsState()
+
     var elapsedSeconds by remember(workout?.id) {
         val initial = workout?.durationSeconds?.takeIf { it > 0 } ?: (34 * 60 + 18L)
         mutableStateOf(initial)
     }
 
     LaunchedEffect(workout?.id) {
+        if (workout != null) {
+            wearableManager.startActiveWorkoutMonitoring(workout.id)
+        }
         while (true) {
             delay(1000)
             elapsedSeconds++
@@ -159,6 +166,14 @@ fun ActiveWorkoutLoggerScreen(
                             .clip(RoundedCornerShape(10.dp))
                             .background(KumaColors.ElectricLime)
                             .clickable {
+                                wearableManager.writeFinishedWorkout(
+                                    workoutTitle = workout.title,
+                                    startTimeEpochMs = workout.startTimeEpochMs,
+                                    endTimeEpochMs = System.currentTimeMillis(),
+                                    totalVolumeKg = workout.totalVolumeKg,
+                                    activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
+                                )
+                                wearableManager.stopActiveWorkoutMonitoring()
                                 workoutRepository.finishWorkout()
                                 onFinishWorkout()
                             }
@@ -230,31 +245,74 @@ fun ActiveWorkoutLoggerScreen(
                                         )
                                     }
 
-                                    // Timer Box (Always single horizontal line with stopwatch icon)
                                     Row(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(KumaColors.SurfaceContainerHigh)
-                                            .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
-                                            .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Timer,
-                                            contentDescription = null,
-                                            tint = LocalKumaColors.current.accentText,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Text(
-                                            text = formattedTimer,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                color = LocalKumaColors.current.textPrimary,
-                                                fontWeight = FontWeight.Bold
-                                            ),
-                                            maxLines = 1,
-                                            softWrap = false
-                                        )
+                                        // Live Heart Rate Pill if Wearable is connected
+                                        if (wearableTelemetry.currentBpm != null) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(KumaColors.SurfaceContainerHigh)
+                                                    .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Favorite,
+                                                    contentDescription = null,
+                                                    tint = KumaColors.ErrorRed,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(
+                                                    text = "${wearableTelemetry.currentBpm}",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        color = KumaColors.TextWhite,
+                                                        fontWeight = FontWeight.Bold
+                                                    ),
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                                wearableTelemetry.currentZone?.let { zone ->
+                                                    Text(
+                                                        text = "Z${zone.zoneNumber}",
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            color = LocalKumaColors.current.accentText,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // Timer Box (Always single horizontal line with stopwatch icon)
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(KumaColors.SurfaceContainerHigh)
+                                                .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Timer,
+                                                contentDescription = null,
+                                                tint = LocalKumaColors.current.accentText,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = formattedTimer,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    color = LocalKumaColors.current.textPrimary,
+                                                    fontWeight = FontWeight.Bold
+                                                ),
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     }
                                 }
 
@@ -356,6 +414,14 @@ fun ActiveWorkoutLoggerScreen(
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(KumaColors.ElectricLime)
                                     .clickable {
+                                        wearableManager.writeFinishedWorkout(
+                                            workoutTitle = workout.title,
+                                            startTimeEpochMs = workout.startTimeEpochMs,
+                                            endTimeEpochMs = System.currentTimeMillis(),
+                                            totalVolumeKg = workout.totalVolumeKg,
+                                            activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
+                                        )
+                                        wearableManager.stopActiveWorkoutMonitoring()
                                         workoutRepository.finishWorkout()
                                         onFinishWorkout()
                                     },

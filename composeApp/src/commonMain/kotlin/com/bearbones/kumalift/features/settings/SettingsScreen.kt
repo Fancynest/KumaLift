@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -91,7 +92,8 @@ enum class SettingsDestination {
     UNITS,
     LANGUAGE,
     THEME,
-    EXPORT_IMPORT
+    EXPORT_IMPORT,
+    WEARABLES
 }
 
 @Composable
@@ -155,6 +157,14 @@ fun SettingsScreen(
             SettingsDestination.EXPORT_IMPORT -> {
                 ExportImportDataPage(
                     settingsRepository = settingsRepository,
+                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                )
+            }
+            SettingsDestination.WEARABLES -> {
+                val wearableManager = com.bearbones.kumalift.core.wearable.rememberWearableManager()
+                WearablesSettingsPage(
+                    settingsRepository = settingsRepository,
+                    wearableManager = wearableManager,
                     onNavigateBack = { currentDestination = SettingsDestination.MAIN }
                 )
             }
@@ -271,6 +281,13 @@ private fun SettingsMainMenu(
                             icon = Icons.Default.Palette,
                             title = if (isEnglish) "Theme" else "Tema",
                             onClick = { onNavigateTo(SettingsDestination.THEME) }
+                        )
+                        SettingsDivider()
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Bluetooth,
+                            title = if (isEnglish) "Wearables & Sensors" else "Perangkat & Wearable",
+                            subtitle = "Health Connect & Bluetooth",
+                            onClick = { onNavigateTo(SettingsDestination.WEARABLES) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(

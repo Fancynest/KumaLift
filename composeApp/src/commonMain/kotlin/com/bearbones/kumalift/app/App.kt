@@ -173,6 +173,7 @@ fun App() {
                             when (mainTabs[page]) {
                                 Screen.HOME -> HomeScreen(
                                     workoutRepository = workoutRepository,
+                                    settingsRepository = settingsRepository,
                                     onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
                                     onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER },
                                     onOpenSettings = { currentScreen = Screen.SETTINGS }

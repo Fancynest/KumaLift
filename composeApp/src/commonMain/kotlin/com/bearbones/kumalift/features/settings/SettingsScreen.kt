@@ -18,13 +18,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Timer
@@ -40,18 +44,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
+import com.bearbones.kumalift.domain.model.AthleteSex
+import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.OneRepMaxFormula
+import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
 
 @Composable
@@ -60,6 +68,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
+    val isEnglish = settings.appearance.language == AppLanguage.EN
 
     Box(
         modifier = Modifier
@@ -93,7 +102,7 @@ fun SettingsScreen(
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Pengaturan",
+                    text = if (isEnglish) "Settings" else "Pengaturan",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = KumaColors.TextWhite
@@ -105,63 +114,301 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    // Athlete Card Preview
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow,
-                        cornerRadius = 16.dp
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                // 1. Athlete Profile Editor (Full Spec 3.1)
+                item {
+                    SettingsSection(
+                        title = if (isEnglish) "ATHLETE PROFILE" else "PROFIL ATLET",
+                        icon = Icons.Default.Person
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(KumaColors.SurfaceContainerHigh),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = KumaColors.ElectricLime,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-                            Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // Name Input
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = if (settings.profile.name.isNotBlank()) settings.profile.name else "Atlet KumaLift",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = KumaColors.TextWhite
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Target: ${settings.profile.trainingDaysPerWeek} hari/minggu · ${settings.profile.experienceLevel.displayName}",
+                                    text = if (isEnglish) "Name (used in greeting)" else "Nama Panggilan (untuk sapaan beranda)",
                                     style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
                                 )
+                                SettingsInputField(
+                                    value = settings.profile.name,
+                                    onValueChange = { newName ->
+                                        settingsRepository.update {
+                                            it.copy(profile = it.profile.copy(name = newName))
+                                        }
+                                    },
+                                    placeholder = if (isEnglish) "e.g. Alex" else "misal: Alex",
+                                    keyboardType = KeyboardType.Text
+                                )
+                            }
+
+                            // Body weight & Height in 1 Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Body Weight
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "Body Weight (kg)" else "Berat Badan (kg)",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                    )
+                                    SettingsInputField(
+                                        value = settings.profile.bodyweightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "",
+                                        onValueChange = { raw ->
+                                            val parsed = raw.toDoubleOrNull()
+                                            settingsRepository.update {
+                                                it.copy(profile = it.profile.copy(bodyweightKg = parsed))
+                                            }
+                                        },
+                                        placeholder = "75.0",
+                                        keyboardType = KeyboardType.Decimal
+                                    )
+                                }
+
+                                // Height
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "Height (cm)" else "Tinggi Badan (cm)",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                    )
+                                    SettingsInputField(
+                                        value = settings.profile.heightCm?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "",
+                                        onValueChange = { raw ->
+                                            val parsed = raw.toDoubleOrNull()
+                                            settingsRepository.update {
+                                                it.copy(profile = it.profile.copy(heightCm = parsed))
+                                            }
+                                        },
+                                        placeholder = "175",
+                                        keyboardType = KeyboardType.Decimal
+                                    )
+                                }
+                            }
+
+                            // Training Days Per Week (1..7 Stepper)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isEnglish) "Training Days per Week" else "Target Latihan Mingguan",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = KumaColors.TextWhite
+                                        )
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Target on Home screen" else "Digunakan untuk target kalender beranda",
+                                        style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(KumaColors.SurfaceContainer)
+                                            .clickable {
+                                                if (settings.profile.trainingDaysPerWeek > 1) {
+                                                    settingsRepository.update {
+                                                        it.copy(profile = it.profile.copy(trainingDaysPerWeek = it.profile.trainingDaysPerWeek - 1))
+                                                    }
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Remove,
+                                            contentDescription = "Kurang",
+                                            tint = KumaColors.OnSurface,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "days" else "hari"}",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = KumaColors.ElectricLime
+                                        ),
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(KumaColors.SurfaceContainer)
+                                            .clickable {
+                                                if (settings.profile.trainingDaysPerWeek < 7) {
+                                                    settingsRepository.update {
+                                                        it.copy(profile = it.profile.copy(trainingDaysPerWeek = it.profile.trainingDaysPerWeek + 1))
+                                                    }
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Tambah",
+                                            tint = KumaColors.OnSurface,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Training Goal
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Training Goal" else "Fokus & Target Latihan",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listOf(
+                                        TrainingGoal.HYPERTROPHY to (if (isEnglish) "Hypertrophy" else "Hipertrofi"),
+                                        TrainingGoal.STRENGTH to (if (isEnglish) "Strength" else "Kekuatan"),
+                                        TrainingGoal.GENERAL to (if (isEnglish) "General" else "Umum")
+                                    ).forEach { (goal, label) ->
+                                        val isSelected = settings.profile.goal == goal
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                                .clickable {
+                                                    settingsRepository.update {
+                                                        it.copy(profile = it.profile.copy(goal = goal))
+                                                    }
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) KumaColors.OnElectricLime else KumaColors.TextMuted
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Experience Level
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Experience Level" else "Tingkat Pengalaman",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listOf(
+                                        ExperienceLevel.BEGINNER to (if (isEnglish) "Beginner" else "Pemula"),
+                                        ExperienceLevel.INTERMEDIATE to (if (isEnglish) "Intermediate" else "Menengah"),
+                                        ExperienceLevel.ADVANCED to (if (isEnglish) "Advanced" else "Lanjut")
+                                    ).forEach { (level, label) ->
+                                        val isSelected = settings.profile.experienceLevel == level
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                                .clickable {
+                                                    settingsRepository.update {
+                                                        it.copy(profile = it.profile.copy(experienceLevel = level))
+                                                    }
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) KumaColors.OnElectricLime else KumaColors.TextMuted
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Sex
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Sex (for strength standards)" else "Jenis Kelamin (untuk standar kekuatan)",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listOf(
+                                        AthleteSex.MALE to (if (isEnglish) "Male" else "Pria"),
+                                        AthleteSex.FEMALE to (if (isEnglish) "Female" else "Wanita"),
+                                        AthleteSex.UNSPECIFIED to (if (isEnglish) "Unspecified" else "Rahasia")
+                                    ).forEach { (sex, label) ->
+                                        val isSelected = settings.profile.sex == sex
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isSelected) KumaColors.ElectricLime else KumaColors.SurfaceContainer)
+                                                .clickable {
+                                                    settingsRepository.update {
+                                                        it.copy(profile = it.profile.copy(sex = sex))
+                                                    }
+                                                }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) KumaColors.OnElectricLime else KumaColors.TextMuted
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                // 1. Language Setting
+                // 2. Language Setting (Instantly switches UI language)
                 item {
                     SettingsSection(
-                        title = "BAHASA / LANGUAGE",
+                        title = if (isEnglish) "LANGUAGE / BAHASA" else "BAHASA / LANGUAGE",
                         icon = Icons.Default.Language
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             LanguageOptionRow(
-                                title = "Ikuti Pengaturan HP",
-                                subtitle = "Gunakan bahasa bawaan sistem perangkat",
+                                title = if (isEnglish) "System Default" else "Ikuti Pengaturan HP",
+                                subtitle = if (isEnglish) "Follow device system language" else "Gunakan bahasa bawaan sistem perangkat",
                                 isSelected = settings.appearance.language == AppLanguage.SYSTEM,
                                 onClick = {
                                     settingsRepository.update {
@@ -193,44 +440,46 @@ fun SettingsScreen(
                     }
                 }
 
-                // 2. Units & Formats
+                // 3. Units & Formats
                 item {
                     SettingsSection(
-                        title = "SATUAN BEBAN / UNITS",
+                        title = if (isEnglish) "UNITS & FORMATS" else "SATUAN BEBAN & FORMAT",
                         icon = Icons.Default.Scale
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            UnitSelectChip(
-                                label = "Kilogram (kg)",
-                                isSelected = settings.units.weightUnit == WeightUnit.KG,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    settingsRepository.update {
-                                        it.copy(units = it.units.copy(weightUnit = WeightUnit.KG))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                UnitSelectChip(
+                                    label = "Kilogram (kg)",
+                                    isSelected = settings.units.weightUnit == WeightUnit.KG,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        settingsRepository.update {
+                                            it.copy(units = it.units.copy(weightUnit = WeightUnit.KG))
+                                        }
                                     }
-                                }
-                            )
-                            UnitSelectChip(
-                                label = "Pound (lb)",
-                                isSelected = settings.units.weightUnit == WeightUnit.LB,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    settingsRepository.update {
-                                        it.copy(units = it.units.copy(weightUnit = WeightUnit.LB))
+                                )
+                                UnitSelectChip(
+                                    label = "Pound (lb)",
+                                    isSelected = settings.units.weightUnit == WeightUnit.LB,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        settingsRepository.update {
+                                            it.copy(units = it.units.copy(weightUnit = WeightUnit.LB))
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
 
-                // 3. Timer & Logging
+                // 4. Timer & Logging
                 item {
                     SettingsSection(
-                        title = "LATIHAN & REST TIMER",
+                        title = if (isEnglish) "WORKOUT LOGGING & TIMER" else "LATIHAN & REST TIMER",
                         icon = Icons.Default.Timer
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -242,14 +491,14 @@ fun SettingsScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Mulai Timer Otomatis",
+                                        text = if (isEnglish) "Auto-start Rest Timer" else "Mulai Timer Otomatis",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             color = KumaColors.TextWhite
                                         )
                                     )
                                     Text(
-                                        text = "Timer istirahat jalan setelah set dicentang",
+                                        text = if (isEnglish) "Starts rest timer after completing a set" else "Timer istirahat jalan setelah set dicentang",
                                         style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
                                     )
                                 }
@@ -271,7 +520,7 @@ fun SettingsScreen(
 
                             // Rest timer duration presets
                             Text(
-                                text = "Durasi Istirahat Bawaan: ${settings.logging.restTimerDefaultSec} detik",
+                                text = "${if (isEnglish) "Default Rest Time" else "Durasi Istirahat Bawaan"}: ${settings.logging.restTimerDefaultSec} ${if (isEnglish) "seconds" else "detik"}",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = KumaColors.TextWhite
@@ -292,7 +541,7 @@ fun SettingsScreen(
                                             .padding(horizontal = 14.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = "${sec}d",
+                                            text = "${sec}s",
                                             style = MaterialTheme.typography.labelMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isCurrent) KumaColors.OnElectricLime else KumaColors.TextMuted
@@ -305,17 +554,17 @@ fun SettingsScreen(
                     }
                 }
 
-                // 4. Calculations (1RM Formula)
+                // 5. Calculations (1RM Formula)
                 item {
                     SettingsSection(
-                        title = "RUMUS ESTIMASI 1RM",
+                        title = if (isEnglish) "ESTIMATED 1RM FORMULA" else "RUMUS ESTIMASI 1RM",
                         icon = Icons.Default.FitnessCenter
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             OneRepMaxFormula.entries.forEach { formula ->
                                 val isSelected = settings.calculations.oneRepMaxFormula == formula
                                 val desc = when (formula) {
-                                    OneRepMaxFormula.EPLEY -> "Epley: w × (1 + r/30) [Standar populer]"
+                                    OneRepMaxFormula.EPLEY -> "Epley: w × (1 + r/30) [Standard]"
                                     OneRepMaxFormula.BRZYCKI -> "Brzycki: w × 36 / (37 - r)"
                                     OneRepMaxFormula.LOMBARDI -> "Lombardi: w × r^0.10"
                                     OneRepMaxFormula.OCONNER -> "O'Conner: w × (1 + r/40)"
@@ -370,10 +619,10 @@ fun SettingsScreen(
                     }
                 }
 
-                // 5. Appearance & Theme
+                // 6. Appearance & Theme
                 item {
                     SettingsSection(
-                        title = "TEMA TAMPILAN",
+                        title = if (isEnglish) "THEME & APPEARANCE" else "TEMA & TAMPILAN",
                         icon = Icons.Default.Palette
                     ) {
                         Row(
@@ -381,9 +630,9 @@ fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             listOf(
-                                AppTheme.DARK to "Dark (Gelap)",
-                                AppTheme.LIGHT to "Light (Terang)",
-                                AppTheme.SYSTEM to "Sistem"
+                                AppTheme.DARK to (if (isEnglish) "Dark" else "Gelap"),
+                                AppTheme.LIGHT to (if (isEnglish) "Light" else "Terang"),
+                                AppTheme.SYSTEM to (if (isEnglish) "System" else "Sistem")
                             ).forEach { (theme, label) ->
                                 val isSelected = settings.appearance.theme == theme
                                 Box(
@@ -412,7 +661,7 @@ fun SettingsScreen(
                     }
                 }
 
-                // 6. Danger Zone & Reset
+                // 7. Danger Zone & Reset
                 item {
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
@@ -439,14 +688,14 @@ fun SettingsScreen(
                                     )
                                     Column {
                                         Text(
-                                            text = "Reset Semua Pengaturan",
+                                            text = if (isEnglish) "Reset All Settings" else "Reset Semua Pengaturan",
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFFFF5C5C)
                                             )
                                         )
                                         Text(
-                                            text = "Kembalikan ke setelan bawaan awal",
+                                            text = if (isEnglish) "Restore factory default preferences" else "Kembalikan ke setelan bawaan awal",
                                             style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
                                         )
                                     }
@@ -461,6 +710,46 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardType: KeyboardType
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(KumaColors.SurfaceContainer)
+            .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                text = placeholder,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                color = KumaColors.TextMuted
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = KumaColors.TextWhite
+            ),
+            cursorBrush = SolidColor(KumaColors.ElectricLime),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

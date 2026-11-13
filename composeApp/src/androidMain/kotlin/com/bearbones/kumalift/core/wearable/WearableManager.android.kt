@@ -19,11 +19,14 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelUuid
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
@@ -57,6 +60,9 @@ actual class WearableManager(private val context: Context) {
     private val _discoveredDevices = MutableStateFlow<List<DiscoveredBleDevice>>(emptyList())
     actual val discoveredDevices: StateFlow<List<DiscoveredBleDevice>> = _discoveredDevices.asStateFlow()
 
+    private val _isHealthConnectAuthorized = MutableStateFlow(false)
+    actual val isHealthConnectAuthorized: StateFlow<Boolean> = _isHealthConnectAuthorized.asStateFlow()
+
     private var activeMonitoringJob: Job? = null
     private var bluetoothGatt: BluetoothGatt? = null
     private val hrHistory = mutableListOf<Int>()
@@ -69,8 +75,30 @@ actual class WearableManager(private val context: Context) {
     private val healthPermissions = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
-        HealthPermission.getWritePermission(ExerciseSessionRecord::class)
+        HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+        HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class)
     )
+
+    init {
+        checkHealthConnectPermissions()
+    }
+
+    actual fun checkHealthConnectPermissions() {
+        if (!isHealthConnectAvailable()) {
+            _isHealthConnectAuthorized.value = false
+            return
+        }
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                val granted = client.permissionController.getGrantedPermissions()
+                val hasAll = granted.containsAll(healthPermissions)
+                _isHealthConnectAuthorized.value = hasAll
+            } catch (e: Exception) {
+                _isHealthConnectAuthorized.value = false
+            }
+        }
+    }
 
     actual fun isHealthConnectAvailable(): Boolean {
         val status = HealthConnectClient.getSdkStatus(context)
@@ -92,11 +120,25 @@ actual class WearableManager(private val context: Context) {
         }
 
         try {
-            val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").apply {
+                    putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            } else {
+                Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
             }
             context.startActivity(intent)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            try {
+                val fallback = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallback)
+            } catch (_: Exception) {}
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -405,4 +447,68 @@ actual class WearableManager(private val context: Context) {
 actual fun rememberWearableManager(): WearableManager {
     val context = LocalContext.current
     return remember(context) { WearableManager(context.applicationContext) }
+}
+
+@Composable
+actual fun rememberHealthConnectPermissionLauncher(
+    onResult: (Boolean) -> Unit
+): () -> Unit {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val permissions = setOf(
+        HealthPermission.getReadPermission(HeartRateRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getWritePermission(ExerciseSessionRecord::class),
+        HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class)
+    )
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { granted ->
+        val allGranted = granted.containsAll(permissions)
+        onResult(allGranted)
+    }
+
+    return {
+        coroutineScope.launch {
+            try {
+                val status = HealthConnectClient.getSdkStatus(context)
+                if (status == HealthConnectClient.SDK_AVAILABLE) {
+                    val client = HealthConnectClient.getOrCreate(context)
+                    val granted = client.permissionController.getGrantedPermissions()
+                    if (!granted.containsAll(permissions)) {
+                        launcher.launch(permissions)
+                    } else {
+                        // All granted, open Health Connect app permissions page
+                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                            Intent("android.health.connect.action.MANAGE_HEALTH_PERMISSIONS").apply {
+                                putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        } else {
+                            Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        }
+                        context.startActivity(intent)
+                        onResult(true)
+                    }
+                } else if (status == HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED) {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse("market://details?id=com.google.android.apps.healthdata&url=healthconnect%3A%2F%2Fonboarding")
+                        setPackage("com.android.vending")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                try {
+                    val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+        }
+    }
 }

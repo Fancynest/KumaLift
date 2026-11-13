@@ -16,7 +16,11 @@ actual class WearableManager {
     private val _discoveredDevices = MutableStateFlow<List<DiscoveredBleDevice>>(emptyList())
     actual val discoveredDevices: StateFlow<List<DiscoveredBleDevice>> = _discoveredDevices.asStateFlow()
 
+    private val _isHealthConnectAuthorized = MutableStateFlow(false)
+    actual val isHealthConnectAuthorized: StateFlow<Boolean> = _isHealthConnectAuthorized.asStateFlow()
+
     actual fun isHealthConnectAvailable(): Boolean = false
+    actual fun checkHealthConnectPermissions() {}
     actual fun requestHealthConnectPermissions() {}
     actual fun startBleScan() {}
     actual fun stopBleScan() {}
@@ -36,4 +40,13 @@ actual class WearableManager {
 @Composable
 actual fun rememberWearableManager(): WearableManager {
     return remember { WearableManager() }
+}
+
+@Composable
+actual fun rememberHealthConnectPermissionLauncher(
+    onResult: (Boolean) -> Unit
+): () -> Unit {
+    return {
+        onResult(false)
+    }
 }

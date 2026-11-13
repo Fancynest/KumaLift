@@ -22,8 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -33,6 +35,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -47,6 +50,7 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.wearable.WearableConnectionState
 import com.bearbones.kumalift.core.wearable.WearableManager
+import com.bearbones.kumalift.core.wearable.rememberHealthConnectPermissionLauncher
 import com.bearbones.kumalift.data.repository.SettingsRepository
 
 @Composable
@@ -59,9 +63,18 @@ fun WearablesSettingsPage(
     val telemetry by wearableManager.telemetry.collectAsState()
     val isScanning by wearableManager.isScanningBle.collectAsState()
     val discoveredDevices by wearableManager.discoveredDevices.collectAsState()
+    val isHcAuthorized by wearableManager.isHealthConnectAuthorized.collectAsState()
     val colors = LocalKumaColors.current
 
     val isHcAvailable = wearableManager.isHealthConnectAvailable()
+
+    val launchHealthConnectPermissions = rememberHealthConnectPermissionLauncher { _ ->
+        wearableManager.checkHealthConnectPermissions()
+    }
+
+    LaunchedEffect(Unit) {
+        wearableManager.checkHealthConnectPermissions()
+    }
 
     Column(
         modifier = Modifier
@@ -224,7 +237,10 @@ fun WearablesSettingsPage(
                     cornerRadius = 16.dp
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(38.dp)
@@ -249,9 +265,32 @@ fun WearablesSettingsPage(
                                     )
                                 )
                                 Text(
-                                    text = if (isHcAvailable) "Tersedia di perangkat (Siap sinkron)" else "Health Connect belum terpasang",
+                                    text = if (!isHcAvailable) "Health Connect belum terpasang"
+                                    else if (isHcAuthorized) "Terhubung & Izin Aktif"
+                                    else "Tersedia di perangkat (Perlu izin)",
                                     style = MaterialTheme.typography.bodySmall.copy(
-                                        color = if (isHcAvailable) colors.accentText else KumaColors.TextMuted
+                                        color = if (!isHcAvailable) KumaColors.TextMuted
+                                        else if (isHcAuthorized) colors.accentText
+                                        else KumaColors.TextSecondary
+                                    )
+                                )
+                            }
+                            // Status Pill
+                            Box(
+                                modifier = Modifier
+                                    .clip(PillShape)
+                                    .background(
+                                        if (isHcAuthorized) colors.accentFill.copy(alpha = 0.15f)
+                                        else KumaColors.SurfaceContainerHigh
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (isHcAuthorized) "TERHUBUNG" else "BELUM TERHUBUNG",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        color = if (isHcAuthorized) colors.accentText else KumaColors.TextMuted
                                     )
                                 )
                             }
@@ -259,7 +298,7 @@ fun WearablesSettingsPage(
 
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "Menghubungkan KumaLift ke ekosistem jam tangan (Samsung Galaxy Watch, Pixel Watch, Garmin, Fitbit, Amazfit). KumaLift membaca denyut nadi & kalori aktif, serta menyetor log sesi latihan angkat beban.",
+                            text = "Menghubungkan KumaLift ke ekosistem jam tangan pintar (Samsung Galaxy Watch, Pixel Watch, Garmin, Fitbit, Amazfit). KumaLift membaca denyut nadi & kalori aktif, serta menyetor log sesi latihan angkat beban ke Health Connect.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = KumaColors.TextSecondary,
                                 lineHeight = 18.sp
@@ -273,16 +312,134 @@ fun WearablesSettingsPage(
                                 .height(44.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(colors.accentFill)
-                                .clickable { wearableManager.requestHealthConnectPermissions() },
+                                .clickable { launchHealthConnectPermissions() },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Kelola Izin Health Connect",
+                                text = if (isHcAuthorized) "Kelola Izin Health Connect" else "Hubungkan ke Health Connect",
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.onAccentFill
                                 )
                             )
+                        }
+                    }
+                }
+            }
+
+            // Sync Guide Card (Bagaimana cara kerja sinkronisasi)
+            item {
+                KumaCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = KumaColors.SurfaceContainerLow,
+                    cornerRadius = 16.dp
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Cara Kerja Sinkronisasi Wearable",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Step 1
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "1.",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accentText
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Smartwatch -> Aplikasi Bawaan",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = KumaColors.TextWhite
+                                    )
+                                )
+                                Text(
+                                    text = "Jam tangan Anda (Samsung Galaxy Watch, Garmin, Pixel Watch) mencatat detak jantung & mengirim data ke aplikasi bawaannya (Samsung Health, Garmin Connect, Google Fit).",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = KumaColors.TextSecondary,
+                                        lineHeight = 16.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Step 2
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "2.",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accentText
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Aplikasi Bawaan -> Health Connect",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = KumaColors.TextWhite
+                                    )
+                                )
+                                Text(
+                                    text = "Buka aplikasi bawaan jam Anda (misal Samsung Health > Pengaturan > Health Connect) dan aktifkan izin sinkronisasi agar datanya dialirkan ke Health Connect.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = KumaColors.TextSecondary,
+                                        lineHeight = 16.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Step 3
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "3.",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accentText
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Health Connect <-> KumaLift",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = KumaColors.TextWhite
+                                    )
+                                )
+                                Text(
+                                    text = "KumaLift membaca detak jantung real-time saat Anda sedang latihan beban, dan otomatis mengekspor ringkasan volume angkat beban saat selesai latihan.",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = KumaColors.TextSecondary,
+                                        lineHeight = 16.sp
+                                    )
+                                )
+                            }
                         }
                     }
                 }

@@ -7,8 +7,10 @@ expect class WearableManager {
     val telemetry: StateFlow<LiveWearableTelemetry>
     val isScanningBle: StateFlow<Boolean>
     val discoveredDevices: StateFlow<List<DiscoveredBleDevice>>
+    val isHealthConnectAuthorized: StateFlow<Boolean>
 
     fun isHealthConnectAvailable(): Boolean
+    fun checkHealthConnectPermissions()
     fun requestHealthConnectPermissions()
     fun startBleScan()
     fun stopBleScan()
@@ -27,3 +29,8 @@ expect class WearableManager {
 
 @Composable
 expect fun rememberWearableManager(): WearableManager
+
+@Composable
+expect fun rememberHealthConnectPermissionLauncher(
+    onResult: (Boolean) -> Unit = {}
+): () -> Unit

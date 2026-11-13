@@ -25,13 +25,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Hotel
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -101,20 +96,6 @@ fun HomeScreen(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(KumaColors.SurfaceContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        tint = KumaColors.OnSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
             }
 
             LazyColumn(
@@ -126,42 +107,21 @@ fun HomeScreen(
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
                     // 1. Athlete Header & Greeting
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "MINGGU 6 · FASE TAMBAH OTOT",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = KumaColors.ElectricLime,
-                                    letterSpacing = 1.sp
-                                )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "MINGGU 6 · FASE TAMBAH OTOT",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = KumaColors.ElectricLime,
+                                letterSpacing = 1.sp
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Semangat pagi, Alex",
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontSize = 24.sp
-                                )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Semangat pagi, Alex",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontSize = 24.sp
                             )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(KumaColors.SurfaceContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ElectricBolt,
-                                contentDescription = null,
-                                tint = KumaColors.ElectricLime,
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
@@ -172,22 +132,13 @@ fun HomeScreen(
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
                         item {
-                            KumaBadge(
-                                text = "Streak 4 Hari",
-                                icon = Icons.Default.LocalFireDepartment
-                            )
+                            KumaBadge(text = "Streak 4 Hari")
                         }
                         item {
-                            KumaBadge(
-                                text = "18.4k kg Beban Minggu Ini",
-                                icon = Icons.Default.FitnessCenter
-                            )
+                            KumaBadge(text = "18.4k kg Beban Minggu Ini")
                         }
                         item {
-                            KumaBadge(
-                                text = "Target Tercapai: 80%",
-                                icon = Icons.Default.Verified
-                            )
+                            KumaBadge(text = "Target Tercapai: 80%")
                         }
                     }
                 }
@@ -312,7 +263,6 @@ fun HomeScreen(
 
                             KumaPrimaryButton(
                                 text = "MULAI LATIHAN",
-                                icon = Icons.Default.PlayArrow,
                                 onClick = onStartWorkout
                             )
                         }

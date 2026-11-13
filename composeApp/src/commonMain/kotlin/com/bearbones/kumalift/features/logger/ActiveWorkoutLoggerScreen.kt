@@ -25,8 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
@@ -122,22 +120,6 @@ fun ActiveWorkoutLoggerScreen(
                             )
                         )
                     }
-
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(KumaColors.ElectricLime),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "KL",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = KumaColors.OnElectricLime
-                            )
-                        )
-                    }
                 }
 
                 // Scrollable Content
@@ -227,22 +209,13 @@ fun ActiveWorkoutLoggerScreen(
                                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = "Selesai",
-                                                    style = MaterialTheme.typography.labelLarge.copy(
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        color = KumaColors.OnElectricLime
-                                                    )
+                                            Text(
+                                                text = "Selesai",
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = KumaColors.OnElectricLime
                                                 )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Icon(
-                                                    imageVector = Icons.Default.Flag,
-                                                    contentDescription = null,
-                                                    tint = KumaColors.OnElectricLime,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                            }
+                                            )
                                         }
                                     }
                                 }
@@ -406,20 +379,6 @@ fun ExerciseLoggingCard(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
-                    )
-                }
-
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(KumaColors.SurfaceContainer)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = KumaColors.TextMuted
                     )
                 }
             }

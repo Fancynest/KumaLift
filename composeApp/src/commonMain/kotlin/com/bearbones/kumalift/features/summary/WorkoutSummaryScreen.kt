@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
@@ -32,6 +31,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
@@ -94,7 +94,7 @@ fun WorkoutSummaryScreen(
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "LATIHAN TUNTAS!",
+                                        text = "LATIHAN TUNTAS",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -102,7 +102,7 @@ fun WorkoutSummaryScreen(
                                     )
                                 }
                                 Text(
-                                    text = "RPE 8.5 · Peak Drive",
+                                    text = "RPE 8.5",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -111,7 +111,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
-                                text = "Push Day Selesai!",
+                                text = "Push Day Selesai",
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -181,51 +181,42 @@ fun WorkoutSummaryScreen(
                         backgroundColor = KumaColors.SurfaceContainer,
                         cornerRadius = 16.dp
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(20.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(KumaColors.ElectricLimeGlow),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEvents,
-                                    contentDescription = null,
-                                    tint = KumaColors.ElectricLime,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Column {
                                 Text(
-                                    text = "🔥 REKOR BARU (PR)!",
+                                    text = "REKOR BARU (PR)",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.ElectricLime,
+                                        fontWeight = FontWeight.Bold,
                                         letterSpacing = 0.8.sp
                                     )
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "Barbell Bench Press: 118.0 kg",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "3RM PR (+3.0 kg rekor baru)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = KumaColors.TextMuted
+                                KumaBadge(
+                                    text = "+3.0 kg",
+                                    isPr = true
                                 )
                             }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Barbell Bench Press: 118.0 kg",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "3RM PR",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KumaColors.TextMuted
+                            )
                         }
                     }
                 }

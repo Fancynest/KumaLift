@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -263,23 +262,12 @@ fun ProgressAnalyticsScreen(
                 // 3. Hall of Fame (Personal Records)
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.EmojiEvents,
-                                contentDescription = null,
-                                tint = KumaColors.ElectricLime,
-                                modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "Rekor Angkatan Terbaik (PR)",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
                             )
-                            Text(
-                                text = "Rekor Angkatan Terbaik (PR)",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                        }
+                        )
 
                         prs.forEach { pr ->
                             PersonalRecordItem(pr = pr)

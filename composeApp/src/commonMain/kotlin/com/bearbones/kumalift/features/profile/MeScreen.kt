@@ -106,7 +106,8 @@ fun MeScreen(
     val athleteName = settings.profile.name.ifBlank { "Gabriel Radjali" }
     val athleteUsername = settings.profile.username.ifBlank { "gabriel_radjali" }
     val workoutCount = if (completedWorkouts.isNotEmpty()) completedWorkouts.size else 18
-    val streakDays = 4
+    val allPrs by personalRecordRepository.personalRecords.collectAsState()
+    val prCount = if (allPrs.isNotEmpty()) allPrs.size else 3
     val totalVolumeText = if (settings.units.weightUnit == WeightUnit.LB) "141.5k lbs" else "64.2k kg"
 
     Box(
@@ -213,7 +214,7 @@ fun MeScreen(
 
                         Spacer(modifier = Modifier.width(20.dp))
 
-                        // Stats counters (Workouts, Streak, Total Volume)
+                        // Stats counters (Workouts, PRs, Total Volume)
                         Row(
                             modifier = Modifier.weight(1f),
                             horizontalArrangement = Arrangement.SpaceAround,
@@ -224,8 +225,8 @@ fun MeScreen(
                                 label = if (isEnglish) "Workouts" else "Latihan"
                             )
                             StatCounter(
-                                value = "$streakDays",
-                                label = if (isEnglish) "Streak" else "Streak"
+                                value = "$prCount",
+                                label = if (isEnglish) "PR Records" else "Rekor PR"
                             )
                             StatCounter(
                                 value = if (isEnglish) "64.2k" else "64.2k",

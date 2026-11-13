@@ -15,7 +15,7 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
         showReminderNotification(
             context = context,
             title = "Waktunya Latihan! 🏋️‍♂️",
-            message = "Jaga konsistensi streak & target mingguanmu. Buka KumaLift sekarang!"
+            message = "Jaga konsistensi & penuhi target mingguanmu. Buka KumaLift sekarang!"
         )
         // Automatically schedule the next reminder
         AndroidWorkoutReminderScheduler.scheduleNext(context)

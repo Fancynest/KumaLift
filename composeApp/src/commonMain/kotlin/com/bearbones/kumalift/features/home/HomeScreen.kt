@@ -129,8 +129,8 @@ fun HomeScreen(
                     // Metric Chips in a horizontally scrollable LazyRow (zero squeezing)
                     val volumeVal = if (settings.units.weightUnit == WeightUnit.LB) "40.5k lb" else "18.4k kg"
                     val volumeBadge = if (isEnglish) "$volumeVal Volume This Week" else "$volumeVal Beban Minggu Ini"
-                    val streakBadge = if (isEnglish) "4-Day Streak" else "Streak 4 Hari"
                     val targetBadge = if (isEnglish) "Goal Reached: 80%" else "Target Tercapai: 80%"
+                    val prBadge = if (isEnglish) "3 PR Records" else "3 Rekor (PR)"
 
                     LazyRow(
                         modifier = Modifier.isolateHorizontalScroll(),
@@ -138,13 +138,13 @@ fun HomeScreen(
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
                         item {
-                            KumaBadge(text = streakBadge)
-                        }
-                        item {
                             KumaBadge(text = volumeBadge)
                         }
                         item {
                             KumaBadge(text = targetBadge)
+                        }
+                        item {
+                            KumaBadge(text = prBadge)
                         }
                     }
                 }

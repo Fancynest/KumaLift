@@ -83,6 +83,7 @@ fun App() {
 
     var currentScreen by remember { mutableStateOf(Screen.HOME) }
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
+    val settings by settingsRepository.settings.collectAsState()
 
     // Sync pager swipe with currentScreen state
     LaunchedEffect(pagerState.currentPage) {
@@ -102,7 +103,10 @@ fun App() {
         }
     }
 
-    KumaLiftTheme {
+    KumaLiftTheme(
+        theme = settings.appearance.theme,
+        highContrast = settings.appearance.highContrast
+    ) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {

@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -60,7 +61,13 @@ fun ExerciseLibraryScreen(
     val allExercises by exerciseRepository.exercises.collectAsState()
 
     val filteredExercises = allExercises.filter { exercise ->
-        val matchesQuery = searchQuery.isBlank() || exercise.name.contains(searchQuery, ignoreCase = true)
+        val query = searchQuery.trim()
+        val matchesQuery = query.isBlank() ||
+            exercise.name.contains(query, ignoreCase = true) ||
+            exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
+            exercise.equipment.displayName.contains(query, ignoreCase = true) ||
+            exercise.equipment.code.contains(query, ignoreCase = true) ||
+            exercise.secondaryMuscles.any { it.displayName.contains(query, ignoreCase = true) }
         val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
         matchesQuery && matchesMuscle
     }
@@ -225,14 +232,16 @@ fun ExerciseListItem(
     onAdd: () -> Unit
 ) {
     KumaCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onAdd),
         backgroundColor = KumaColors.SurfaceContainerLow,
         cornerRadius = 16.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -243,7 +252,7 @@ fun ExerciseListItem(
                 ) {
                     KumaBadge(text = exercise.equipment.code)
                     Text(
-                        text = exercise.primaryMuscle.displayName,
+                        text = "${exercise.equipment.displayName} · ${exercise.primaryMuscle.displayName}",
                         style = MaterialTheme.typography.labelSmall,
                         color = KumaColors.TextMuted
                     )
@@ -252,32 +261,58 @@ fun ExerciseListItem(
                 Text(
                     text = exercise.name,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = KumaColors.TextWhite
                     )
                 )
+                if (exercise.secondaryMuscles.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Sekunder: ${exercise.secondaryMuscles.joinToString { it.displayName }}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = KumaColors.TextMuted,
+                            fontSize = 11.sp
+                        )
+                    )
+                }
                 if (exercise.currentPrWeightKg != null) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "PR: ${exercise.currentPrWeightKg} kg × ${exercise.currentPrReps ?: 1}",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            color = KumaColors.ElectricLime
+                            color = KumaColors.ElectricLime,
+                            fontWeight = FontWeight.Bold
                         )
                     )
                 }
             }
 
-            IconButton(
-                onClick = onAdd,
+            Box(
                 modifier = Modifier
-                    .size(42.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(KumaColors.SurfaceContainer)
+                    .clickable(onClick = onAdd)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add",
-                    tint = KumaColors.ElectricLime
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Tambah",
+                        tint = KumaColors.ElectricLime,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Tambah",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = KumaColors.ElectricLime,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
             }
         }
     }

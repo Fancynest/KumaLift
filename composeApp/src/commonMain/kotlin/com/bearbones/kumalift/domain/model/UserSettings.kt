@@ -17,6 +17,16 @@ enum class WeightUnit {
     LB
 }
 
+enum class DistanceUnit {
+    KILOMETERS,
+    MILES
+}
+
+enum class BodyMeasurementUnit {
+    CM,
+    IN
+}
+
 enum class LengthUnit {
     CM,
     IN
@@ -134,6 +144,10 @@ enum class LockTimeout {
 
 data class ProfileSettings(
     val name: String = "",
+    val username: String = "",
+    val bio: String = "",
+    val link: String = "",
+    val birthday: String = "",
     val avatarUri: String? = null,
     val bodyweightKg: Double? = null,
     val heightCm: Double? = null,
@@ -146,6 +160,8 @@ data class ProfileSettings(
 
 data class UnitSettings(
     val weightUnit: WeightUnit = WeightUnit.KG,
+    val distanceUnit: DistanceUnit = DistanceUnit.KILOMETERS,
+    val bodyMeasurementUnit: BodyMeasurementUnit = BodyMeasurementUnit.CM,
     val lengthUnit: LengthUnit = LengthUnit.CM,
     val firstDayOfWeek: FirstDayOfWeek = FirstDayOfWeek.MONDAY,
     val timeFormat: TimeFormatPreference = TimeFormatPreference.SYSTEM,
@@ -176,7 +192,11 @@ data class LoggingSettings(
     val compactSetRows: Boolean = false,
     val keepScreenOn: Boolean = true,
     val confirmFinish: Boolean = true,
-    val staleWorkoutHours: Int = 6
+    val staleWorkoutHours: Int = 6,
+    val soundAlerts: Boolean = true,
+    val plateCalculatorEnabled: Boolean = true,
+    val smartSupersetScrolling: Boolean = false,
+    val inlineTimer: Boolean = true
 )
 
 data class EquipmentSettings(
@@ -221,7 +241,8 @@ data class NotificationSettings(
     val streakReminderTime: String = "20:00",
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: String = "22:00",
-    val quietHoursEnd: String = "06:00"
+    val quietHoursEnd: String = "06:00",
+    val monthlyReport: Boolean = true
 )
 
 data class CalculationSettings(

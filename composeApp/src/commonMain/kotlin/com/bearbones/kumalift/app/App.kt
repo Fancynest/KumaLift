@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +56,7 @@ import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
+import com.bearbones.kumalift.features.profile.MeScreen
 import com.bearbones.kumalift.features.progress.ProgressAnalyticsScreen
 import com.bearbones.kumalift.features.routines.RoutinesScreen
 import com.bearbones.kumalift.features.settings.SettingsScreen
@@ -65,6 +67,7 @@ enum class Screen {
     ROUTINES,
     LIBRARY,
     PROGRESS,
+    ME,
     ACTIVE_LOGGER,
     SUMMARY,
     SETTINGS
@@ -78,7 +81,7 @@ fun App() {
     val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
     val settingsRepository = remember { SettingsRepository() }
 
-    val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS) }
+    val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS, Screen.ME) }
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
     val coroutineScope = rememberCoroutineScope()
 
@@ -200,6 +203,31 @@ fun App() {
                                 Screen.PROGRESS -> ProgressAnalyticsScreen(
                                     personalRecordRepository = personalRecordRepository
                                 )
+                                Screen.ME -> MeScreen(
+                                    workoutRepository = workoutRepository,
+                                    settingsRepository = settingsRepository,
+                                    personalRecordRepository = personalRecordRepository,
+                                    onNavigateToSettings = { currentScreen = Screen.SETTINGS },
+                                    onNavigateToProgress = {
+                                        currentScreen = Screen.PROGRESS
+                                        coroutineScope.launch {
+                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.PROGRESS))
+                                        }
+                                    },
+                                    onNavigateToLibrary = {
+                                        currentScreen = Screen.LIBRARY
+                                        coroutineScope.launch {
+                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.LIBRARY))
+                                        }
+                                    },
+                                    onNavigateToRoutines = {
+                                        currentScreen = Screen.ROUTINES
+                                        coroutineScope.launch {
+                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.ROUTINES))
+                                        }
+                                    },
+                                    onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER }
+                                )
                                 else -> Unit
                             }
                         }
@@ -301,6 +329,12 @@ fun KumaBottomNavigation(
                 label = "Progres",
                 isSelected = currentScreen == Screen.PROGRESS,
                 onClick = { onTabSelected(Screen.PROGRESS) }
+            )
+            NavItem(
+                icon = Icons.Default.Person,
+                label = "Me",
+                isSelected = currentScreen == Screen.ME,
+                onClick = { onTabSelected(Screen.ME) }
             )
         }
     }

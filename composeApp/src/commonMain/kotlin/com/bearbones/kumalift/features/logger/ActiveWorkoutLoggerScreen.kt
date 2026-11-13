@@ -174,7 +174,12 @@ fun ActiveWorkoutLoggerScreen(
                                     activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
                                 )
                                 wearableManager.stopActiveWorkoutMonitoring()
-                                workoutRepository.finishWorkout()
+                                workoutRepository.finishWorkout(
+                                    sessionRpe = 8.5,
+                                    avgHeartRateBpm = wearableTelemetry.avgBpm,
+                                    peakHeartRateBpm = wearableTelemetry.peakBpm,
+                                    activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
+                                )
                                 onFinishWorkout()
                             }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -355,7 +360,11 @@ fun ActiveWorkoutLoggerScreen(
                         ExerciseLoggingCard(
                             workoutExercise = we,
                             onToggleSet = { setId ->
-                                workoutRepository.toggleSetCompletion(we.exercise.id, setId) { completed ->
+                                workoutRepository.toggleSetCompletion(
+                                    exerciseId = we.exercise.id,
+                                    setId = setId,
+                                    currentHeartRateBpm = wearableTelemetry.currentBpm
+                                ) { completed ->
                                     if (completed) {
                                         showRestTimerBar = true
                                         restTimer.start(90)
@@ -422,7 +431,12 @@ fun ActiveWorkoutLoggerScreen(
                                             activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
                                         )
                                         wearableManager.stopActiveWorkoutMonitoring()
-                                        workoutRepository.finishWorkout()
+                                        workoutRepository.finishWorkout(
+                                            sessionRpe = 8.5,
+                                            avgHeartRateBpm = wearableTelemetry.avgBpm,
+                                            peakHeartRateBpm = wearableTelemetry.peakBpm,
+                                            activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
+                                        )
                                         onFinishWorkout()
                                     },
                                 contentAlignment = Alignment.Center
@@ -452,6 +466,7 @@ fun ActiveWorkoutLoggerScreen(
         ) {
             FloatingRestTimerCard(
                 timerState = timerState,
+                wearableTelemetry = wearableTelemetry,
                 onAdd30s = { restTimer.addSeconds(30) },
                 onMinus15s = { restTimer.addSeconds(-15) },
                 onDismiss = {
@@ -624,18 +639,39 @@ fun SetRowItem(
             )
         }
 
-        // Previous
+        // Previous & Set Heart Rate
         Box(modifier = Modifier.weight(1.1f)) {
             val prevText = if (set.previousWeightKg != null && set.previousReps != null) {
                 "${set.previousWeightKg} × ${set.previousReps}"
             } else "-"
-            Text(
-                text = prevText,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = KumaColors.TextMuted,
-                    fontSize = 13.sp
+            Column {
+                Text(
+                    text = prevText,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = KumaColors.TextMuted,
+                        fontSize = 13.sp
+                    )
                 )
-            )
+                if (set.heartRateBpm != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = KumaColors.ErrorRed,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = "${set.heartRateBpm}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LocalKumaColors.current.accentText
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         // KG input box (height 44dp with tap adjustment)
@@ -694,6 +730,7 @@ fun SetRowItem(
 @Composable
 fun FloatingRestTimerCard(
     timerState: com.bearbones.kumalift.core.timer.RestTimerState,
+    wearableTelemetry: com.bearbones.kumalift.core.wearable.LiveWearableTelemetry? = null,
     onAdd30s: () -> Unit,
     onMinus15s: () -> Unit,
     onDismiss: () -> Unit
@@ -743,6 +780,42 @@ fun FloatingRestTimerCard(
                     color = colors.accentText
                 )
             )
+        }
+
+        // Live HR recovery indicator
+        if (wearableTelemetry?.currentBpm != null) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colors.surfaceVariant)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        tint = if (wearableTelemetry.isHeartRateRestingReady) colors.accentText else KumaColors.ErrorRed,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "${wearableTelemetry.currentBpm}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                    )
+                }
+                Text(
+                    text = if (wearableTelemetry.isHeartRateRestingReady) "SIAP SET" else "PULIH",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (wearableTelemetry.isHeartRateRestingReady) colors.accentText else colors.textSubtle
+                    )
+                )
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

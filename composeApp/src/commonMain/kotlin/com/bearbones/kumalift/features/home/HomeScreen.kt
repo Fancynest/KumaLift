@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -215,6 +216,99 @@ fun HomeScreen(
                                 DayCircle(if (isEnglish) "F" else "J", isActive = true)
                                 DayCircle(if (isEnglish) "S" else "S")
                                 DayCircle(if (isEnglish) "S" else "M")
+                            }
+                        }
+                    }
+                }
+
+                // 2.5. Daily Recovery & Readiness Score Card (from Wearables & Health Connect)
+                item {
+                    val colors = LocalKumaColors.current
+                    KumaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = colors.accentText,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Body Readiness" else "Kesiapan Tubuh Hari Ini",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(colors.accentTint)
+                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "88% · PRIMA",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Pemulihan jantung & otot optimal (RHR: 56 BPM). Siap mendorong beban berat atau mencoba PR hari ini.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = KumaColors.TextSecondary,
+                                    lineHeight = 18.sp
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.accentFill)
+                                    )
+                                    Text(
+                                        text = "Sinkron via Health Connect",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                                Text(
+                                    text = "Tidur 7j 42m",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
                             }
                         }
                     }

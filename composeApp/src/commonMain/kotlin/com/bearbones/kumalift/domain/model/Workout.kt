@@ -10,7 +10,10 @@ data class Workout(
     val exercises: List<WorkoutExercise> = emptyList(),
     val sessionRpe: Double? = null,
     val notes: String = "",
-    val isFinished: Boolean = false
+    val isFinished: Boolean = false,
+    val avgHeartRateBpm: Int? = null,
+    val peakHeartRateBpm: Int? = null,
+    val activeCaloriesKcal: Double? = null
 ) {
     val totalVolumeKg: Double
         get() = exercises.sumOf { it.totalVolumeKg }

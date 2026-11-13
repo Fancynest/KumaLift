@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
@@ -171,6 +172,170 @@ fun WorkoutSummaryScreen(
                                 subtext = "Est. 420 kkal",
                                 icon = Icons.Default.Speed
                             )
+                        }
+                    }
+                }
+
+                // Biometrics & Wearable Telemetry Card (Tahap 3 Analytics)
+                item {
+                    val colors = LocalKumaColors.current
+                    val avgHr = workout?.avgHeartRateBpm ?: 134
+                    val peakHr = workout?.peakHeartRateBpm ?: 168
+                    val calories = workout?.activeCaloriesKcal?.toInt() ?: 415
+
+                    KumaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = KumaColors.ErrorRed,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Biometrik & Detak Jantung",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(colors.accentTint)
+                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "Health Connect",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // 3 Key Stats
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "RATA-RATA",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                    Text(
+                                        text = "$avgHr BPM",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
+                                    )
+                                    Text(
+                                        text = "Zona 3 (Kardio)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "PUNCAK",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                    Text(
+                                        text = "$peakHr BPM",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = KumaColors.ErrorRed
+                                        )
+                                    )
+                                    Text(
+                                        text = "Zona 5 (Maksimal)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = KumaColors.TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "KALORI AKTIF",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                    Text(
+                                        text = "$calories kkal",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
+                                    )
+                                    Text(
+                                        text = "Sensor Wearable",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            Text(
+                                text = "Distribusi Zona Detak Jantung",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Multi-segment zone bar
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .clip(PillShape)
+                            ) {
+                                Box(modifier = Modifier.weight(0.15f).fillMaxSize().background(KumaColors.SurfaceBright))
+                                Box(modifier = Modifier.weight(0.20f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF38BDF8)))
+                                Box(modifier = Modifier.weight(0.35f).fillMaxSize().background(colors.accentChart))
+                                Box(modifier = Modifier.weight(0.25f).fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFFF59E0B)))
+                                Box(modifier = Modifier.weight(0.05f).fillMaxSize().background(KumaColors.ErrorRed))
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Z1: 15%", style = MaterialTheme.typography.labelSmall, color = KumaColors.TextMuted, fontSize = 10.sp)
+                                Text("Z2: 20%", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFF38BDF8), fontSize = 10.sp)
+                                Text("Z3: 35%", style = MaterialTheme.typography.labelSmall, color = colors.accentText, fontSize = 10.sp)
+                                Text("Z4: 25%", style = MaterialTheme.typography.labelSmall, color = androidx.compose.ui.graphics.Color(0xFFF59E0B), fontSize = 10.sp)
+                                Text("Z5: 5%", style = MaterialTheme.typography.labelSmall, color = KumaColors.ErrorRed, fontSize = 10.sp)
+                            }
                         }
                     }
                 }

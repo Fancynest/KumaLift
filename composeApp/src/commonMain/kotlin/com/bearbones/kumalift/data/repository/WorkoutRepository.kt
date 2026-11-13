@@ -246,7 +246,12 @@ class WorkoutRepository(
         )
     }
 
-    fun toggleSetCompletion(exerciseId: String, setId: String, onCompleted: (Boolean) -> Unit) {
+    fun toggleSetCompletion(
+        exerciseId: String,
+        setId: String,
+        currentHeartRateBpm: Int? = null,
+        onCompleted: (Boolean) -> Unit
+    ) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val updatedExercises = currentWorkout.exercises.map { we ->
@@ -258,7 +263,10 @@ class WorkoutRepository(
                                 prRepository.detectAndRecordPr(we.exercise, set.weightKg, set.reps)
                             }
                             onCompleted(newCompletion)
-                            set.copy(isCompleted = newCompletion)
+                            set.copy(
+                                isCompleted = newCompletion,
+                                heartRateBpm = if (newCompletion) (currentHeartRateBpm ?: set.heartRateBpm) else null
+                            )
                         } else set
                     }
                     we.copy(sets = updatedSets)
@@ -329,12 +337,20 @@ class WorkoutRepository(
         }
     }
 
-    fun finishWorkout(sessionRpe: Double = 8.5): Workout? {
+    fun finishWorkout(
+        sessionRpe: Double = 8.5,
+        avgHeartRateBpm: Int? = null,
+        peakHeartRateBpm: Int? = null,
+        activeCaloriesKcal: Double? = null
+    ): Workout? {
         val current = _activeWorkout.value ?: return null
         val finished = current.copy(
             isFinished = true,
             sessionRpe = sessionRpe,
-            endTimeEpochMs = 0L
+            endTimeEpochMs = System.currentTimeMillis(),
+            avgHeartRateBpm = avgHeartRateBpm,
+            peakHeartRateBpm = peakHeartRateBpm,
+            activeCaloriesKcal = activeCaloriesKcal
         )
         _completedWorkouts.update { it + finished }
         _activeWorkout.value = null

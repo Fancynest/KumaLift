@@ -89,13 +89,13 @@ actual fun ExerciseGifMedia(
         modifier = modifier,
         loading = {
             Box(
-                modifier = Modifier.fillMaxSize().background(Color(0xFF161A22)),
+                modifier = Modifier.fillMaxSize().background(Color.Transparent),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    strokeWidth = 3.dp,
-                    color = Color(0xFFC6FF3D)
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = Color(0x66888888)
                 )
             }
         },

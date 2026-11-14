@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 actual fun rememberDataExportLauncher(
+    isEnglish: Boolean,
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, content: String) -> Unit {
     val context = LocalContext.current
@@ -26,26 +27,38 @@ actual fun rememberDataExportLauncher(
                 context.contentResolver.openOutputStream(uri)?.use { stream ->
                     stream.write(content.encodeToByteArray())
                 }
-                onExportResult(true, "File cadangan berhasil disimpan.")
+                onExportResult(
+                    true,
+                    if (isEnglish) "Backup file saved successfully." else "File cadangan berhasil disimpan."
+                )
             } catch (e: Exception) {
-                onExportResult(false, "Gagal menulis file: ${e.message}")
+                onExportResult(
+                    false,
+                    if (isEnglish) "Failed to write file: ${e.message}" else "Gagal menulis file: ${e.message}"
+                )
             } finally {
                 pendingContent = null
             }
         } else {
             pendingContent = null
-            onExportResult(false, "Penyimpanan file dibatalkan.")
+            onExportResult(
+                false,
+                if (isEnglish) "File saving cancelled." else "Penyimpanan file dibatalkan."
+            )
         }
     }
 
-    return remember(context) {
+    return remember(context, isEnglish) {
         { fileName: String, content: String ->
             pendingContent = content
             try {
                 createDocLauncher.launch(fileName)
             } catch (e: Exception) {
                 pendingContent = null
-                onExportResult(false, "Gagal membuka pengelola file: ${e.message}")
+                onExportResult(
+                    false,
+                    if (isEnglish) "Failed to open file manager: ${e.message}" else "Gagal membuka pengelola file: ${e.message}"
+                )
             }
         }
     }

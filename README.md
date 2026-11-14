@@ -105,3 +105,16 @@ This project utilizes the fitness exercises dataset and media from:
   The `gifUrl` and `thumbnailUrl` properties in `Exercise.kt` cleanly abstract media locations. To swap in custom media (e.g., self-hosted CDN, Play Asset Delivery, or vector animations) without touching business logic:
   1. Set the desired URI scheme in `Exercise.thumbnailUrl` / `Exercise.gifUrl` (e.g. `https://cdn.example.com/exercises/...`).
   2. Implement a custom image loader in `core/media/ExerciseMedia.*.kt`.
+
+---
+
+## 📋 Technical Debt & Schema Evolution Ledger
+
+### 1. Nullable Heart Rate Fields (`workouts.avgHeartRateBpm`, `workouts.peakHeartRateBpm`, `sets.heartRateBpm`)
+- **Status:** Dipertahankan sementara (Technical Debt / Deferred Schema Migration).
+- **Alasan & Justifikasi Keamanan:**
+  1. **Zero Error & Zero Dependency:** Seluruh field detak jantung pada skema SQLite (`workouts` dan `sets`) serta model domain Kotlin (`Workout`, `SetLog`) bersifat **nullable** (`Int? = null`). Field ini tidak memiliki dependensi runtime apa pun terhadap SDK eksternal atau Google Play Services.
+  2. **Integritas Database & Pencegahan Crash:** Mengubah skema tabel SQLite secara prematur untuk menghapus kolom berisiko menimbulkan komplikasi migrasi (terutama pada engine SQLite platform yang membutuhkan rekonstruksi tabel `CREATE ... AS SELECT`).
+  3. **Backward Compatibility Cadangan:** Menjaga field ini tetap ada memastikan data cadangan JSON/CSV yang pernah diekspor oleh pengguna tetap valid dan dapat di-restore tanpa *schema mismatch exception*.
+- **Rencana Migrasi Mendatang:**
+  Ketika ada penambahan fitur database v2 di masa depan yang memang memerlukan file migrasi SQLDelight (`.sqm`), penghapusan kolom ini dapat digabungkan secara terstruktur dengan pengujian migrasi end-to-end.

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 
 @Composable
 expect fun rememberDataExportLauncher(
+    isEnglish: Boolean = false,
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, content: String) -> Unit
 

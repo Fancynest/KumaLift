@@ -228,4 +228,33 @@ class DataBackupManagerTests {
         assertTrue(csvMap["workouts.csv"]!!.startsWith("id,title,splitType"))
         assertTrue(csvMap["sets.csv"]!!.startsWith("workoutId,exerciseId"))
     }
+
+    @Test
+    fun testImportMessagesFollowActiveLanguage() {
+        // 1. Missing safety snapshot message (on fresh DB)
+        val snapEn = backupManager.restoreSafetySnapshot(UserSettings(), isEnglish = true)
+        val snapId = backupManager.restoreSafetySnapshot(UserSettings(), isEnglish = false)
+        assertEquals("No safety snapshot available.", snapEn.message)
+        assertEquals("Tidak ada snapshot keamanan yang tersedia.", snapId.message)
+
+        // 2. Invalid JSON messages
+        val errEn = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), isEnglish = true)
+        val errId = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), isEnglish = false)
+        assertTrue(errEn.message.startsWith("Invalid or corrupted JSON format"))
+        assertTrue(errId.message.startsWith("Format JSON tidak valid atau rusak"))
+
+        // 3. Successful REPLACE messages
+        val payload = backupManager.createBackupPayload(UserSettings())
+        val jsonStr = kotlinx.serialization.json.Json.encodeToString(com.bearbones.kumalift.data.export.KumaBackupData.serializer(), payload)
+        val resEn = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), isEnglish = true)
+        val resId = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), isEnglish = false)
+        assertTrue(resEn.message.startsWith("Successfully restored (Replace)"))
+        assertTrue(resId.message.startsWith("Berhasil memulihkan (Replace)"))
+
+        // 4. Successful MERGE messages
+        val mergeEn = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), isEnglish = true)
+        val mergeId = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), isEnglish = false)
+        assertTrue(mergeEn.message.startsWith("Successfully merged (Merge)"))
+        assertTrue(mergeId.message.startsWith("Berhasil menggabungkan (Merge)"))
+    }
 }

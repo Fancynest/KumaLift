@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -107,7 +108,8 @@ enum class SettingsDestination {
     UNITS,
     LANGUAGE,
     THEME,
-    EXPORT_IMPORT
+    EXPORT_IMPORT,
+    ABOUT
 }
 
 @Composable
@@ -193,6 +195,12 @@ fun SettingsScreen(
                     settingsRepository = settingsRepository,
                     databaseRepo = databaseRepo,
                     onNavigateBack = popDestination
+                )
+            }
+            SettingsDestination.ABOUT -> {
+                AboutSettingsPage(
+                    onNavigateBack = popDestination,
+                    isEnglish = resolveIsEnglish(settingsRepository.settings.value.appearance.language)
                 )
             }
         }
@@ -314,6 +322,12 @@ private fun SettingsMainMenu(
                             icon = Icons.AutoMirrored.Filled.Send,
                             title = if (isEnglish) "Export & Import Data" else "Ekspor & Impor Data",
                             onClick = { onNavigateTo(SettingsDestination.EXPORT_IMPORT) }
+                        )
+                        SettingsDivider()
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Info,
+                            title = if (isEnglish) "About & Licenses" else "Tentang & Lisensi",
+                            onClick = { onNavigateTo(SettingsDestination.ABOUT) }
                         )
                     }
                 }
@@ -2170,7 +2184,7 @@ private fun ExportImportDataPage(
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
 
-    val exportLauncher = rememberDataExportLauncher { success, msg ->
+    val exportLauncher = rememberDataExportLauncher(isEnglish = isEnglish) { success, msg ->
         statusMessage = msg
         if (success) {
             settingsRepository.update {
@@ -2218,9 +2232,10 @@ private fun ExportImportDataPage(
                             jsonString = content,
                             mode = ImportMode.REPLACE,
                             currentSettings = settings,
+                            isEnglish = isEnglish,
                             onSettingsRestored = { settingsRepository.save(it) }
                         )
-                        statusMessage = result?.message ?: "Gagal memulihkan cadangan."
+                        statusMessage = result?.message ?: if (isEnglish) "Failed to restore backup." else "Gagal memulihkan cadangan."
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
                 ) {
@@ -2244,9 +2259,10 @@ private fun ExportImportDataPage(
                                 jsonString = content,
                                 mode = ImportMode.MERGE,
                                 currentSettings = settings,
+                                isEnglish = isEnglish,
                                 onSettingsRestored = { settingsRepository.save(it) }
                             )
-                            statusMessage = result?.message ?: "Gagal menggabungkan cadangan."
+                            statusMessage = result?.message ?: if (isEnglish) "Failed to merge backup." else "Gagal menggabungkan cadangan."
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = KumaColors.SurfaceContainerHigh)
                     ) {
@@ -2409,7 +2425,7 @@ private fun ExportImportDataPage(
                                         val now = currentEpochMillis()
                                         exportLauncher("kumalift_backup_$now.json", jsonPayload)
                                     } else {
-                                        statusMessage = "Database repository tidak tersedia."
+                                        statusMessage = if (isEnglish) "Database repository unavailable." else "Database repository tidak tersedia."
                                     }
                                 }
                             )
@@ -2429,7 +2445,10 @@ private fun ExportImportDataPage(
                                 subtitle = if (isEnglish) "Revert to automatic pre-replace snapshot" else "Kembalikan data sebelum penimpaan terakhir dilakukan",
                                 onClick = {
                                     if (backupManager != null) {
-                                        val result = backupManager.restoreSafetySnapshot(settings) {
+                                        val result = backupManager.restoreSafetySnapshot(
+                                            currentSettings = settings,
+                                            isEnglish = isEnglish
+                                        ) {
                                             settingsRepository.save(it)
                                         }
                                         statusMessage = result.message
@@ -2626,6 +2645,166 @@ private fun KumaInputField(
                     innerTextField()
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun AboutSettingsPage(
+    onNavigateBack: () -> Unit,
+    isEnglish: Boolean
+) {
+    val colors = LocalKumaColors.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(KumaColors.CanvasLowest)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(KumaColors.SurfaceDim)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable(onClick = onNavigateBack),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = if (isEnglish) "Back" else "Kembali",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Text(
+                    text = if (isEnglish) "About & Licenses" else "Tentang & Lisensi",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "KumaLift 🐻⚡",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.textPrimary
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "v1.0.0 · Pure Local Offline Training",
+                            style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
+                        )
+                    }
+                }
+
+                item {
+                    Text(
+                        text = if (isEnglish) "MEDIA & ASSET ATTRIBUTION" else "ATRIBUSI MEDIA & ASET",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Exercise media © Gym visual",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Text(
+                                text = if (isEnglish)
+                                    "Exercise demonstrations, GIFs, and thumbnails are copyrighted by Gym visual (https://gymvisual.com) and used with attribution."
+                                else
+                                    "Animasi demonstrasi gerakan, gambar GIF, dan thumbnail merupakan hak cipta Gym visual (https://gymvisual.com) dan ditampilkan dengan atribusi resmi.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Text(
+                        text = if (isEnglish) "OPEN-SOURCE LICENSES" else "LISENSI SUMBER TERBUKA",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            listOf(
+                                "exercises-dataset" to "Hasan Eyldrm (MIT License)",
+                                "Compose Multiplatform" to "JetBrains / Google (Apache 2.0)",
+                                "SQLDelight" to "Cash App (Apache 2.0)",
+                                "Coil" to "Coil-kt Contributors (Apache 2.0)",
+                                "Koin" to "Kotzilla (Apache 2.0)"
+                            ).forEach { (lib, lic) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = lib,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colors.textPrimary
+                                        )
+                                    )
+                                    Text(
+                                        text = lic,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                item { Spacer(modifier = Modifier.height(40.dp)) }
+            }
         }
     }
 }

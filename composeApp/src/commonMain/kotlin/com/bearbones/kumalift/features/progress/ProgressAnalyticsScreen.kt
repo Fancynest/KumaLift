@@ -42,6 +42,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.PersonalRecord
@@ -53,7 +54,7 @@ fun ProgressAnalyticsScreen(
     workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
-    val isEnglish = settings?.appearance?.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
     val isLb = settings?.units?.weightUnit == com.bearbones.kumalift.domain.model.WeightUnit.LB
     val mult = if (isLb) 2.20462 else 1.0
     val unitStr = if (isLb) "lb" else "kg"

@@ -63,6 +63,7 @@ import com.bearbones.kumalift.core.designsystem.KumaSetCheckbox
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.timer.RestTimer
 import com.bearbones.kumalift.core.util.UnitConverters
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -88,7 +89,7 @@ fun ActiveWorkoutLoggerScreen(
 ) {
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings = settingsRepository?.settings?.collectAsState()?.value ?: UserSettings()
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
     val isLb = settings.units.weightUnit == WeightUnit.LB
     val scope = rememberCoroutineScope()
     val restTimer = remember { RestTimer(scope) }
@@ -116,24 +117,10 @@ fun ActiveWorkoutLoggerScreen(
     // T4: Wire keepScreenOn setting to real behavior
     KeepScreenOn(keepOn = workout != null && settings.logging.keepScreenOn)
 
-    val wearableManager = com.bearbones.kumalift.core.wearable.rememberWearableManager()
-    val wearableTelemetry by wearableManager.telemetry.collectAsState()
-
     val doFinishWorkout = {
         if (workout != null) {
-            wearableManager.writeFinishedWorkout(
-                workoutTitle = workout.title,
-                startTimeEpochMs = workout.startTimeEpochMs,
-                endTimeEpochMs = com.bearbones.kumalift.core.util.currentEpochMillis(),
-                totalVolumeKg = workout.totalVolumeKg,
-                activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
-            )
-            wearableManager.stopActiveWorkoutMonitoring()
             workoutRepository.finishWorkout(
-                sessionRpe = 8.5,
-                avgHeartRateBpm = wearableTelemetry.avgBpm,
-                peakHeartRateBpm = wearableTelemetry.peakBpm,
-                activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
+                sessionRpe = 8.5
             )
             onFinishWorkout()
         }
@@ -145,9 +132,6 @@ fun ActiveWorkoutLoggerScreen(
     }
 
     LaunchedEffect(workout?.id) {
-        if (workout != null) {
-            wearableManager.startActiveWorkoutMonitoring(workout.id)
-        }
         while (true) {
             delay(1000)
             elapsedSeconds++
@@ -303,44 +287,6 @@ fun ActiveWorkoutLoggerScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Live Heart Rate Pill if Wearable is connected
-                                        if (wearableTelemetry.currentBpm != null) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(KumaColors.SurfaceContainerHigh)
-                                                    .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
-                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Favorite,
-                                                    contentDescription = null,
-                                                    tint = KumaColors.ErrorRed,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(
-                                                    text = "${wearableTelemetry.currentBpm}",
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        color = KumaColors.TextWhite,
-                                                        fontWeight = FontWeight.Bold
-                                                    ),
-                                                    maxLines = 1,
-                                                    softWrap = false
-                                                )
-                                                wearableTelemetry.currentZone?.let { zone ->
-                                                    Text(
-                                                        text = "Z${zone.zoneNumber}",
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            color = LocalKumaColors.current.accentText,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-
                                         // Timer Box (Always single horizontal line with stopwatch icon)
                                         Row(
                                             modifier = Modifier
@@ -413,8 +359,7 @@ fun ActiveWorkoutLoggerScreen(
                             onToggleSet = { setId ->
                                 workoutRepository.toggleSetCompletion(
                                     exerciseId = we.id,
-                                    setId = setId,
-                                    currentHeartRateBpm = wearableTelemetry.currentBpm
+                                    setId = setId
                                 ) { completed ->
                                     if (completed && settings.logging.restTimerAutoStart) {
                                         showRestTimerBar = true
@@ -513,7 +458,6 @@ fun ActiveWorkoutLoggerScreen(
         ) {
             FloatingRestTimerCard(
                 timerState = timerState,
-                wearableTelemetry = wearableTelemetry,
                 isEnglish = isEnglish,
                 addStepSec = settings.logging.restTimerAddStepSec,
                 subtractStepSec = settings.logging.restTimerSubtractStepSec,
@@ -1000,7 +944,6 @@ fun SetRowItem(
 @Composable
 fun FloatingRestTimerCard(
     timerState: com.bearbones.kumalift.core.timer.RestTimerState,
-    wearableTelemetry: com.bearbones.kumalift.core.wearable.LiveWearableTelemetry? = null,
     isEnglish: Boolean = false,
     addStepSec: Int = 30,
     subtractStepSec: Int = 15,
@@ -1053,46 +996,6 @@ fun FloatingRestTimerCard(
                     color = colors.accentText
                 )
             )
-        }
-
-        // Live HR recovery indicator
-        if (wearableTelemetry?.currentBpm != null) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(colors.surfaceVariant)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = if (wearableTelemetry.isHeartRateRestingReady) colors.accentText else KumaColors.ErrorRed,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = "${wearableTelemetry.currentBpm}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary
-                        )
-                    )
-                }
-                Text(
-                    text = if (wearableTelemetry.isHeartRateRestingReady) {
-                        if (isEnglish) "READY" else "SIAP SET"
-                    } else {
-                        if (isEnglish) "PULIH" else "PULIH"
-                    },
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (wearableTelemetry.isHeartRateRestingReady) colors.accentText else colors.textSubtle
-                    )
-                )
-            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

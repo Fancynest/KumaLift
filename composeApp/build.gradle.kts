@@ -35,7 +35,6 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation("io.coil-kt:coil-compose:2.7.0")
             implementation("io.coil-kt:coil-gif:2.7.0")
-            implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
             implementation(libs.sqldelight.android)
         }
         commonMain.dependencies {
@@ -80,6 +79,15 @@ android {
         versionCode = 1
         versionName = "1.0.0"
     }
+    sourceSets {
+        getByName("main") {
+            resources.srcDirs("src/commonMain/resources")
+        }
+        getByName("test") {
+            resources.srcDirs("src/commonMain/resources")
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -108,7 +116,7 @@ sqldelight {
     databases {
         create("KumaDatabase") {
             packageName.set("com.bearbones.kumalift.database")
-            verifyMigrations.set(false)
+            verifyMigrations.set(true)
         }
     }
 }

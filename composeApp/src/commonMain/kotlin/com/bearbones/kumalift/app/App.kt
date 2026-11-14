@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,6 +50,7 @@ import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
@@ -107,16 +109,53 @@ fun App() {
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
     val coroutineScope = rememberCoroutineScope()
 
-    var currentScreen by remember { mutableStateOf(Screen.HOME) }
+    val screenStack = remember { mutableStateListOf(Screen.HOME) }
+    val currentScreen = screenStack.lastOrNull() ?: Screen.HOME
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
+
+    fun navigateTo(screen: Screen) {
+        if (screen in mainTabs) {
+            val targetIndex = mainTabs.indexOf(screen)
+            if (targetIndex >= 0) {
+                coroutineScope.launch {
+                    pagerState.animateScrollToPage(targetIndex)
+                }
+            }
+            while (screenStack.size > 1 && screenStack.last() !in mainTabs) {
+                screenStack.removeAt(screenStack.lastIndex)
+            }
+            if (screenStack.isNotEmpty() && screenStack.last() in mainTabs) {
+                screenStack[screenStack.lastIndex] = screen
+            } else {
+                screenStack.add(screen)
+            }
+        } else {
+            screenStack.add(screen)
+        }
+    }
+
+    fun popScreen() {
+        if (screenStack.size > 1) {
+            screenStack.removeAt(screenStack.lastIndex)
+        } else if (pagerState.currentPage > 0) {
+            coroutineScope.launch { pagerState.animateScrollToPage(0) }
+            if (screenStack.isNotEmpty()) {
+                screenStack[0] = Screen.HOME
+            }
+        }
+    }
 
     // Sync pager swipe with currentScreen state
     LaunchedEffect(pagerState.currentPage) {
         val tab = mainTabs[pagerState.currentPage]
         if (currentScreen in mainTabs && currentScreen != tab) {
-            currentScreen = tab
+            if (screenStack.isNotEmpty() && screenStack.last() in mainTabs) {
+                screenStack[screenStack.lastIndex] = tab
+            } else {
+                screenStack.add(tab)
+            }
         }
     }
 
@@ -130,26 +169,10 @@ fun App() {
         }
     }
 
-    // T10: Handle back navigation at root level
-    val isRootHomeScreen = (currentScreen == Screen.HOME || currentScreen !in listOf(Screen.ACTIVE_LOGGER, Screen.SUMMARY, Screen.SETTINGS)) && pagerState.currentPage == 0
+    // T10 & Point 12: Handle back navigation at root level with proper navigation stack
+    val isRootHomeScreen = (currentScreen == Screen.HOME && pagerState.currentPage == 0 && screenStack.size <= 1)
     KumaBackHandler(enabled = !isRootHomeScreen) {
-        when (currentScreen) {
-            Screen.ACTIVE_LOGGER -> {
-                currentScreen = mainTabs[pagerState.currentPage]
-            }
-            Screen.SUMMARY -> {
-                currentScreen = Screen.HOME
-                coroutineScope.launch { pagerState.scrollToPage(0) }
-            }
-            Screen.SETTINGS -> {
-                currentScreen = Screen.HOME
-            }
-            else -> {
-                if (pagerState.currentPage > 0) {
-                    coroutineScope.launch { pagerState.animateScrollToPage(0) }
-                }
-            }
-        }
+        popScreen()
     }
 
     KumaLiftTheme(
@@ -167,15 +190,9 @@ fun App() {
                         hasActiveWorkout = activeWorkout != null,
                         isEnglish = isEnglish,
                         onTabSelected = { targetScreen ->
-                            currentScreen = targetScreen
-                            val targetIndex = mainTabs.indexOf(targetScreen)
-                            if (targetIndex >= 0) {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(targetIndex)
-                                }
-                            }
+                            navigateTo(targetScreen)
                         },
-                        onActiveLoggerClick = { currentScreen = Screen.ACTIVE_LOGGER }
+                        onActiveLoggerClick = { navigateTo(Screen.ACTIVE_LOGGER) }
                     )
                 }
             }
@@ -190,15 +207,13 @@ fun App() {
                         ActiveWorkoutLoggerScreen(
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
-                            onNavigateBack = {
-                                currentScreen = mainTabs[pagerState.currentPage]
+                            onNavigateBack = { popScreen() },
+                            onFinishWorkout = {
+                                if (screenStack.isNotEmpty()) screenStack.removeAt(screenStack.lastIndex)
+                                screenStack.add(Screen.SUMMARY)
                             },
-                            onFinishWorkout = { currentScreen = Screen.SUMMARY },
                             onAddExerciseClick = {
-                                currentScreen = Screen.LIBRARY
-                                coroutineScope.launch {
-                                    pagerState.scrollToPage(mainTabs.indexOf(Screen.LIBRARY))
-                                }
+                                navigateTo(Screen.LIBRARY)
                             }
                         )
                     }
@@ -208,7 +223,8 @@ fun App() {
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
                             onSaveAndClose = {
-                                currentScreen = Screen.HOME
+                                screenStack.clear()
+                                screenStack.add(Screen.HOME)
                                 coroutineScope.launch {
                                     pagerState.scrollToPage(0)
                                 }
@@ -220,9 +236,7 @@ fun App() {
                             settingsRepository = settingsRepository,
                             databaseRepo = databaseRepo,
                             workoutRepository = workoutRepository,
-                            onNavigateBack = {
-                                currentScreen = Screen.HOME
-                            }
+                            onNavigateBack = { popScreen() }
                         )
                     }
                     else -> {
@@ -236,16 +250,16 @@ fun App() {
                                     settingsRepository = settingsRepository,
                                     routineRepository = routineRepository,
                                     personalRecordRepository = personalRecordRepository,
-                                    onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
-                                    onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER },
-                                    onOpenSettings = { currentScreen = Screen.SETTINGS }
+                                    onStartWorkout = { navigateTo(Screen.ACTIVE_LOGGER) },
+                                    onStartFreestyle = { navigateTo(Screen.ACTIVE_LOGGER) },
+                                    onOpenSettings = { navigateTo(Screen.SETTINGS) }
                                 )
                                 Screen.ROUTINES -> RoutinesScreen(
                                     routineRepository = routineRepository,
                                     workoutRepository = workoutRepository,
                                     exerciseRepository = exerciseRepository,
                                     settingsRepository = settingsRepository,
-                                    onStartRoutine = { currentScreen = Screen.ACTIVE_LOGGER }
+                                    onStartRoutine = { navigateTo(Screen.ACTIVE_LOGGER) }
                                 )
                                 Screen.LIBRARY -> ExerciseLibraryScreen(
                                     exerciseRepository = exerciseRepository,
@@ -253,7 +267,7 @@ fun App() {
                                     settingsRepository = settingsRepository,
                                     onExerciseSelected = {
                                         if (activeWorkout != null) {
-                                            currentScreen = Screen.ACTIVE_LOGGER
+                                            popScreen()
                                         }
                                     }
                                 )
@@ -266,26 +280,17 @@ fun App() {
                                     workoutRepository = workoutRepository,
                                     settingsRepository = settingsRepository,
                                     personalRecordRepository = personalRecordRepository,
-                                    onNavigateToSettings = { currentScreen = Screen.SETTINGS },
+                                    onNavigateToSettings = { navigateTo(Screen.SETTINGS) },
                                     onNavigateToProgress = {
-                                        currentScreen = Screen.PROGRESS
-                                        coroutineScope.launch {
-                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.PROGRESS))
-                                        }
+                                        navigateTo(Screen.PROGRESS)
                                     },
                                     onNavigateToLibrary = {
-                                        currentScreen = Screen.LIBRARY
-                                        coroutineScope.launch {
-                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.LIBRARY))
-                                        }
+                                        navigateTo(Screen.LIBRARY)
                                     },
                                     onNavigateToRoutines = {
-                                        currentScreen = Screen.ROUTINES
-                                        coroutineScope.launch {
-                                            pagerState.scrollToPage(mainTabs.indexOf(Screen.ROUTINES))
-                                        }
+                                        navigateTo(Screen.ROUTINES)
                                     },
-                                    onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER }
+                                    onStartWorkout = { navigateTo(Screen.ACTIVE_LOGGER) }
                                 )
                                 else -> Unit
                             }

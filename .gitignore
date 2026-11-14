@@ -24,3 +24,12 @@ iosApp/*.xcworkspace/xcuserdata/
 # Reference extracted directory
 stitch_ref/
 exercises-dataset/
+
+# Keystore & Signing
+*.jks
+*.keystore
+assets/keystore*
+/release/
+*/release/
+*.apk
+*.aab

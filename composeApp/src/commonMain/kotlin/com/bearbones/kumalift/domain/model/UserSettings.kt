@@ -291,7 +291,7 @@ data class CalculationSettings(
 
 @Serializable
 data class AppearanceSettings(
-    val theme: AppTheme = AppTheme.DARK,
+    val theme: AppTheme = AppTheme.SYSTEM,
     val highContrast: Boolean = false,
     val language: AppLanguage = AppLanguage.SYSTEM,
     val textScale: AppTextScale = AppTextScale.SYSTEM,

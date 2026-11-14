@@ -58,7 +58,7 @@ private fun KumaColors.toMaterialColorScheme() = if (isDark) {
 
 @Composable
 fun KumaLiftTheme(
-    theme: AppTheme = AppTheme.DARK,
+    theme: AppTheme = AppTheme.SYSTEM,
     highContrast: Boolean = false,
     content: @Composable () -> Unit
 ) {

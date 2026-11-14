@@ -61,6 +61,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -79,8 +80,11 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
+import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
+import com.bearbones.kumalift.core.notification.rememberNotificationPermissionLauncher
 import com.bearbones.kumalift.core.notification.rememberWorkoutReminderManager
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
@@ -103,8 +107,7 @@ enum class SettingsDestination {
     UNITS,
     LANGUAGE,
     THEME,
-    EXPORT_IMPORT,
-    WEARABLES
+    EXPORT_IMPORT
 }
 
 @Composable
@@ -114,12 +117,23 @@ fun SettingsScreen(
     workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
     onNavigateBack: () -> Unit
 ) {
-    var currentDestination by remember { mutableStateOf(SettingsDestination.MAIN) }
+    val destinationStack = remember { mutableStateListOf(SettingsDestination.MAIN) }
+    val currentDestination = destinationStack.lastOrNull() ?: SettingsDestination.MAIN
+
+    val popDestination: () -> Unit = {
+        if (destinationStack.size > 1) {
+            destinationStack.removeAt(destinationStack.lastIndex)
+        } else {
+            onNavigateBack()
+        }
+    }
 
     com.bearbones.kumalift.core.navigation.KumaBackHandler(
-        enabled = currentDestination != SettingsDestination.MAIN
+        enabled = destinationStack.size > 1
     ) {
-        currentDestination = SettingsDestination.MAIN
+        if (destinationStack.size > 1) {
+            destinationStack.removeAt(destinationStack.lastIndex)
+        }
     }
 
     Crossfade(targetState = currentDestination) { destination ->
@@ -128,65 +142,57 @@ fun SettingsScreen(
                 SettingsMainMenu(
                     settingsRepository = settingsRepository,
                     onNavigateBack = onNavigateBack,
-                    onNavigateTo = { currentDestination = it }
+                    onNavigateTo = { destinationStack.add(it) }
                 )
             }
             SettingsDestination.PROFILE -> {
                 ProfileSettingsPage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.ACCOUNT_USERNAME -> {
                 ChangeUsernamePage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.NOTIFICATIONS -> {
                 NotificationSettingsPage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.WORKOUTS -> {
                 WorkoutSettingsPage(
                     settingsRepository = settingsRepository,
                     workoutRepository = workoutRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.UNITS -> {
                 UnitsSettingsPage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.LANGUAGE -> {
                 LanguageSettingsPage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.THEME -> {
                 ThemeSettingsPage(
                     settingsRepository = settingsRepository,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
             SettingsDestination.EXPORT_IMPORT -> {
                 ExportImportDataPage(
                     settingsRepository = settingsRepository,
                     databaseRepo = databaseRepo,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
-                )
-            }
-            SettingsDestination.WEARABLES -> {
-                val wearableManager = com.bearbones.kumalift.core.wearable.rememberWearableManager()
-                WearablesSettingsPage(
-                    settingsRepository = settingsRepository,
-                    wearableManager = wearableManager,
-                    onNavigateBack = { currentDestination = SettingsDestination.MAIN }
+                    onNavigateBack = popDestination
                 )
             }
         }
@@ -204,7 +210,7 @@ private fun SettingsMainMenu(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
 
     Box(
         modifier = Modifier
@@ -302,13 +308,6 @@ private fun SettingsMainMenu(
                             icon = Icons.Default.Palette,
                             title = if (isEnglish) "Theme" else "Tema",
                             onClick = { onNavigateTo(SettingsDestination.THEME) }
-                        )
-                        SettingsDivider()
-                        SettingsNavigationRow(
-                            icon = Icons.Default.Bluetooth,
-                            title = if (isEnglish) "Wearables & Sensors" else "Perangkat & Wearable",
-                            subtitle = "Health Connect & Bluetooth",
-                            onClick = { onNavigateTo(SettingsDestination.WEARABLES) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
@@ -426,18 +425,26 @@ private fun ProfileSettingsPage(
 
     var nameInput by remember { mutableStateOf(settings.profile.name) }
     var bioInput by remember { mutableStateOf(settings.profile.bio) }
-    var linkInput by remember { mutableStateOf(settings.profile.link) }
     var birthdayInput by remember { mutableStateOf(settings.profile.birthday) }
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
-    var bwInput by remember { mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "75.0") }
-    var htInput by remember { mutableStateOf(settings.profile.heightCm?.toString() ?: "175.0") }
+    var bwInput by remember { mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "") }
+    var htInput by remember { mutableStateOf(settings.profile.heightCm?.toString() ?: "") }
     var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
+    var pendingCropUri by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberProfileImagePicker { newPath ->
-        avatarUriState = newPath
-        settingsRepository.update { current ->
-            current.copy(profile = current.profile.copy(avatarUri = newPath))
-        }
+        pendingCropUri = newPath
+    }
+
+    if (pendingCropUri != null) {
+        ProfilePhotoCropDialog(
+            imageUri = pendingCropUri!!,
+            onCancel = { pendingCropUri = null },
+            onConfirm = { confirmedUri ->
+                avatarUriState = confirmedUri
+                pendingCropUri = null
+            }
+        )
     }
 
     Box(
@@ -488,11 +495,10 @@ private fun ProfileSettingsPage(
                                     avatarUri = avatarUriState,
                                     name = nameInput.trim(),
                                     bio = bioInput.trim(),
-                                    link = linkInput.trim(),
                                     birthday = birthdayInput.trim(),
                                     sex = selectedSex,
-                                    bodyweightKg = bwInput.toDoubleOrNull() ?: current.profile.bodyweightKg,
-                                    heightCm = htInput.toDoubleOrNull() ?: current.profile.heightCm
+                                    bodyweightKg = bwInput.toDoubleOrNull(),
+                                    heightCm = htInput.toDoubleOrNull()
                                 )
                             )
                         }
@@ -568,7 +574,7 @@ private fun ProfileSettingsPage(
                         label = "Name",
                         value = nameInput,
                         onValueChange = { nameInput = it },
-                        placeholder = "Gabriel Radjali"
+                        placeholder = "Nama Lengkap"
                     )
                 }
 
@@ -577,16 +583,7 @@ private fun ProfileSettingsPage(
                         label = "Bio",
                         value = bioInput,
                         onValueChange = { bioInput = it },
-                        placeholder = "Describe yourself"
-                    )
-                }
-
-                item {
-                    KumaInputField(
-                        label = "Link",
-                        value = linkInput,
-                        onValueChange = { linkInput = it },
-                        placeholder = "https://example.com"
+                        placeholder = "Deskripsikan diri Anda"
                     )
                 }
 
@@ -802,9 +799,22 @@ private fun NotificationSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
     val workoutReminderManager = rememberWorkoutReminderManager()
-    var testNotificationSent by remember { mutableStateOf(false) }
+    var showCustomTimeDialog by remember { mutableStateOf(false) }
+    var hasPostNotificationPermission by remember {
+        mutableStateOf(workoutReminderManager.hasNotificationPermission())
+    }
+
+    val requestNotificationPermission = rememberNotificationPermissionLauncher { granted ->
+        hasPostNotificationPermission = granted
+        if (granted) {
+            settingsRepository.update {
+                it.copy(notifications = it.notifications.copy(workoutReminders = true))
+            }
+            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = true))
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -977,10 +987,14 @@ private fun NotificationSettingsPage(
                                 Switch(
                                     checked = settings.notifications.workoutReminders,
                                     onCheckedChange = { enabled ->
-                                        settingsRepository.update {
-                                            it.copy(notifications = it.notifications.copy(workoutReminders = enabled))
+                                        if (enabled && !workoutReminderManager.hasNotificationPermission()) {
+                                            requestNotificationPermission()
+                                        } else {
+                                            settingsRepository.update {
+                                                it.copy(notifications = it.notifications.copy(workoutReminders = enabled))
+                                            }
+                                            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = enabled))
                                         }
-                                        workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = enabled))
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = colors.accentText,
@@ -989,19 +1003,63 @@ private fun NotificationSettingsPage(
                                 )
                             }
 
+                            // Notification permission alert if disabled in OS
+                            if (!hasPostNotificationPermission) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(KumaColors.SurfaceContainer)
+                                        .border(1.dp, KumaColors.ErrorRed.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            text = if (isEnglish) "Notification permission is required" else "Izin notifikasi belum diaktifkan",
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                color = KumaColors.ErrorRed,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                        Text(
+                                            text = if (isEnglish) "Allow notifications in system settings so workout alarms will pop up on time." else "Aktifkan izin notifikasi agar pengingat latihan dapat muncul tepat waktu.",
+                                            style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(colors.accentFill)
+                                                .clickable { workoutReminderManager.openNotificationSettings() }
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isEnglish) "Open Notification Settings" else "Buka Pengaturan Izin Notifikasi",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = colors.onAccentFill,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             if (settings.notifications.workoutReminders) {
                                 SettingsDivider()
 
-                                // Time selector presets
+                                // Time selector presets + Custom
                                 Text(
                                     text = if (isEnglish) "Reminder Time" else "Waktu Pengingat",
                                     style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
                                 )
+                                val presets = listOf("06:00", "07:00", "17:00", "18:30", "20:00")
+                                val isCustomTime = !presets.contains(settings.notifications.reminderTime)
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    listOf("06:00", "07:00", "17:00", "18:30", "20:00").forEach { timeStr ->
+                                    presets.forEach { timeStr ->
                                         val isSelected = settings.notifications.reminderTime == timeStr
                                         Box(
                                             modifier = Modifier
@@ -1015,16 +1073,37 @@ private fun NotificationSettingsPage(
                                                     }
                                                     workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = timeStr))
                                                 }
-                                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                                .padding(horizontal = 8.dp, vertical = 6.dp)
                                         ) {
                                             Text(
                                                 text = timeStr,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isSelected) colors.onAccentFill else colors.textSecondary
+                                                    color = if (isSelected) colors.onAccentFill else colors.textSecondary,
+                                                    fontSize = 11.sp
                                                 )
                                             )
                                         }
+                                    }
+
+                                    // Custom button/pill
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                if (isCustomTime) colors.accentFill else KumaColors.SurfaceContainer
+                                            )
+                                            .clickable { showCustomTimeDialog = true }
+                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isCustomTime) "${settings.notifications.reminderTime} (Custom)" else (if (isEnglish) "Custom..." else "Kustom..."),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = if (isCustomTime) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isCustomTime) colors.onAccentFill else colors.textSecondary,
+                                                fontSize = 11.sp
+                                            )
+                                        )
                                     }
                                 }
 
@@ -1075,11 +1154,13 @@ private fun NotificationSettingsPage(
                     }
                 }
 
-                // Battery optimization card
+                // Battery optimization card (Fully interactive & clickable)
                 item {
                     val isOptimized = workoutReminderManager.isBatteryOptimizationIgnored()
                     KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { workoutReminderManager.requestIgnoreBatteryOptimization() },
                         borderColor = if (isOptimized) colors.border else colors.accentText.copy(alpha = 0.5f)
                     ) {
                         Column(
@@ -1096,7 +1177,7 @@ private fun NotificationSettingsPage(
                                     tint = if (isOptimized) colors.accentText else colors.textSecondary,
                                     modifier = Modifier.size(24.dp)
                                 )
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = if (isEnglish) "Battery Optimization Exemption" else "Proteksi Penghemat Baterai",
                                         style = MaterialTheme.typography.titleSmall.copy(
@@ -1108,7 +1189,7 @@ private fun NotificationSettingsPage(
                                         text = if (isOptimized) {
                                             if (isEnglish) "Active: Reminders will ring reliably in background." else "Aktif: Notifikasi dijamin menyala tepat waktu."
                                         } else {
-                                            if (isEnglish) "Allow KumaLift to ignore battery optimizations." else "Izinkan KumaLift berjalan tanpa dihentikan sistem."
+                                            if (isEnglish) "Tap to allow KumaLift to ignore battery optimizations." else "Ketuk untuk izinkan KumaLift berjalan tanpa dihentikan sistem."
                                         },
                                         style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                                     )
@@ -1135,33 +1216,158 @@ private fun NotificationSettingsPage(
                     }
                 }
 
-                // Test notification button
-                item {
-                    Button(
-                        onClick = {
-                            workoutReminderManager.sendTestNotification(
-                                title = "Uji Notifikasi KumaLift \uD83D\uDD14",
-                                message = "Pengingat latihan berhasil diuji! Siap membantumu capai target."
-                            )
-                            testNotificationSent = true
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = KumaColors.SurfaceContainer,
-                            contentColor = colors.textPrimary
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (testNotificationSent) "Notifikasi Terkirim! \u2714" else "Kirim Notifikasi Uji Sekarang",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
                 item { Spacer(modifier = Modifier.height(40.dp)) }
             }
         }
+    }
+
+    // Custom Time Picker Dialog
+    if (showCustomTimeDialog) {
+        val initialParts = settings.notifications.reminderTime.split(":")
+        var selectedHour by remember { mutableStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: 17) }
+        var selectedMinute by remember { mutableStateOf(initialParts.getOrNull(1)?.toIntOrNull() ?: 0) }
+
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showCustomTimeDialog = false },
+            containerColor = KumaColors.SurfaceContainerLow,
+            title = {
+                Text(
+                    text = if (isEnglish) "Select Custom Reminder Time" else "Pilih Jam Pengingat Kustom",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Hour Selector
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .clickable { selectedHour = (selectedHour + 1) % 24 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("+", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .border(1.dp, colors.accentText.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = selectedHour.toString().padStart(2, '0'),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .clickable { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("-", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                            }
+                        }
+
+                        Text(
+                            text = ":",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary
+                            ),
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+
+                        // Minute Selector
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .clickable { selectedMinute = (selectedMinute + 5) % 60 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("+", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .border(1.dp, colors.accentText.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = selectedMinute.toString().padStart(2, '0'),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .clickable { selectedMinute = if (selectedMinute < 5) 55 else selectedMinute - 5 },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("-", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val formatted = "${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}"
+                        settingsRepository.update {
+                            it.copy(notifications = it.notifications.copy(reminderTime = formatted))
+                        }
+                        workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = formatted))
+                        showCustomTimeDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(text = if (isEnglish) "Save" else "Simpan", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomTimeDialog = false }) {
+                    Text(text = if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                }
+            }
+        )
     }
 }
 
@@ -1956,10 +2162,11 @@ private fun ThemeSettingsPage(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val isEnglish = resolveIsEnglish(settings.appearance.language)
                 listOf(
-                    Pair(AppTheme.SYSTEM, "Use OS Setting"),
-                    Pair(AppTheme.DARK, "Dark \uD83D\uDE08"),
-                    Pair(AppTheme.LIGHT, "Light \uD83D\uDCA1")
+                    Pair(AppTheme.SYSTEM, if (isEnglish) "Use OS Setting" else "Ikuti Pengaturan Sistem"),
+                    Pair(AppTheme.DARK, if (isEnglish) "Dark" else "Mode Gelap"),
+                    Pair(AppTheme.LIGHT, if (isEnglish) "Light" else "Mode Terang")
                 ).forEach { (theme, label) ->
                     val isSelected = settings.appearance.theme == theme
                     KumaCard(
@@ -2014,7 +2221,7 @@ private fun ExportImportDataPage(
 ) {
     val colors = LocalKumaColors.current
     val settings by settingsRepository.settings.collectAsState()
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
     val backupManager = remember(databaseRepo) {
         databaseRepo?.let { DataBackupManager(it) }
     }

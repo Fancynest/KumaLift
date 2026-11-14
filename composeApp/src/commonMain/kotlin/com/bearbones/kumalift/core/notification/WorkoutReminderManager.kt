@@ -7,8 +7,12 @@ expect class WorkoutReminderManager {
     fun syncSettings(settings: NotificationSettings)
     fun isBatteryOptimizationIgnored(): Boolean
     fun requestIgnoreBatteryOptimization()
-    fun sendTestNotification(title: String, message: String)
+    fun hasNotificationPermission(): Boolean
+    fun openNotificationSettings()
 }
 
 @Composable
 expect fun rememberWorkoutReminderManager(): WorkoutReminderManager
+
+@Composable
+expect fun rememberNotificationPermissionLauncher(onResult: (Boolean) -> Unit): () -> Unit

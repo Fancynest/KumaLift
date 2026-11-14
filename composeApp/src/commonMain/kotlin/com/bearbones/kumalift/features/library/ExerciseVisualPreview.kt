@@ -6,11 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -76,18 +78,19 @@ fun ExerciseVisualAnimation(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(280.dp)
+            .height(260.dp)
             .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        // Authentic GIF Animation from dataset (videos/....gif)
-        // Set on pure white background to span seamlessly edge-to-edge
+        // Authentic GIF Animation: bounded to 220dp with strict 1:1 aspect ratio
+        // Prevents over-scaling and pixelation while keeping illustration sharp and clear
         ExerciseGifMedia(
             assetPath = exercise.gifUrl,
             contentDescription = exercise.name,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 8.dp)
+                .sizeIn(maxWidth = 220.dp, maxHeight = 220.dp)
+                .aspectRatio(1f)
+                .padding(8.dp)
         )
 
         // Muscle label badge — top-left

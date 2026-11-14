@@ -2,6 +2,7 @@ package com.bearbones.kumalift.data.repository
 
 import android.content.Context
 import com.bearbones.kumalift.domain.model.AppearanceSettings
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
 import com.bearbones.kumalift.domain.model.AthleteSex
 import com.bearbones.kumalift.domain.model.ProfileSettings
@@ -42,13 +43,20 @@ class AndroidSettingsStore(private val context: Context) {
         val bw = if (prefs.contains("profile_bw")) prefs.getFloat("profile_bw", 0f).toDouble() else null
         val ht = if (prefs.contains("profile_ht")) prefs.getFloat("profile_ht", 0f).toDouble() else null
 
-        val themeName = prefs.getString("app_theme", AppTheme.DARK.name) ?: AppTheme.DARK.name
+        val themeName = prefs.getString("app_theme", AppTheme.SYSTEM.name) ?: AppTheme.SYSTEM.name
         val theme = try {
             AppTheme.valueOf(themeName)
         } catch (_: Exception) {
-            AppTheme.DARK
+            AppTheme.SYSTEM
         }
         val highContrast = prefs.getBoolean("app_high_contrast", false)
+
+        val langName = prefs.getString("app_language", AppLanguage.SYSTEM.name) ?: AppLanguage.SYSTEM.name
+        val language = try {
+            AppLanguage.valueOf(langName)
+        } catch (_: Exception) {
+            AppLanguage.SYSTEM
+        }
 
         return UserSettings(
             profile = ProfileSettings(
@@ -64,7 +72,8 @@ class AndroidSettingsStore(private val context: Context) {
             ),
             appearance = AppearanceSettings(
                 theme = theme,
-                highContrast = highContrast
+                highContrast = highContrast,
+                language = language
             )
         )
     }
@@ -90,6 +99,7 @@ class AndroidSettingsStore(private val context: Context) {
             }
             putString("app_theme", settings.appearance.theme.name)
             putBoolean("app_high_contrast", settings.appearance.highContrast)
+            putString("app_language", settings.appearance.language.name)
             apply()
         }
     }

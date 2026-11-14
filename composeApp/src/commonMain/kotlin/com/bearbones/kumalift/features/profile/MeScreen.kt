@@ -66,7 +66,9 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
+import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -97,7 +99,7 @@ fun MeScreen(
     val settings by settingsRepository.settings.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings.appearance.language)
 
     var selectedMetric by remember { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
@@ -795,16 +797,24 @@ private fun EditProfileModal(
     var nameInput by remember { mutableStateOf(settings.profile.name) }
     var usernameInput by remember { mutableStateOf(settings.profile.username) }
     var bioInput by remember { mutableStateOf(settings.profile.bio) }
-    var linkInput by remember { mutableStateOf(settings.profile.link) }
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
     var birthdayInput by remember { mutableStateOf(settings.profile.birthday) }
     var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
+    var pendingCropUri by remember { mutableStateOf<String?>(null) }
 
     val imagePicker = rememberProfileImagePicker { newPath ->
-        avatarUriState = newPath
-        settingsRepository.update { current ->
-            current.copy(profile = current.profile.copy(avatarUri = newPath))
-        }
+        pendingCropUri = newPath
+    }
+
+    if (pendingCropUri != null) {
+        ProfilePhotoCropDialog(
+            imageUri = pendingCropUri!!,
+            onCancel = { pendingCropUri = null },
+            onConfirm = { confirmedUri ->
+                avatarUriState = confirmedUri
+                pendingCropUri = null
+            }
+        )
     }
 
     ModalBottomSheet(
@@ -850,7 +860,6 @@ private fun EditProfileModal(
                                     name = nameInput.trim(),
                                     username = usernameInput.trim().lowercase().replace(" ", "_"),
                                     bio = bioInput.trim(),
-                                    link = linkInput.trim(),
                                     sex = selectedSex,
                                     birthday = birthdayInput.trim()
                                 )
@@ -920,7 +929,7 @@ private fun EditProfileModal(
                 label = "Name",
                 value = nameInput,
                 onValueChange = { nameInput = it },
-                placeholder = "Gabriel Radjali"
+                placeholder = "Nama Lengkap"
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -929,16 +938,7 @@ private fun EditProfileModal(
                 label = "Bio",
                 value = bioInput,
                 onValueChange = { bioInput = it },
-                placeholder = "Describe yourself"
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ProfileField(
-                label = "Link",
-                value = linkInput,
-                onValueChange = { linkInput = it },
-                placeholder = "https://example.com"
+                placeholder = "Deskripsikan diri Anda"
             )
 
             Spacer(modifier = Modifier.height(24.dp))

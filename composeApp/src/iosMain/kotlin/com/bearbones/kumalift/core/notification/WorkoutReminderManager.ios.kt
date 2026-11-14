@@ -8,10 +8,16 @@ actual class WorkoutReminderManager {
     actual fun syncSettings(settings: NotificationSettings) {}
     actual fun isBatteryOptimizationIgnored(): Boolean = true
     actual fun requestIgnoreBatteryOptimization() {}
-    actual fun sendTestNotification(title: String, message: String) {}
+    actual fun hasNotificationPermission(): Boolean = true
+    actual fun openNotificationSettings() {}
 }
 
 @Composable
 actual fun rememberWorkoutReminderManager(): WorkoutReminderManager {
     return remember { WorkoutReminderManager() }
+}
+
+@Composable
+actual fun rememberNotificationPermissionLauncher(onResult: (Boolean) -> Unit): () -> Unit {
+    return { onResult(true) }
 }

@@ -47,6 +47,7 @@ import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
@@ -63,7 +64,7 @@ fun RoutinesScreen(
     onStartRoutine: () -> Unit
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
-    val isEnglish = settings?.appearance?.language == AppLanguage.EN
+    val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
     val routines by routineRepository.routines.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"

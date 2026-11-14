@@ -33,9 +33,23 @@ class SettingsTests {
         assertTrue(settings.notifications.restTimerAlert)
         assertEquals(OneRepMaxFormula.EPLEY, settings.calculations.oneRepMaxFormula)
         assertEquals(10, settings.calculations.maxRepsForEstimate)
-        assertEquals(AppTheme.DARK, settings.appearance.theme)
+        assertEquals(AppTheme.SYSTEM, settings.appearance.theme)
+        assertEquals(com.bearbones.kumalift.domain.model.AppLanguage.SYSTEM, settings.appearance.language)
         assertFalse(settings.dataBackup.autoBackupEnabled)
         assertFalse(settings.health.healthEnabled)
+    }
+
+    @Test
+    fun testFirstLaunchLanguageResolution() {
+        // Explicit user preferences always win
+        assertTrue(com.bearbones.kumalift.core.util.resolveIsEnglish(com.bearbones.kumalift.domain.model.AppLanguage.EN))
+        assertFalse(com.bearbones.kumalift.core.util.resolveIsEnglish(com.bearbones.kumalift.domain.model.AppLanguage.ID))
+
+        // System default respects device locale
+        val resolved = com.bearbones.kumalift.core.util.resolveIsEnglish(com.bearbones.kumalift.domain.model.AppLanguage.SYSTEM)
+        val sysCode = com.bearbones.kumalift.core.util.getSystemLanguageCode().lowercase()
+        val expected = sysCode != "id" && sysCode != "in"
+        assertEquals(expected, resolved)
     }
 
     @Test
@@ -57,7 +71,7 @@ class SettingsTests {
         repo.update { it.copy(appearance = it.appearance.copy(theme = AppTheme.LIGHT)) }
         assertEquals(AppTheme.LIGHT, repo.settings.value.appearance.theme)
         repo.resetAll()
-        assertEquals(AppTheme.DARK, repo.settings.value.appearance.theme)
+        assertEquals(AppTheme.SYSTEM, repo.settings.value.appearance.theme)
     }
 
     @Test

@@ -12,6 +12,13 @@ import com.bearbones.kumalift.MainActivity
 
 class WorkoutReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action
+        if (action == Intent.ACTION_BOOT_COMPLETED || action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            // Restore scheduled reminders after device restart or package update without firing an premature notification
+            AndroidWorkoutReminderScheduler.rescheduleFromStorage(context)
+            return
+        }
+
         showReminderNotification(
             context = context,
             title = "Waktunya Latihan! 🏋️‍♂️",

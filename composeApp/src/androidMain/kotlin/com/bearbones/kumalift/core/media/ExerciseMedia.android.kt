@@ -36,13 +36,11 @@ actual fun ExerciseThumbnailMedia(
     val normalizedPath = assetPath.removePrefix("/")
     val assetUri = "file:///android_asset/$normalizedPath"
 
-    // Downsample from disk into a hardware bitmap (160x160 px).
-    // Reduces memory footprint from ~4.6MB to ~100KB per image (>97% memory reduction),
-    // and eliminates subcomposition passes for silky smooth 120Hz list scrolling.
+    // Native 180x180 resolution with ARGB_8888 for maximum visual clarity
     val imageRequest = remember(assetUri) {
         ImageRequest.Builder(context)
             .data(assetUri)
-            .size(160, 160)
+            .bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888)
             .allowHardware(true)
             .memoryCacheKey(assetUri)
             .crossfade(false)
@@ -74,11 +72,18 @@ actual fun ExerciseGifMedia(
     val normalizedPath = assetPath.removePrefix("/")
     val assetUri = "file:///android_asset/$normalizedPath"
 
+    val imageRequest = remember(assetUri) {
+        ImageRequest.Builder(context)
+            .data(assetUri)
+            .bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888)
+            .allowHardware(false)
+            .crossfade(false)
+            .build()
+    }
+
     // Uses the global singleton ImageLoader provided by KumaApplication
     SubcomposeAsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(assetUri)
-            .build(),
+        model = imageRequest,
         contentDescription = contentDescription,
         contentScale = ContentScale.Fit,
         modifier = modifier,

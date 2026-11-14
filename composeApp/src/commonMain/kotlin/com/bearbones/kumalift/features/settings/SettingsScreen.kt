@@ -2706,20 +2706,15 @@ private fun AboutSettingsPage(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp),
+                            .padding(top = 16.dp, bottom = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "KumaLift 🐻⚡",
-                            style = MaterialTheme.typography.headlineMedium.copy(
+                            text = "KumaLift",
+                            style = MaterialTheme.typography.headlineLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textPrimary
                             )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "v1.0.0 · Pure Local Offline Training",
-                            style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
                         )
                     }
                 }
@@ -2803,7 +2798,22 @@ private fun AboutSettingsPage(
                     }
                 }
 
-                item { Spacer(modifier = Modifier.height(40.dp)) }
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "v1.0.0",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textSecondary.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        )
+                    }
+                }
             }
         }
     }

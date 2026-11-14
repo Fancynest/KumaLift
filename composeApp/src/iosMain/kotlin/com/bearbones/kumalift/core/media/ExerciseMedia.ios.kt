@@ -38,15 +38,10 @@ actual fun ExerciseGifMedia(
     contentDescription: String?,
     modifier: Modifier
 ) {
-    Box(
-        modifier = modifier.background(Color(0xFF161A22)),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.FitnessCenter,
-            contentDescription = contentDescription,
-            tint = Color(0xFF4B5563),
-            modifier = Modifier.size(48.dp)
-        )
-    }
+    ControllableGifPlayer(
+        assetPath = assetPath,
+        contentDescription = contentDescription,
+        isPlaying = true,
+        modifier = modifier
+    )
 }

@@ -18,8 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -76,6 +78,8 @@ fun ExerciseLibraryScreen(
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository? = null,
     settingsRepository: SettingsRepository? = null,
+    filterState: LibraryFilterState = rememberLibraryFilterState(),
+    listState: LazyListState = rememberLazyListState(),
     onExerciseSelected: ((Exercise) -> Unit)? = null
 ) {
     var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
@@ -140,6 +144,8 @@ fun ExerciseLibraryScreen(
                 ExerciseCatalogList(
                     exerciseRepository = exerciseRepository,
                     workoutRepository = workoutRepository,
+                    filterState = filterState,
+                    listState = listState,
                     isEnglish = isEnglish,
                     onOpenDetail = { selectedExerciseForDetail = it },
                     onOpenCreate = { isCreatingExercise = true },
@@ -157,40 +163,28 @@ fun ExerciseLibraryScreen(
 private fun ExerciseCatalogList(
     exerciseRepository: ExerciseRepository,
     workoutRepository: WorkoutRepository?,
+    filterState: LibraryFilterState,
+    listState: LazyListState,
     isEnglish: Boolean = false,
     onOpenDetail: (Exercise) -> Unit,
     onOpenCreate: () -> Unit,
     onAddExercise: (Exercise) -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
-    var selectedEquipment by remember { mutableStateOf<Equipment?>(null) }
-    var selectedMovementType by remember { mutableStateOf<MovementType?>(null) }
-
     val allExercises by exerciseRepository.exercises.collectAsState()
     val activeWorkout = workoutRepository?.activeWorkout?.collectAsState()?.value
     val colors = LocalKumaColors.current
 
-    val filteredExercises = remember(allExercises, searchQuery, selectedMuscle, selectedEquipment, selectedMovementType) {
-        val query = searchQuery.trim()
-        if (query.isBlank() && selectedMuscle == null && selectedEquipment == null && selectedMovementType == null) {
+    val filteredExercises = remember(
+        allExercises,
+        filterState.searchQuery,
+        filterState.selectedMuscle,
+        filterState.selectedEquipment,
+        filterState.selectedMovementType
+    ) {
+        if (!filterState.isActive) {
             allExercises
         } else {
-            allExercises.filter { exercise ->
-                val matchesQuery = query.isBlank() ||
-                    exercise.name.contains(query, ignoreCase = true) ||
-                    exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
-                    exercise.subMuscle.contains(query, ignoreCase = true) ||
-                    exercise.equipment.displayName.contains(query, ignoreCase = true) ||
-                    exercise.equipment.code.contains(query, ignoreCase = true) ||
-                    exercise.movementType.displayName.contains(query, ignoreCase = true)
-
-                val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
-                val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment
-                val matchesMovementType = selectedMovementType == null || exercise.movementType == selectedMovementType
-
-                matchesQuery && matchesMuscle && matchesEquipment && matchesMovementType
-            }
+            allExercises.filter { filterState.matches(it) }
         }
     }
 
@@ -258,7 +252,7 @@ private fun ExerciseCatalogList(
                         modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.CenterStart
                     ) {
-                        if (searchQuery.isEmpty()) {
+                        if (filterState.searchQuery.isEmpty()) {
                             Text(
                                 text = if (isEnglish) "Search exercise..." else "Cari nama gerakan...",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
@@ -266,8 +260,8 @@ private fun ExerciseCatalogList(
                             )
                         }
                         BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
+                            value = filterState.searchQuery,
+                            onValueChange = { filterState.searchQuery = it },
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodyMedium.copy(
                                 fontSize = 14.sp,
@@ -277,14 +271,14 @@ private fun ExerciseCatalogList(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    if (searchQuery.isNotEmpty()) {
+                    if (filterState.searchQuery.isNotEmpty()) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Clear",
                             tint = colors.textSecondary,
                             modifier = Modifier
                                 .size(18.dp)
-                                .clickable { searchQuery = "" }
+                                .clickable { filterState.searchQuery = "" }
                         )
                     }
                 }
@@ -300,17 +294,17 @@ private fun ExerciseCatalogList(
                     item {
                         FilterPill(
                             label = if (isEnglish) "All Muscles" else "Semua Otot",
-                            isSelected = selectedMuscle == null,
-                            onClick = { selectedMuscle = null }
+                            isSelected = filterState.selectedMuscle == null,
+                            onClick = { filterState.selectedMuscle = null }
                         )
                     }
 
                     items(MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }) { muscle ->
                         FilterPill(
                             label = muscle.localizedName(isEnglish),
-                            isSelected = selectedMuscle == muscle,
+                            isSelected = filterState.selectedMuscle == muscle,
                             onClick = {
-                                selectedMuscle = if (selectedMuscle == muscle) null else muscle
+                                filterState.selectedMuscle = if (filterState.selectedMuscle == muscle) null else muscle
                             }
                         )
                     }
@@ -327,17 +321,17 @@ private fun ExerciseCatalogList(
                     item {
                         FilterPill(
                             label = if (isEnglish) "All Equipment" else "Semua Alat",
-                            isSelected = selectedEquipment == null,
-                            onClick = { selectedEquipment = null }
+                            isSelected = filterState.selectedEquipment == null,
+                            onClick = { filterState.selectedEquipment = null }
                         )
                     }
 
                     items(Equipment.entries) { eq ->
                         FilterPill(
                             label = eq.localizedName(isEnglish),
-                            isSelected = selectedEquipment == eq,
+                            isSelected = filterState.selectedEquipment == eq,
                             onClick = {
-                                selectedEquipment = if (selectedEquipment == eq) null else eq
+                                filterState.selectedEquipment = if (filterState.selectedEquipment == eq) null else eq
                             }
                         )
                     }
@@ -354,17 +348,17 @@ private fun ExerciseCatalogList(
                     item {
                         FilterPill(
                             label = if (isEnglish) "All Types" else "Semua Tipe",
-                            isSelected = selectedMovementType == null,
-                            onClick = { selectedMovementType = null }
+                            isSelected = filterState.selectedMovementType == null,
+                            onClick = { filterState.selectedMovementType = null }
                         )
                     }
 
                     items(MovementType.entries) { mt ->
                         FilterPill(
                             label = mt.localizedName(isEnglish),
-                            isSelected = selectedMovementType == mt,
+                            isSelected = filterState.selectedMovementType == mt,
                             onClick = {
-                                selectedMovementType = if (selectedMovementType == mt) null else mt
+                                filterState.selectedMovementType = if (filterState.selectedMovementType == mt) null else mt
                             }
                         )
                     }
@@ -387,7 +381,7 @@ private fun ExerciseCatalogList(
                         )
                     )
 
-                    if (selectedMuscle != null || selectedEquipment != null || selectedMovementType != null || searchQuery.isNotBlank()) {
+                    if (filterState.isActive) {
                         Text(
                             text = if (isEnglish) "Reset Filters" else "Atur Ulang",
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -397,12 +391,7 @@ private fun ExerciseCatalogList(
                             ),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .clickable {
-                                    selectedMuscle = null
-                                    selectedEquipment = null
-                                    selectedMovementType = null
-                                    searchQuery = ""
-                                }
+                                .clickable { filterState.reset() }
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -412,6 +401,7 @@ private fun ExerciseCatalogList(
 
                 // Exercise Rows List
                 LazyColumn(
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 90.dp)

@@ -63,50 +63,16 @@ actual fun ExerciseGifMedia(
     contentDescription: String?,
     modifier: Modifier
 ) {
-    if (assetPath.isNullOrBlank()) {
-        GifFallback(modifier)
-        return
-    }
-
-    val context = LocalContext.current
-    val normalizedPath = assetPath.removePrefix("/")
-    val assetUri = "file:///android_asset/$normalizedPath"
-
-    val imageRequest = remember(assetUri) {
-        ImageRequest.Builder(context)
-            .data(assetUri)
-            .bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888)
-            .allowHardware(false)
-            .crossfade(false)
-            .build()
-    }
-
-    // Uses the global singleton ImageLoader provided by KumaApplication
-    SubcomposeAsyncImage(
-        model = imageRequest,
+    ControllableGifPlayer(
+        assetPath = assetPath,
         contentDescription = contentDescription,
-        contentScale = ContentScale.Fit,
-        modifier = modifier,
-        loading = {
-            Box(
-                modifier = Modifier.fillMaxSize().background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = Color(0x66888888)
-                )
-            }
-        },
-        error = {
-            GifFallback(Modifier.fillMaxSize())
-        }
+        isPlaying = true,
+        modifier = modifier
     )
 }
 
 @Composable
-private fun ThumbnailFallback(modifier: Modifier = Modifier) {
+internal fun ThumbnailFallback(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.background(Color(0xFF1C2028)),
         contentAlignment = Alignment.Center
@@ -121,7 +87,7 @@ private fun ThumbnailFallback(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun GifFallback(modifier: Modifier = Modifier) {
+internal fun GifFallback(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.background(Color(0xFF161A22)),
         contentAlignment = Alignment.Center

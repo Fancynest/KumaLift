@@ -11,6 +11,7 @@ import com.bearbones.kumalift.app.App
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setBackgroundDrawableResource(android.R.color.black)
         enableEdgeToEdge()
         configureHighRefreshRate(window)
         setContent {

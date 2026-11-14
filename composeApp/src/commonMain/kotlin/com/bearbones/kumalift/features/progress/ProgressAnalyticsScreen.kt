@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +54,8 @@ import com.bearbones.kumalift.domain.model.PersonalRecord
 fun ProgressAnalyticsScreen(
     personalRecordRepository: PersonalRecordRepository,
     settingsRepository: SettingsRepository? = null,
-    workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null
+    workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
     val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
@@ -60,7 +64,7 @@ fun ProgressAnalyticsScreen(
     val unitStr = if (isLb) "lb" else "kg"
     val prs by personalRecordRepository.personalRecords.collectAsState()
     val completedWorkouts by (workoutRepository?.completedWorkouts ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
-    var selectedTimeframe by remember { mutableStateOf("3M") }
+    var selectedTimeframe by rememberSaveable { mutableStateOf("3M") }
     val timeframes = listOf("1M", "3M", "6M", "1Y", "ALL")
 
     Box(
@@ -88,6 +92,7 @@ fun ProgressAnalyticsScreen(
             }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp),

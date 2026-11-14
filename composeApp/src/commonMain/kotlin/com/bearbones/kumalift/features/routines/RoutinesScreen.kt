@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -29,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +64,7 @@ fun RoutinesScreen(
     workoutRepository: WorkoutRepository,
     exerciseRepository: ExerciseRepository = remember { ExerciseRepository() },
     settingsRepository: SettingsRepository? = null,
+    listState: LazyListState = rememberLazyListState(),
     onStartRoutine: () -> Unit
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
@@ -68,7 +72,7 @@ fun RoutinesScreen(
     val routines by routineRepository.routines.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"
-    var selectedCategory by remember(isEnglish) { mutableStateOf(allCategoryLabel) }
+    var selectedCategory by rememberSaveable(isEnglish) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by remember { mutableStateOf(false) }
 
     // T10: Handle back when create routine modal is open
@@ -146,6 +150,7 @@ fun RoutinesScreen(
             }
 
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 20.dp),

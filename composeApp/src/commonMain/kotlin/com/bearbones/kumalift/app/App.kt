@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -63,6 +64,7 @@ import com.bearbones.kumalift.data.repository.rememberSettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
+import com.bearbones.kumalift.features.library.rememberLibraryFilterState
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
 import com.bearbones.kumalift.features.profile.MeScreen
 import com.bearbones.kumalift.features.progress.ProgressAnalyticsScreen
@@ -108,6 +110,11 @@ fun App() {
     val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS, Screen.ME) }
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
     val coroutineScope = rememberCoroutineScope()
+
+    val libraryFilterState = rememberLibraryFilterState()
+    val libraryListState = rememberLazyListState()
+    val routinesListState = rememberLazyListState()
+    val progressListState = rememberLazyListState()
 
     val screenStack = remember { mutableStateListOf(Screen.HOME) }
     val currentScreen = screenStack.lastOrNull() ?: Screen.HOME
@@ -259,12 +266,15 @@ fun App() {
                                     workoutRepository = workoutRepository,
                                     exerciseRepository = exerciseRepository,
                                     settingsRepository = settingsRepository,
+                                    listState = routinesListState,
                                     onStartRoutine = { navigateTo(Screen.ACTIVE_LOGGER) }
                                 )
                                 Screen.LIBRARY -> ExerciseLibraryScreen(
                                     exerciseRepository = exerciseRepository,
                                     workoutRepository = workoutRepository,
                                     settingsRepository = settingsRepository,
+                                    filterState = libraryFilterState,
+                                    listState = libraryListState,
                                     onExerciseSelected = {
                                         if (activeWorkout != null) {
                                             popScreen()
@@ -274,7 +284,8 @@ fun App() {
                                 Screen.PROGRESS -> ProgressAnalyticsScreen(
                                     personalRecordRepository = personalRecordRepository,
                                     settingsRepository = settingsRepository,
-                                    workoutRepository = workoutRepository
+                                    workoutRepository = workoutRepository,
+                                    listState = progressListState
                                 )
                                 Screen.ME -> MeScreen(
                                     workoutRepository = workoutRepository,

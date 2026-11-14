@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.bearbones.kumalift.core.media.ControllableGifPlayer
 import com.bearbones.kumalift.core.media.ExerciseGifMedia
 import com.bearbones.kumalift.core.media.ExerciseThumbnailMedia
 import com.bearbones.kumalift.domain.model.Equipment
@@ -123,19 +124,13 @@ fun ExerciseVisualAnimation(
                 },
             contentAlignment = Alignment.Center
         ) {
-            if (isPlaying) {
-                ExerciseGifMedia(
-                    assetPath = exercise.gifUrl,
-                    contentDescription = exercise.name,
-                    modifier = Modifier.size(180.dp)
-                )
-            } else {
-                ExerciseThumbnailMedia(
-                    assetPath = exercise.thumbnailUrl,
-                    contentDescription = exercise.name,
-                    modifier = Modifier.size(180.dp)
-                )
-            }
+            ControllableGifPlayer(
+                assetPath = exercise.gifUrl,
+                contentDescription = exercise.name,
+                isPlaying = isPlaying,
+                fallbackThumbnailPath = exercise.thumbnailUrl,
+                modifier = Modifier.size(180.dp)
+            )
         }
 
         // Minimal Play/Pause button in top-right corner (icon only, semi-transparent white bg, dark icon)

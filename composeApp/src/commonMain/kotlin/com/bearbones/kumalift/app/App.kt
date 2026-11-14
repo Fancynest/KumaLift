@@ -89,7 +89,8 @@ fun App() {
         PersonalRecordRepository(
             initialPrs = databaseRepo.getAllPersonalRecords(),
             databaseRepo = databaseRepo,
-            calculationSettingsProvider = { settingsRepository.settings.value.calculations }
+            calculationSettingsProvider = { settingsRepository.settings.value.calculations },
+            dateFormatProvider = { settingsRepository.settings.value.units.dateFormat }
         )
     }
     val workoutRepository = remember(personalRecordRepository, databaseRepo) {

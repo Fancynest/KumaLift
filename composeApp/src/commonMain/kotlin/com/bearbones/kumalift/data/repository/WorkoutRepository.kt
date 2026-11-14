@@ -6,12 +6,14 @@ import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.data.local.SeedData
 import com.bearbones.kumalift.domain.model.CalculationSettings
+import com.bearbones.kumalift.domain.model.DateFormatPreference
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.LoggingSettings
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
+import com.bearbones.kumalift.domain.model.PrMetricType
 import com.bearbones.kumalift.domain.model.PrefillSource
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.SetLog
@@ -132,7 +134,8 @@ class RoutineRepository(
 class PersonalRecordRepository(
     initialPrs: List<PersonalRecord> = emptyList(),
     private val databaseRepo: KumaDatabaseRepository? = null,
-    private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() }
+    private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
+    private val dateFormatProvider: () -> DateFormatPreference = { DateFormatPreference.SYSTEM }
 ) {
     private val _prs = MutableStateFlow(initialPrs)
     val personalRecords: StateFlow<List<PersonalRecord>> = _prs.asStateFlow()
@@ -156,21 +159,40 @@ class PersonalRecordRepository(
             maxReps = calcSettings.maxRepsForEstimate
         )
 
+        val hasWeightMetric = calcSettings.prMetrics.contains(PrMetricType.WEIGHT)
+        val hasE1rmMetric = calcSettings.prMetrics.contains(PrMetricType.E1RM)
+
         val currentPr = _prs.value.find { it.exerciseId == exercise.id }
         val currentMaxWeight = maxOf(currentPr?.weightKg ?: 0.0, exercise.currentPrWeightKg ?: 0.0)
+        val currentMaxE1rm = maxOf(currentPr?.estimated1RmKg ?: 0.0, exercise.currentPrWeightKg ?: 0.0)
 
-        if (weightKg > currentMaxWeight) {
+        val isPr = if (hasWeightMetric) {
+            weightKg > currentMaxWeight
+        } else if (hasE1rmMetric) {
+            e1rm > currentMaxE1rm
+        } else {
+            false
+        }
+
+        if (isPr) {
             val delta = if (currentMaxWeight > 0.0) weightKg - currentMaxWeight else weightKg
             val now = currentEpochMillis()
+            val tier = if (calcSettings.repRangePrs && reps > 1) {
+                "${reps}RM PR"
+            } else if (hasWeightMetric) {
+                "1RM PR"
+            } else {
+                "e1RM PR"
+            }
             val newPr = PersonalRecord(
                 exerciseId = exercise.id,
                 exerciseName = exercise.name,
                 weightKg = weightKg,
                 reps = reps,
                 estimated1RmKg = e1rm,
-                dateAchieved = formatDateEpoch(now),
+                dateAchieved = formatDateEpoch(now, dateFormatProvider()),
                 deltaWeightKg = delta,
-                prTier = "${reps}RM PR",
+                prTier = tier,
                 dateAchievedEpochMs = now,
                 sourceSetId = sourceSetId
             )
@@ -190,6 +212,8 @@ class PersonalRecordRepository(
         allWorkouts: List<Workout>,
         calcSettings: CalculationSettings
     ) {
+        val hasWeightMetric = calcSettings.prMetrics.contains(PrMetricType.WEIGHT)
+        val hasE1rmMetric = calcSettings.prMetrics.contains(PrMetricType.E1RM)
         val newPrs = mutableMapOf<String, PersonalRecord>()
         val sortedWorkouts = allWorkouts.sortedBy { it.startTimeEpochMs }
         for (workout in sortedWorkouts) {
@@ -206,10 +230,27 @@ class PersonalRecordRepository(
                     )
 
                     val existing = newPrs[we.exercise.id]
-                    val isNewPr = if (existing == null) true else (set.weightKg > existing.weightKg)
-                    if (isNewPr) {
-                        val delta = if (existing != null) set.weightKg - existing.weightKg else set.weightKg
-                        val dateAchieved = formatDateEpoch(workout.startTimeEpochMs)
+                    val currentMaxWeight = existing?.weightKg ?: 0.0
+                    val currentMaxE1rm = existing?.estimated1RmKg ?: 0.0
+
+                    val isPr = if (hasWeightMetric) {
+                        set.weightKg > currentMaxWeight
+                    } else if (hasE1rmMetric) {
+                        e1rm > currentMaxE1rm
+                    } else {
+                        false
+                    }
+
+                    if (isPr) {
+                        val delta = if (currentMaxWeight > 0.0) set.weightKg - currentMaxWeight else set.weightKg
+                        val dateAchieved = formatDateEpoch(workout.startTimeEpochMs, dateFormatProvider())
+                        val tier = if (calcSettings.repRangePrs && set.reps > 1) {
+                            "${set.reps}RM PR"
+                        } else if (hasWeightMetric) {
+                            "1RM PR"
+                        } else {
+                            "e1RM PR"
+                        }
                         newPrs[we.exercise.id] = PersonalRecord(
                             exerciseId = we.exercise.id,
                             exerciseName = we.exercise.name,
@@ -218,7 +259,7 @@ class PersonalRecordRepository(
                             estimated1RmKg = e1rm,
                             dateAchieved = dateAchieved,
                             deltaWeightKg = delta,
-                            prTier = "${set.reps}RM PR",
+                            prTier = tier,
                             dateAchievedEpochMs = workout.startTimeEpochMs,
                             sourceSetId = set.id
                         )
@@ -243,13 +284,20 @@ class PersonalRecordRepository(
         }
     }
 
-    private fun formatDateEpoch(epochMs: Long): String {
+    private fun formatDateEpoch(epochMs: Long, pref: DateFormatPreference = DateFormatPreference.SYSTEM): String {
         if (epochMs <= 0L) return "Today"
         val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(epochMs)
         val dt = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
-        val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-        val month = monthNames.getOrElse(dt.monthNumber - 1) { "Jan" }
-        return "$month ${dt.dayOfMonth}"
+        return when (pref) {
+            DateFormatPreference.DMY -> "${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.monthNumber.toString().padStart(2, '0')}/${dt.year}"
+            DateFormatPreference.MDY -> "${dt.monthNumber.toString().padStart(2, '0')}/${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.year}"
+            DateFormatPreference.YMD -> "${dt.year}-${dt.monthNumber.toString().padStart(2, '0')}-${dt.dayOfMonth.toString().padStart(2, '0')}"
+            DateFormatPreference.SYSTEM -> {
+                val monthNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val month = monthNames.getOrElse(dt.monthNumber - 1) { "Jan" }
+                "$month ${dt.dayOfMonth}"
+            }
+        }
     }
 }
 

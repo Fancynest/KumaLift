@@ -349,8 +349,10 @@ class WorkoutRepository(
 
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val updatedSets = we.sets.map { set ->
                         if (set.id == setId) {
                             val newCompletion = !set.isCompleted
@@ -421,8 +423,10 @@ class WorkoutRepository(
     fun updateSet(exerciseId: String, setId: String, weightKg: Double, reps: Int) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val updatedSets = we.sets.map { set ->
                         if (set.id == setId) {
                             set.copy(weightKg = weightKg, reps = reps)
@@ -439,8 +443,10 @@ class WorkoutRepository(
     fun updateSetType(exerciseId: String, setId: String, setType: SetType) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val updatedSets = we.sets.map { set ->
                         if (set.id == setId) set.copy(setType = setType) else set
                     }
@@ -455,8 +461,10 @@ class WorkoutRepository(
     fun updateSetRpe(exerciseId: String, setId: String, rpe: Double?) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val updatedSets = we.sets.map { set ->
                         if (set.id == setId) set.copy(rpe = rpe) else set
                     }
@@ -471,8 +479,10 @@ class WorkoutRepository(
     fun addSetToExercise(exerciseId: String) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val lastSet = we.sets.lastOrNull()
                     val newSetNum = we.sets.size + 1
                     val newSet = SetLog(
@@ -496,8 +506,10 @@ class WorkoutRepository(
     fun removeSetFromExercise(exerciseId: String, setId: String) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
-                if (we.id == exerciseId || we.exercise.id == exerciseId) {
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
                     val remainingSets = we.sets.filterNot { it.id == setId }
                         .mapIndexed { idx, s -> s.copy(setNumber = idx + 1) }
                     we.copy(sets = remainingSets)

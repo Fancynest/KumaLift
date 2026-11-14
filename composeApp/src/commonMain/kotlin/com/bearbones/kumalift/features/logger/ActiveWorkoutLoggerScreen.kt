@@ -397,7 +397,7 @@ fun ActiveWorkoutLoggerScreen(
                             isEnglish = isEnglish,
                             onToggleSet = { setId ->
                                 workoutRepository.toggleSetCompletion(
-                                    exerciseId = we.exercise.id,
+                                    exerciseId = we.id,
                                     setId = setId,
                                     currentHeartRateBpm = wearableTelemetry.currentBpm
                                 ) { completed ->
@@ -417,16 +417,16 @@ fun ActiveWorkoutLoggerScreen(
                                 }
                             },
                             onUpdateSet = { setId, weight, reps ->
-                                workoutRepository.updateSet(we.exercise.id, setId, weight, reps)
+                                workoutRepository.updateSet(we.id, setId, weight, reps)
                             },
                             onUpdateSetType = { setId, setType ->
-                                workoutRepository.updateSetType(we.exercise.id, setId, setType)
+                                workoutRepository.updateSetType(we.id, setId, setType)
                             },
                             onUpdateSetRpe = { setId, rpe ->
-                                workoutRepository.updateSetRpe(we.exercise.id, setId, rpe)
+                                workoutRepository.updateSetRpe(we.id, setId, rpe)
                             },
                             onAddSet = {
-                                workoutRepository.addSetToExercise(we.exercise.id)
+                                workoutRepository.addSetToExercise(we.id)
                             }
                         )
                     }

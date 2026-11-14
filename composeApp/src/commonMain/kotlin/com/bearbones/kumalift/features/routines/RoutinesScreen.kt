@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Delete
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
@@ -68,6 +69,11 @@ fun RoutinesScreen(
     val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"
     var selectedCategory by remember(isEnglish) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by remember { mutableStateOf(false) }
+
+    // T10: Handle back when create routine modal is open
+    KumaBackHandler(enabled = showCreateRoutineScreen) {
+        showCreateRoutineScreen = false
+    }
 
     val targetDays = settings?.profile?.trainingDaysPerWeek ?: 4
     val nowMs = remember { kotlinx.datetime.Clock.System.now().toEpochMilliseconds() }

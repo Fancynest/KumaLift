@@ -53,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KeepScreenOn
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
@@ -95,6 +96,20 @@ fun ActiveWorkoutLoggerScreen(
 
     var showRestTimerBar by remember { mutableStateOf(false) }
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
+    var showLeaveLoggerDialog by remember { mutableStateOf(false) }
+
+    // T10: Handle back navigation in active workout logger
+    KumaBackHandler(enabled = true) {
+        if (showConfirmFinishDialog) {
+            showConfirmFinishDialog = false
+        } else if (showLeaveLoggerDialog) {
+            showLeaveLoggerDialog = false
+        } else if (settings.logging.confirmFinish) {
+            showLeaveLoggerDialog = true
+        } else {
+            onNavigateBack()
+        }
+    }
 
     val workout = activeWorkout
 
@@ -548,6 +563,52 @@ fun ActiveWorkoutLoggerScreen(
                     TextButton(onClick = { showConfirmFinishDialog = false }) {
                         Text(
                             text = if (isEnglish) "Cancel" else "Batal",
+                            color = KumaColors.TextMuted
+                        )
+                    }
+                },
+                containerColor = KumaColors.SurfaceContainerHigh,
+                titleContentColor = KumaColors.TextWhite,
+                textContentColor = KumaColors.TextSecondary
+            )
+        }
+
+        if (showLeaveLoggerDialog) {
+            AlertDialog(
+                onDismissRequest = { showLeaveLoggerDialog = false },
+                title = {
+                    Text(
+                        text = if (isEnglish) "Minimize Workout?" else "Kembali ke Beranda?",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                text = {
+                    Text(
+                        text = if (isEnglish)
+                            "Your workout is still running. You can resume it anytime from the home screen."
+                        else
+                            "Latihan Anda masih berjalan di latar belakang. Anda dapat melanjutkannya kapan saja dari beranda.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showLeaveLoggerDialog = false
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text(
+                            text = if (isEnglish) "Minimize" else "Ya, Kembali",
+                            color = LocalKumaColors.current.accentText,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLeaveLoggerDialog = false }) {
+                        Text(
+                            text = if (isEnglish) "Stay" else "Tetap Latihan",
                             color = KumaColors.TextMuted
                         )
                     }

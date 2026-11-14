@@ -116,6 +116,12 @@ fun SettingsScreen(
 ) {
     var currentDestination by remember { mutableStateOf(SettingsDestination.MAIN) }
 
+    com.bearbones.kumalift.core.navigation.KumaBackHandler(
+        enabled = currentDestination != SettingsDestination.MAIN
+    ) {
+        currentDestination = SettingsDestination.MAIN
+    }
+
     Crossfade(targetState = currentDestination) { destination ->
         when (destination) {
             SettingsDestination.MAIN -> {

@@ -54,6 +54,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -80,6 +81,14 @@ fun ExerciseLibraryScreen(
     var isCreatingExercise by remember { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
     val isEnglish = settingsRepository?.settings?.collectAsState()?.value?.appearance?.language == AppLanguage.EN
+
+    // T10: Sub-navigation back handlers
+    KumaBackHandler(enabled = selectedExerciseForDetail != null) {
+        selectedExerciseForDetail = null
+    }
+    KumaBackHandler(enabled = isCreatingExercise && selectedExerciseForDetail == null) {
+        isCreatingExercise = false
+    }
 
     Crossfade(
         targetState = when {

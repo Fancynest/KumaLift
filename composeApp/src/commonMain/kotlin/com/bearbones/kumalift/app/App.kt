@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
@@ -124,6 +125,28 @@ fun App() {
             val targetIndex = mainTabs.indexOf(currentScreen)
             if (targetIndex >= 0 && pagerState.currentPage != targetIndex) {
                 pagerState.scrollToPage(targetIndex)
+            }
+        }
+    }
+
+    // T10: Handle back navigation at root level
+    val isRootHomeScreen = (currentScreen == Screen.HOME || currentScreen !in listOf(Screen.ACTIVE_LOGGER, Screen.SUMMARY, Screen.SETTINGS)) && pagerState.currentPage == 0
+    KumaBackHandler(enabled = !isRootHomeScreen) {
+        when (currentScreen) {
+            Screen.ACTIVE_LOGGER -> {
+                currentScreen = mainTabs[pagerState.currentPage]
+            }
+            Screen.SUMMARY -> {
+                currentScreen = Screen.HOME
+                coroutineScope.launch { pagerState.scrollToPage(0) }
+            }
+            Screen.SETTINGS -> {
+                currentScreen = Screen.HOME
+            }
+            else -> {
+                if (pagerState.currentPage > 0) {
+                    coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                }
             }
         }
     }

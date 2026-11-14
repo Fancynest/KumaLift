@@ -76,7 +76,8 @@ class KumaLiftTests {
             name = "Barbell Full Squat",
             primaryMuscle = MuscleGroup.LEGS,
             equipment = Equipment.BARBELL,
-            currentPrWeightKg = 150.0
+            currentPrWeightKg = 150.0,
+            currentPrReps = 5
         )
 
         // Lower weight: should not trigger PR

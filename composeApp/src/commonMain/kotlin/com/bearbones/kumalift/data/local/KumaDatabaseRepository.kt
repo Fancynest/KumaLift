@@ -220,8 +220,9 @@ class KumaDatabaseRepository(
 
     fun savePersonalRecord(pr: PersonalRecord) {
         val timestamp = if (pr.dateAchievedEpochMs > 0L) pr.dateAchievedEpochMs else currentEpochMillis()
+        val prId = "pr_${pr.exerciseId}_${pr.reps}"
         queries.insertPr(
-            id = IdGenerator.prId(pr.exerciseId),
+            id = prId,
             exerciseId = pr.exerciseId,
             exerciseName = pr.exerciseName,
             weightKg = pr.weightKg,

@@ -62,6 +62,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+        androidUnitTest.dependencies {
             implementation(libs.sqldelight.sqlite)
         }
     }
@@ -106,6 +108,7 @@ sqldelight {
     databases {
         create("KumaDatabase") {
             packageName.set("com.bearbones.kumalift.database")
+            verifyMigrations.set(false)
         }
     }
 }

@@ -147,8 +147,8 @@ class PersonalRecordRepository(
         sourceSetId: String? = null,
         setType: SetType = SetType.NORMAL
     ): PersonalRecord? {
-        // T7: Exclude warmup sets from PR eligibility per spec
-        if (setType == SetType.WARMUP) return null
+        // Exclude WARMUP and DROP sets from PR eligibility per spec
+        if (setType == SetType.WARMUP || setType == SetType.DROP) return null
         if (weightKg <= 0.0 || reps <= 0) return null
 
         val calcSettings = calculationSettingsProvider()
@@ -162,27 +162,51 @@ class PersonalRecordRepository(
         val hasWeightMetric = calcSettings.prMetrics.contains(PrMetricType.WEIGHT)
         val hasE1rmMetric = calcSettings.prMetrics.contains(PrMetricType.E1RM)
 
-        val currentPr = _prs.value.find { it.exerciseId == exercise.id }
-        val currentMaxWeight = maxOf(currentPr?.weightKg ?: 0.0, exercise.currentPrWeightKg ?: 0.0)
-        val currentMaxE1rm = maxOf(currentPr?.estimated1RmKg ?: 0.0, exercise.currentPrWeightKg ?: 0.0)
+        val exercisePrs = _prs.value.filter { it.exerciseId == exercise.id }
+        val currentMaxWeight = maxOf(exercisePrs.maxOfOrNull { it.weightKg } ?: 0.0, exercise.currentPrWeightKg ?: 0.0)
 
-        val isPr = if (hasWeightMetric) {
-            weightKg > currentMaxWeight
-        } else if (hasE1rmMetric) {
-            e1rm > currentMaxE1rm
+        val baselineE1rm = if (exercise.currentPrWeightKg != null && exercise.currentPrWeightKg > 0.0) {
+            val baselineReps = exercise.currentPrReps ?: reps
+            OneRepMaxCalculator.calculate(
+                weightKg = exercise.currentPrWeightKg,
+                reps = baselineReps,
+                formula = calcSettings.oneRepMaxFormula,
+                maxReps = calcSettings.maxRepsForEstimate
+            )
+        } else 0.0
+
+        val currentMaxE1rm = maxOf(exercisePrs.maxOfOrNull { it.estimated1RmKg } ?: 0.0, baselineE1rm)
+        val currentRepMax = maxOf(
+            exercisePrs.filter { it.reps >= reps }.maxOfOrNull { it.weightKg } ?: 0.0,
+            if ((exercise.currentPrReps ?: 1) >= reps) (exercise.currentPrWeightKg ?: 0.0) else 0.0
+        )
+
+        val hasAnyRecord = currentMaxWeight > 0.0 || currentMaxE1rm > 0.0
+
+        // Check each metric independently (no else-if short circuiting e1rm)
+        val isWeightPr = hasWeightMetric && (currentMaxWeight > 0.0 && weightKg > currentMaxWeight)
+        val isE1rmPr = hasE1rmMetric && (currentMaxE1rm > 0.0 && e1rm > currentMaxE1rm)
+        val isRepRangePr = calcSettings.repRangePrs && (weightKg > currentRepMax)
+
+        val isPr = if (!hasAnyRecord) {
+            true // Initial completed normal set for an unrecorded exercise establishes the initial PR
         } else {
-            false
+            isWeightPr || isE1rmPr || isRepRangePr
         }
 
         if (isPr) {
-            val delta = if (currentMaxWeight > 0.0) weightKg - currentMaxWeight else weightKg
+            val delta = when {
+                !hasAnyRecord -> 0.0
+                isWeightPr -> weightKg - currentMaxWeight
+                isRepRangePr && currentRepMax > 0.0 -> weightKg - currentRepMax
+                else -> 0.0
+            }
             val now = currentEpochMillis()
-            val tier = if (calcSettings.repRangePrs && reps > 1) {
-                "${reps}RM PR"
-            } else if (hasWeightMetric) {
-                "1RM PR"
-            } else {
-                "e1RM PR"
+            val tier = when {
+                calcSettings.repRangePrs && reps > 1 -> "${reps}RM PR"
+                isWeightPr && reps == 1 -> "1RM PR"
+                isWeightPr -> "1RM PR"
+                else -> "e1RM PR"
             }
             val newPr = PersonalRecord(
                 exerciseId = exercise.id,
@@ -198,7 +222,11 @@ class PersonalRecordRepository(
             )
 
             _prs.update { list ->
-                list.filterNot { it.exerciseId == exercise.id } + newPr
+                if (calcSettings.repRangePrs) {
+                    list.filterNot { it.exerciseId == exercise.id && it.reps == reps } + newPr
+                } else {
+                    list.filterNot { it.exerciseId == exercise.id } + newPr
+                }
             }
 
             // T5: Side effects run strictly outside StateFlow.update
@@ -208,18 +236,24 @@ class PersonalRecordRepository(
         return null
     }
 
-    fun recomputePersonalRecords(
+    fun recomputePersonalRecordsForExercise(
+        exerciseId: String,
         allWorkouts: List<Workout>,
         calcSettings: CalculationSettings
     ) {
         val hasWeightMetric = calcSettings.prMetrics.contains(PrMetricType.WEIGHT)
         val hasE1rmMetric = calcSettings.prMetrics.contains(PrMetricType.E1RM)
-        val newPrs = mutableMapOf<String, PersonalRecord>()
         val sortedWorkouts = allWorkouts.sortedBy { it.startTimeEpochMs }
+
+        val repMap = mutableMapOf<Int, PersonalRecord>()
+        var overallBest: PersonalRecord? = null
+        var maxWeight = 0.0
+        var maxE1rm = 0.0
+
         for (workout in sortedWorkouts) {
-            for (we in workout.exercises) {
+            for (we in workout.exercises.filter { it.exercise.id == exerciseId }) {
                 for (set in we.sets.filter { it.isCompleted }) {
-                    if (set.setType == SetType.WARMUP && !calcSettings.includeWarmupInVolume) continue
+                    if (set.setType == SetType.WARMUP || set.setType == SetType.DROP) continue
                     if (set.weightKg <= 0.0 || set.reps <= 0) continue
 
                     val e1rm = OneRepMaxCalculator.calculate(
@@ -229,58 +263,73 @@ class PersonalRecordRepository(
                         maxReps = calcSettings.maxRepsForEstimate
                     )
 
-                    val existing = newPrs[we.exercise.id]
-                    val currentMaxWeight = existing?.weightKg ?: 0.0
-                    val currentMaxE1rm = existing?.estimated1RmKg ?: 0.0
+                    val isWeightPr = hasWeightMetric && (set.weightKg > maxWeight)
+                    val isE1rmPr = hasE1rmMetric && (e1rm > maxE1rm)
+                    val prevRepWeight = repMap[set.reps]?.weightKg ?: 0.0
+                    val isRepRangePr = calcSettings.repRangePrs && (set.weightKg > prevRepWeight)
 
-                    val isPr = if (hasWeightMetric) {
-                        set.weightKg > currentMaxWeight
-                    } else if (hasE1rmMetric) {
-                        e1rm > currentMaxE1rm
-                    } else {
-                        false
+                    val tier = when {
+                        calcSettings.repRangePrs && set.reps > 1 -> "${set.reps}RM PR"
+                        isWeightPr && set.reps == 1 -> "1RM PR"
+                        isWeightPr -> "Max Weight PR"
+                        else -> "e1RM PR"
                     }
+                    val pr = PersonalRecord(
+                        exerciseId = exerciseId,
+                        exerciseName = we.exercise.name,
+                        weightKg = set.weightKg,
+                        reps = set.reps,
+                        estimated1RmKg = e1rm,
+                        dateAchieved = formatDateEpoch(workout.startTimeEpochMs, dateFormatProvider()),
+                        deltaWeightKg = if (maxWeight > 0.0) set.weightKg - maxWeight else 0.0,
+                        prTier = tier,
+                        dateAchievedEpochMs = workout.startTimeEpochMs,
+                        sourceSetId = set.id
+                    )
 
-                    if (isPr) {
-                        val delta = if (currentMaxWeight > 0.0) set.weightKg - currentMaxWeight else set.weightKg
-                        val dateAchieved = formatDateEpoch(workout.startTimeEpochMs, dateFormatProvider())
-                        val tier = if (calcSettings.repRangePrs && set.reps > 1) {
-                            "${set.reps}RM PR"
-                        } else if (hasWeightMetric) {
-                            "1RM PR"
-                        } else {
-                            "e1RM PR"
-                        }
-                        newPrs[we.exercise.id] = PersonalRecord(
-                            exerciseId = we.exercise.id,
-                            exerciseName = we.exercise.name,
-                            weightKg = set.weightKg,
-                            reps = set.reps,
-                            estimated1RmKg = e1rm,
-                            dateAchieved = dateAchieved,
-                            deltaWeightKg = delta,
-                            prTier = tier,
-                            dateAchievedEpochMs = workout.startTimeEpochMs,
-                            sourceSetId = set.id
-                        )
+                    if (isWeightPr) maxWeight = set.weightKg
+                    if (isE1rmPr) maxE1rm = e1rm
+                    if (isWeightPr || isE1rmPr) overallBest = pr
+                    if (isRepRangePr || repMap[set.reps] == null) {
+                        repMap[set.reps] = pr
                     }
                 }
             }
         }
 
-        _prs.value = newPrs.values.toList()
+        val restoredPrs = if (calcSettings.repRangePrs) repMap.values.toList() else listOfNotNull(overallBest)
+
+        _prs.update { list ->
+            list.filterNot { it.exerciseId == exerciseId } + restoredPrs
+        }
         databaseRepo?.let { db ->
-            newPrs.values.forEach { pr ->
-                db.savePersonalRecord(pr)
-            }
+            restoredPrs.forEach { db.savePersonalRecord(it) }
         }
     }
 
-    fun revokePrBySetId(sourceSetId: String) {
+    fun recomputePersonalRecords(
+        allWorkouts: List<Workout>,
+        calcSettings: CalculationSettings
+    ) {
+        val allExerciseIds = allWorkouts.flatMap { it.exercises.map { we -> we.exercise.id } }.distinct()
+        for (exId in allExerciseIds) {
+            recomputePersonalRecordsForExercise(exId, allWorkouts, calcSettings)
+        }
+    }
+
+    fun revokePrBySetId(
+        sourceSetId: String,
+        exerciseId: String? = null,
+        allWorkouts: List<Workout> = emptyList()
+    ) {
         val affected = _prs.value.find { it.sourceSetId == sourceSetId }
+        val targetExerciseId = exerciseId ?: affected?.exerciseId
         if (affected != null) {
             _prs.update { list -> list.filterNot { it.sourceSetId == sourceSetId } }
             databaseRepo?.deletePersonalRecordBySourceSet(sourceSetId)
+        }
+        if (targetExerciseId != null && allWorkouts.isNotEmpty()) {
+            recomputePersonalRecordsForExercise(targetExerciseId, allWorkouts, calculationSettingsProvider())
         }
     }
 
@@ -313,6 +362,10 @@ class WorkoutRepository(
 
     private val _completedWorkouts = MutableStateFlow<List<Workout>>(emptyList())
     val completedWorkouts: StateFlow<List<Workout>> = _completedWorkouts.asStateFlow()
+
+    fun setCompletedWorkoutsForTesting(workouts: List<Workout>) {
+        _completedWorkouts.value = workouts
+    }
 
     init {
         // T1: Restore completed workouts from local database
@@ -449,8 +502,14 @@ class WorkoutRepository(
                 databaseRepo?.saveActiveWorkout(_activeWorkout.value)
             }
         } else if (!isNowCompleted) {
-            // T7: Un-toggling revokes PR generated by this set
-            prRepository.revokePrBySetId(setId)
+            // T7: Un-toggling revokes PR generated by this set and restores previous PR from history
+            val targetExercise = _activeWorkout.value?.exercises?.find { we -> we.sets.any { it.id == setId } }?.exercise
+            val allHistory = _completedWorkouts.value + listOfNotNull(_activeWorkout.value)
+            prRepository.revokePrBySetId(
+                sourceSetId = setId,
+                exerciseId = targetExercise?.id,
+                allWorkouts = allHistory
+            )
             _activeWorkout.update { w ->
                 w?.copy(
                     exercises = w.exercises.map { we ->

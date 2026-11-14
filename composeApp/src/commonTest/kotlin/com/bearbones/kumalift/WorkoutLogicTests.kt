@@ -127,10 +127,11 @@ class WorkoutLogicTests {
             name = "Barbell Squat",
             primaryMuscle = MuscleGroup.LEGS,
             equipment = Equipment.BARBELL,
-            movementType = MovementType.COMPOUND
+            movementType = MovementType.COMPOUND,
+            currentPrWeightKg = 90.0
         )
 
-        // 1. Warmup set should never trigger a PR
+        // 1. Warmup and Drop sets should never trigger a PR
         val warmupPr = prRepo.detectAndRecordPr(
             exercise = exercise,
             weightKg = 100.0,
@@ -138,9 +139,18 @@ class WorkoutLogicTests {
             sourceSetId = "s_warmup",
             setType = SetType.WARMUP
         )
-        assertNull(warmupPr)
+        assertNull(warmupPr, "Warmup sets must not be PRs")
 
-        // 2. Normal set triggers a PR with DMY date format and 5RM tier
+        val dropPr = prRepo.detectAndRecordPr(
+            exercise = exercise,
+            weightKg = 100.0,
+            reps = 5,
+            sourceSetId = "s_drop",
+            setType = SetType.DROP
+        )
+        assertNull(dropPr, "Drop sets must not be PRs")
+
+        // 2. Normal set beats baseline (90kg) and triggers a PR with DMY date format and 5RM tier
         val firstPr = prRepo.detectAndRecordPr(
             exercise = exercise,
             weightKg = 100.0,
@@ -164,22 +174,28 @@ class WorkoutLogicTests {
         )
         assertNull(lowerSet)
 
-        // 4. Same weight but higher reps (higher e1RM) triggers e1RM PR when E1RM metric is enabled
-        currentCalcSettings = currentCalcSettings.copy(prMetrics = setOf(PrMetricType.E1RM))
-        val higherE1rmPr = prRepo.detectAndRecordPr(
+        // 4. Rep-range coexistence: 90 kg x 10 is lower weight than 100 kg, but it is a NEW 10RM PR
+        val tenRmPr = prRepo.detectAndRecordPr(
             exercise = exercise,
-            weightKg = 100.0,
-            reps = 8,
+            weightKg = 90.0,
+            reps = 10,
             sourceSetId = "s_3",
             setType = SetType.NORMAL
         )
-        assertNotNull(higherE1rmPr)
-        assertEquals(8, higherE1rmPr.reps)
-        assertEquals("8RM PR", higherE1rmPr.prTier)
+        assertNotNull(tenRmPr, "90kg x 10 reps should qualify as a 10RM PR")
+        assertEquals(10, tenRmPr.reps)
+        assertEquals("10RM PR", tenRmPr.prTier)
 
-        // 5. Test Revoking PR when source set is unchecked
+        // Verify that BOTH the 5RM PR and 10RM PR coexist in personalRecords
+        val prList = prRepo.personalRecords.value.filter { it.exerciseId == exercise.id }
+        assertEquals(2, prList.size, "Both 5RM and 10RM records must coexist")
+        assertTrue(prList.any { it.reps == 5 && it.weightKg == 100.0 })
+        assertTrue(prList.any { it.reps == 10 && it.weightKg == 90.0 })
+
+        // 5. Test Revoking PR when source set is unchecked: 10RM PR is removed, 5RM PR remains
         prRepo.revokePrBySetId("s_3")
         assertNull(prRepo.personalRecords.value.find { it.sourceSetId == "s_3" })
+        assertNotNull(prRepo.personalRecords.value.find { it.reps == 5 })
 
         // 6. Test YMD Date format with WEIGHT metric
         currentDateFormat = DateFormatPreference.YMD
@@ -194,5 +210,82 @@ class WorkoutLogicTests {
         assertNotNull(ymdPr)
         assertEquals("1RM PR", ymdPr.prTier)
         assertTrue(ymdPr.dateAchieved.contains("-"), "Date should be formatted as YYYY-MM-DD: ${ymdPr.dateAchieved}")
+    }
+
+    @Test
+    fun testUncheckingSetRestoresPreviousPrFromHistory() {
+        val calcSettings = CalculationSettings(
+            repRangePrs = true,
+            prMetrics = setOf(PrMetricType.WEIGHT, PrMetricType.E1RM)
+        )
+        val prRepo = PersonalRecordRepository(
+            calculationSettingsProvider = { calcSettings }
+        )
+        val workoutRepo = WorkoutRepository(
+            prRepository = prRepo,
+            calculationSettingsProvider = { calcSettings }
+        )
+
+        val exercise = Exercise(
+            id = "ex_bench",
+            name = "Bench Press",
+            primaryMuscle = MuscleGroup.CHEST,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND,
+            currentPrWeightKg = 80.0
+        )
+
+        // 1. Establish an earlier completed workout in history with 100 kg x 5 reps
+        val pastWorkout = Workout(
+            id = "w_past",
+            title = "Past Push",
+            startTimeEpochMs = 1000L,
+            exercises = listOf(
+                WorkoutExercise(
+                    id = "we_past",
+                    exercise = exercise,
+                    sets = listOf(
+                        SetLog(
+                            id = "s_past_1",
+                            setNumber = 1,
+                            weightKg = 100.0,
+                            reps = 5,
+                            isCompleted = true,
+                            setType = SetType.NORMAL
+                        )
+                    )
+                )
+            ),
+            isFinished = true
+        )
+        workoutRepo.setCompletedWorkoutsForTesting(listOf(pastWorkout))
+        prRepo.recomputePersonalRecords(listOf(pastWorkout), calcSettings)
+
+        // Ensure 100kg is the active PR
+        val recordBefore = prRepo.personalRecords.value.find { it.exerciseId == exercise.id }
+        assertNotNull(recordBefore)
+        assertEquals(100.0, recordBefore.weightKg)
+
+        // 2. In active workout, user logs 110 kg x 5 reps (triggers new PR)
+        workoutRepo.startEmptyWorkout("Active Push")
+        workoutRepo.addExerciseToActiveWorkout(exercise)
+        val activeWe = workoutRepo.activeWorkout.value!!.exercises[0]
+        val activeSetId = activeWe.sets[0].id
+
+        workoutRepo.updateSet(activeWe.id, activeSetId, weightKg = 110.0, reps = 5)
+        workoutRepo.toggleSetCompletion(activeWe.id, activeSetId) {}
+
+        // New PR of 110kg is active
+        val recordAfter = prRepo.personalRecords.value.find { it.exerciseId == exercise.id }
+        assertNotNull(recordAfter)
+        assertEquals(110.0, recordAfter.weightKg)
+
+        // 3. User un-checks the 110 kg set (cancelling completion)
+        workoutRepo.toggleSetCompletion(activeWe.id, activeSetId) {}
+
+        // 4. VERIFY: The previous 100kg record from past workout is fully restored!
+        val recordRestored = prRepo.personalRecords.value.find { it.exerciseId == exercise.id }
+        assertNotNull(recordRestored, "Previous PR must be restored from history, not left empty")
+        assertEquals(100.0, recordRestored.weightKg, "Restored PR weight should be 100kg from past session")
     }
 }

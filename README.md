@@ -48,7 +48,8 @@ KumaLift/
 │       │       ├── library/      # Exercise Library & Muscle Filters
 │       │       ├── summary/      # Post-session debrief & Volume Breakdown
 │       │       └── progress/     # 1RM Trajectory & Volume Charts
-│       ├── commonTest/           # Unit tests (1RM, Volume, PR Detection)
+│       ├── commonTest/           # Pure Multiplatform Unit tests (1RM, Volume, PR Detection, Logic, Settings, Dataset)
+│       ├── androidUnitTest/      # Platform Unit tests (SQLite Persistence, Data Backup)
 │       ├── androidMain/          # Android MainActivity, Manifest
 │       └── iosMain/              # iOS MainViewController
 ├── iosApp/                       # iOS Xcode SwiftUI wrapper

@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class RoutineBlueprint(
     val id: String,
     val title: String,

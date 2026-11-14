@@ -25,10 +25,9 @@ class SettingsRepository(
 
     fun update(transform: (UserSettings) -> UserSettings) {
         _settings.update { current ->
-            val updated = transform(current)
-            onSave?.invoke(updated)
-            updated
+            transform(current)
         }
+        onSave?.invoke(_settings.value)
     }
 
     fun resetAll() {

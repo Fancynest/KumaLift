@@ -1,21 +1,31 @@
 package com.bearbones.kumalift.data.repository
 
 import androidx.compose.runtime.Composable
+import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 
 /**
- * Returns a SettingsRepository populated with persisted user preferences on platforms that support it.
+ * Returns the singleton KumaDatabaseRepository backed by local SQLite.
  */
 @Composable
-expect fun rememberSettingsRepository(): SettingsRepository
+expect fun rememberDatabaseRepository(): KumaDatabaseRepository
 
 /**
- * Returns an ExerciseRepository populated with default and custom exercises on platforms that support it.
+ * Returns a SettingsRepository populated with persisted user preferences from local SQLite database.
  */
 @Composable
-expect fun rememberExerciseRepository(): ExerciseRepository
+expect fun rememberSettingsRepository(databaseRepo: KumaDatabaseRepository): SettingsRepository
 
 /**
- * Returns a RoutineRepository populated with default and custom routines on platforms that support it.
+ * Returns an ExerciseRepository populated with default and custom exercises from local SQLite database.
  */
 @Composable
-expect fun rememberRoutineRepository(exerciseRepository: ExerciseRepository): RoutineRepository
+expect fun rememberExerciseRepository(databaseRepo: KumaDatabaseRepository): ExerciseRepository
+
+/**
+ * Returns a RoutineRepository populated with default and custom routines from local SQLite database.
+ */
+@Composable
+expect fun rememberRoutineRepository(
+    exerciseRepository: ExerciseRepository,
+    databaseRepo: KumaDatabaseRepository
+): RoutineRepository

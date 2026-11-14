@@ -173,7 +173,7 @@ fun ActiveWorkoutLoggerScreen(
                                 wearableManager.writeFinishedWorkout(
                                     workoutTitle = workout.title,
                                     startTimeEpochMs = workout.startTimeEpochMs,
-                                    endTimeEpochMs = System.currentTimeMillis(),
+                                    endTimeEpochMs = com.bearbones.kumalift.core.util.currentEpochMillis(),
                                     totalVolumeKg = workout.totalVolumeKg,
                                     activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
                                 )
@@ -422,7 +422,7 @@ fun ActiveWorkoutLoggerScreen(
                                         wearableManager.writeFinishedWorkout(
                                             workoutTitle = workout.title,
                                             startTimeEpochMs = workout.startTimeEpochMs,
-                                            endTimeEpochMs = System.currentTimeMillis(),
+                                            endTimeEpochMs = com.bearbones.kumalift.core.util.currentEpochMillis(),
                                             totalVolumeKg = workout.totalVolumeKg,
                                             activeCaloriesKcal = wearableTelemetry.activeCaloriesKcal
                                         )

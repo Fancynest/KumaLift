@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class SetType(val shortCode: String, val displayName: String) {
     WARMUP("W", "Warmup"),
     NORMAL("", "Normal"),
@@ -7,6 +10,7 @@ enum class SetType(val shortCode: String, val displayName: String) {
     FAILURE("F", "Failure")
 }
 
+@Serializable
 data class SetLog(
     val id: String,
     val setNumber: Int,

@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class MuscleGroup(val displayName: String) {
     CHEST("Dada"),
     BACK("Punggung"),
@@ -24,6 +27,7 @@ enum class MuscleGroup(val displayName: String) {
     }
 }
 
+@Serializable
 enum class Equipment(val code: String, val displayName: String) {
     BARBELL("BB", "Barbell"),
     DUMBBELL("DB", "Dumbbell"),
@@ -48,6 +52,7 @@ enum class Equipment(val code: String, val displayName: String) {
     }
 }
 
+@Serializable
 enum class MovementType(val displayName: String) {
     COMPOUND("Compound"),
     ISOLATION("Isolasi");
@@ -58,12 +63,14 @@ enum class MovementType(val displayName: String) {
     }
 }
 
+@Serializable
 enum class ExperienceLevel(val displayName: String) {
     BEGINNER("Pemula"),
     INTERMEDIATE("Menengah"),
     ADVANCED("Lanjut")
 }
 
+@Serializable
 data class Exercise(
     val id: String,
     val name: String,

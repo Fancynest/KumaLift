@@ -1,49 +1,60 @@
 package com.bearbones.kumalift.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class AthleteSex {
     UNSPECIFIED,
     MALE,
     FEMALE
 }
 
+@Serializable
 enum class TrainingGoal {
     HYPERTROPHY,
     STRENGTH,
     GENERAL
 }
 
+@Serializable
 enum class WeightUnit {
     KG,
     LB
 }
 
+@Serializable
 enum class DistanceUnit {
     KILOMETERS,
     MILES
 }
 
+@Serializable
 enum class BodyMeasurementUnit {
     CM,
     IN
 }
 
+@Serializable
 enum class LengthUnit {
     CM,
     IN
 }
 
+@Serializable
 enum class FirstDayOfWeek {
     MONDAY,
     SUNDAY,
     SATURDAY
 }
 
+@Serializable
 enum class TimeFormatPreference {
     SYSTEM,
     H12,
     H24
 }
 
+@Serializable
 enum class DateFormatPreference {
     SYSTEM,
     DMY,
@@ -51,33 +62,39 @@ enum class DateFormatPreference {
     YMD
 }
 
+@Serializable
 enum class WorkoutTimerStart {
     ON_START,
     ON_FIRST_SET
 }
 
+@Serializable
 enum class PrefillSource {
     LAST_SESSION,
     BEST_SET,
     NONE
 }
 
+@Serializable
 enum class IntensityScale {
     RPE,
     RIR
 }
 
+@Serializable
 data class BarEquipment(
     val id: String,
     val name: String,
     val weightKg: Double
 )
 
+@Serializable
 data class PlateItem(
     val weight: Double,
     val enabled: Boolean
 )
 
+@Serializable
 enum class AlertSound {
     DEFAULT,
     SOFT,
@@ -85,6 +102,7 @@ enum class AlertSound {
     NONE
 }
 
+@Serializable
 enum class OneRepMaxFormula {
     EPLEY,
     BRZYCKI,
@@ -92,29 +110,34 @@ enum class OneRepMaxFormula {
     OCONNER
 }
 
+@Serializable
 enum class PrMetricType {
     WEIGHT,
     E1RM,
     SET_VOLUME
 }
 
+@Serializable
 enum class BodyweightVolumeMode {
     ADDED_ONLY,
     BODYWEIGHT_PLUS_ADDED
 }
 
+@Serializable
 enum class AppTheme {
     DARK,
     LIGHT,
     SYSTEM
 }
 
+@Serializable
 enum class AppLanguage {
     SYSTEM,
     ID,
     EN
 }
 
+@Serializable
 enum class AppTextScale {
     SYSTEM,
     SMALL,
@@ -123,18 +146,21 @@ enum class AppTextScale {
     XLARGE
 }
 
+@Serializable
 enum class BackupFrequency {
     DAILY,
     WEEKLY,
     MONTHLY
 }
 
+@Serializable
 enum class AppLockType {
     NONE,
     BIOMETRIC,
     PIN
 }
 
+@Serializable
 enum class LockTimeout {
     IMMEDIATE,
     ONE_MIN,
@@ -142,6 +168,7 @@ enum class LockTimeout {
     FIFTEEN_MIN
 }
 
+@Serializable
 data class ProfileSettings(
     val name: String = "",
     val username: String = "",
@@ -158,6 +185,7 @@ data class ProfileSettings(
     val trainingDaysPerWeek: Int = 4
 )
 
+@Serializable
 data class UnitSettings(
     val weightUnit: WeightUnit = WeightUnit.KG,
     val distanceUnit: DistanceUnit = DistanceUnit.KILOMETERS,
@@ -168,6 +196,7 @@ data class UnitSettings(
     val dateFormat: DateFormatPreference = DateFormatPreference.SYSTEM
 )
 
+@Serializable
 data class LoggingSettings(
     val restTimerDefaultSec: Int = 90,
     val restTimerSeparateByType: Boolean = false,
@@ -199,6 +228,7 @@ data class LoggingSettings(
     val inlineTimer: Boolean = true
 )
 
+@Serializable
 data class EquipmentSettings(
     val bars: List<BarEquipment> = listOf(
         BarEquipment("olympic", "Olympic Bar", 20.0),
@@ -228,6 +258,7 @@ data class EquipmentSettings(
     val plateCalculatorRoundingKg: Boolean = true
 )
 
+@Serializable
 data class NotificationSettings(
     val restTimerAlert: Boolean = true,
     val restTimerSound: AlertSound = AlertSound.DEFAULT,
@@ -245,6 +276,7 @@ data class NotificationSettings(
     val monthlyReport: Boolean = true
 )
 
+@Serializable
 data class CalculationSettings(
     val oneRepMaxFormula: OneRepMaxFormula = OneRepMaxFormula.EPLEY,
     val maxRepsForEstimate: Int = 10,
@@ -257,6 +289,7 @@ data class CalculationSettings(
     val weeklyVolumeTargetKg: Double? = null
 )
 
+@Serializable
 data class AppearanceSettings(
     val theme: AppTheme = AppTheme.DARK,
     val highContrast: Boolean = false,
@@ -271,6 +304,7 @@ data class AppearanceSettings(
     val recentWorkoutsCount: Int = 5
 )
 
+@Serializable
 data class DataBackupSettings(
     val autoBackupEnabled: Boolean = false,
     val autoBackupFrequency: BackupFrequency = BackupFrequency.WEEKLY,
@@ -280,6 +314,7 @@ data class DataBackupSettings(
     val lastBackupEpochMs: Long? = null
 )
 
+@Serializable
 data class SecuritySettings(
     val appLock: AppLockType = AppLockType.NONE,
     val pinHash: String? = null,
@@ -288,6 +323,7 @@ data class SecuritySettings(
     val localLogging: Boolean = false
 )
 
+@Serializable
 data class HealthSettings(
     val healthEnabled: Boolean = false,
     val writeWorkouts: Boolean = true,
@@ -295,6 +331,7 @@ data class HealthSettings(
     val readBodyWeight: Boolean = false
 )
 
+@Serializable
 data class UserSettings(
     val settingsVersion: Int = 1,
     val profile: ProfileSettings = ProfileSettings(),

@@ -159,7 +159,7 @@ fun CreateRoutineScreen(
                         hasAttemptedSubmit = true
                         if (isFormValid) {
                             val newRoutine = RoutineBlueprint(
-                                id = "custom_${System.currentTimeMillis()}",
+                                id = com.bearbones.kumalift.core.util.IdGenerator.routineId(routineTitle.trim()),
                                 title = routineTitle.trim(),
                                 splitCategory = finalCategory,
                                 muscleFocus = autoMuscleFocus,

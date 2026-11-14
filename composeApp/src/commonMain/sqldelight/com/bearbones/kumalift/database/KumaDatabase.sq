@@ -1,0 +1,258 @@
+CREATE TABLE workouts (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    splitType TEXT NOT NULL,
+    startTimeEpochMs INTEGER NOT NULL,
+    endTimeEpochMs INTEGER,
+    durationSeconds INTEGER NOT NULL,
+    sessionRpe REAL,
+    notes TEXT,
+    isFinished INTEGER NOT NULL DEFAULT 0,
+    avgHeartRateBpm INTEGER,
+    peakHeartRateBpm INTEGER,
+    activeCaloriesKcal REAL
+);
+
+CREATE TABLE workout_exercises (
+    id TEXT NOT NULL PRIMARY KEY,
+    workoutId TEXT NOT NULL,
+    exerciseId TEXT NOT NULL,
+    exerciseName TEXT NOT NULL,
+    primaryMuscle TEXT NOT NULL,
+    equipment TEXT NOT NULL,
+    movementType TEXT NOT NULL,
+    orderIndex INTEGER NOT NULL,
+    pinnedNote TEXT,
+    FOREIGN KEY (workoutId) REFERENCES workouts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE sets (
+    id TEXT NOT NULL PRIMARY KEY,
+    workoutExerciseId TEXT NOT NULL,
+    workoutId TEXT NOT NULL,
+    setNumber INTEGER NOT NULL,
+    setType TEXT NOT NULL,
+    weightKg REAL NOT NULL,
+    reps INTEGER NOT NULL,
+    isCompleted INTEGER NOT NULL DEFAULT 0,
+    rpe REAL,
+    rir INTEGER,
+    targetWeightKg REAL,
+    targetReps INTEGER,
+    previousWeightKg REAL,
+    previousReps INTEGER,
+    heartRateBpm INTEGER,
+    completedAtEpochMs INTEGER,
+    FOREIGN KEY (workoutExerciseId) REFERENCES workout_exercises(id) ON DELETE CASCADE
+);
+
+CREATE TABLE personal_records (
+    id TEXT NOT NULL PRIMARY KEY,
+    exerciseId TEXT NOT NULL,
+    exerciseName TEXT NOT NULL,
+    weightKg REAL NOT NULL,
+    reps INTEGER NOT NULL,
+    estimated1RmKg REAL NOT NULL,
+    dateAchievedEpochMs INTEGER NOT NULL,
+    deltaWeightKg REAL NOT NULL,
+    prTier TEXT NOT NULL,
+    sourceSetId TEXT
+);
+
+CREATE TABLE bodyweight_log (
+    id TEXT NOT NULL PRIMARY KEY,
+    dateEpochMs INTEGER NOT NULL,
+    weightKg REAL NOT NULL,
+    note TEXT
+);
+
+CREATE TABLE custom_exercises (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    primaryMuscle TEXT NOT NULL,
+    secondaryMuscles TEXT NOT NULL DEFAULT '',
+    equipment TEXT NOT NULL,
+    movementType TEXT NOT NULL,
+    defaultIncrementKg REAL NOT NULL DEFAULT 2.5,
+    pinnedNote TEXT,
+    createdAtEpochMs INTEGER NOT NULL
+);
+
+CREATE TABLE routines (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    splitCategory TEXT NOT NULL,
+    muscleFocus TEXT NOT NULL,
+    estimatedDurationMinutes INTEGER NOT NULL,
+    targetRpeTier TEXT NOT NULL,
+    plannedSetsPerExercise INTEGER NOT NULL,
+    isCustom INTEGER NOT NULL DEFAULT 1,
+    createdAtEpochMs INTEGER NOT NULL
+);
+
+CREATE TABLE routine_exercises (
+    id TEXT NOT NULL PRIMARY KEY,
+    routineId TEXT NOT NULL,
+    exerciseId TEXT NOT NULL,
+    orderIndex INTEGER NOT NULL,
+    targetSets INTEGER NOT NULL DEFAULT 3,
+    targetReps INTEGER NOT NULL DEFAULT 8,
+    targetWeightKg REAL,
+    FOREIGN KEY (routineId) REFERENCES routines(id) ON DELETE CASCADE
+);
+
+CREATE TABLE active_workout_state (
+    id TEXT NOT NULL PRIMARY KEY,
+    workoutJson TEXT NOT NULL,
+    lastUpdatedEpochMs INTEGER NOT NULL
+);
+
+CREATE TABLE user_settings_storage (
+    id TEXT NOT NULL PRIMARY KEY,
+    settingsJson TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    lastUpdatedEpochMs INTEGER NOT NULL
+);
+
+-- Indices for performance
+CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
+CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
+CREATE INDEX idx_sets_workout ON sets(workoutId);
+CREATE INDEX idx_prs_exercise ON personal_records(exerciseId);
+CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routineId);
+
+-- Queries for Workouts
+selectAllCompletedWorkouts:
+SELECT * FROM workouts WHERE isFinished = 1 ORDER BY startTimeEpochMs DESC;
+
+selectWorkoutById:
+SELECT * FROM workouts WHERE id = ?;
+
+insertWorkout:
+INSERT OR REPLACE INTO workouts (
+    id, title, splitType, startTimeEpochMs, endTimeEpochMs,
+    durationSeconds, sessionRpe, notes, isFinished,
+    avgHeartRateBpm, peakHeartRateBpm, activeCaloriesKcal
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteWorkout:
+DELETE FROM workouts WHERE id = ?;
+
+-- Queries for Workout Exercises
+selectWorkoutExercises:
+SELECT * FROM workout_exercises WHERE workoutId = ? ORDER BY orderIndex ASC;
+
+insertWorkoutExercise:
+INSERT OR REPLACE INTO workout_exercises (
+    id, workoutId, exerciseId, exerciseName, primaryMuscle, equipment, movementType, orderIndex, pinnedNote
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteWorkoutExercisesByWorkoutId:
+DELETE FROM workout_exercises WHERE workoutId = ?;
+
+-- Queries for Sets
+selectSetsByWorkoutExerciseId:
+SELECT * FROM sets WHERE workoutExerciseId = ? ORDER BY setNumber ASC;
+
+selectSetsByWorkoutId:
+SELECT * FROM sets WHERE workoutId = ? ORDER BY setNumber ASC;
+
+insertSet:
+INSERT OR REPLACE INTO sets (
+    id, workoutExerciseId, workoutId, setNumber, setType,
+    weightKg, reps, isCompleted, rpe, rir, targetWeightKg, targetReps,
+    previousWeightKg, previousReps, heartRateBpm, completedAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteSetsByWorkoutId:
+DELETE FROM sets WHERE workoutId = ?;
+
+deleteSetsByWorkoutExerciseId:
+DELETE FROM sets WHERE workoutExerciseId = ?;
+
+-- Queries for PRs
+selectAllPrs:
+SELECT * FROM personal_records ORDER BY dateAchievedEpochMs DESC;
+
+selectPrsForExercise:
+SELECT * FROM personal_records WHERE exerciseId = ? ORDER BY weightKg DESC;
+
+insertPr:
+INSERT OR REPLACE INTO personal_records (
+    id, exerciseId, exerciseName, weightKg, reps, estimated1RmKg, dateAchievedEpochMs, deltaWeightKg, prTier, sourceSetId
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deletePr:
+DELETE FROM personal_records WHERE id = ?;
+
+deletePrBySourceSet:
+DELETE FROM personal_records WHERE sourceSetId = ?;
+
+-- Queries for Bodyweight
+selectAllBodyweightLogs:
+SELECT * FROM bodyweight_log ORDER BY dateEpochMs DESC;
+
+insertBodyweightLog:
+INSERT OR REPLACE INTO bodyweight_log (id, dateEpochMs, weightKg, note)
+VALUES (?, ?, ?, ?);
+
+deleteBodyweightLog:
+DELETE FROM bodyweight_log WHERE id = ?;
+
+-- Queries for Custom Exercises
+selectAllCustomExercises:
+SELECT * FROM custom_exercises ORDER BY createdAtEpochMs DESC;
+
+insertCustomExercise:
+INSERT OR REPLACE INTO custom_exercises (
+    id, name, primaryMuscle, secondaryMuscles, equipment, movementType, defaultIncrementKg, pinnedNote, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteCustomExercise:
+DELETE FROM custom_exercises WHERE id = ?;
+
+-- Queries for Routines
+selectAllRoutines:
+SELECT * FROM routines ORDER BY createdAtEpochMs DESC;
+
+selectRoutineById:
+SELECT * FROM routines WHERE id = ?;
+
+insertRoutine:
+INSERT OR REPLACE INTO routines (
+    id, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteRoutine:
+DELETE FROM routines WHERE id = ?;
+
+-- Queries for Routine Exercises
+selectRoutineExercises:
+SELECT * FROM routine_exercises WHERE routineId = ? ORDER BY orderIndex ASC;
+
+insertRoutineExercise:
+INSERT OR REPLACE INTO routine_exercises (
+    id, routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteRoutineExercises:
+DELETE FROM routine_exercises WHERE routineId = ?;
+
+-- Queries for Active Workout State
+selectActiveWorkout:
+SELECT * FROM active_workout_state WHERE id = 'active' LIMIT 1;
+
+insertActiveWorkout:
+INSERT OR REPLACE INTO active_workout_state (id, workoutJson, lastUpdatedEpochMs)
+VALUES ('active', ?, ?);
+
+clearActiveWorkout:
+DELETE FROM active_workout_state WHERE id = 'active';
+
+-- Queries for User Settings Storage
+selectUserSettings:
+SELECT * FROM user_settings_storage WHERE id = 'current_user' LIMIT 1;
+
+insertUserSettings:
+INSERT OR REPLACE INTO user_settings_storage (id, settingsJson, version, lastUpdatedEpochMs)
+VALUES ('current_user', ?, ?, ?);

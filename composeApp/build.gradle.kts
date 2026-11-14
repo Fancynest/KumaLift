@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -34,6 +36,7 @@ kotlin {
             implementation("io.coil-kt:coil-compose:2.7.0")
             implementation("io.coil-kt:coil-gif:2.7.0")
             implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
+            implementation(libs.sqldelight.android)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -48,11 +51,18 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
         }
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native)
+        }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.sqldelight.sqlite)
         }
     }
 }
@@ -86,4 +96,12 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+}
+
+sqldelight {
+    databases {
+        create("KumaDatabase") {
+            packageName.set("com.bearbones.kumalift.database")
+        }
+    }
 }

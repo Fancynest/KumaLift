@@ -53,6 +53,7 @@ import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.data.repository.rememberDatabaseRepository
 import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
 import com.bearbones.kumalift.data.repository.rememberSettingsRepository
@@ -79,11 +80,24 @@ enum class Screen {
 
 @Composable
 fun App() {
-    val exerciseRepository = rememberExerciseRepository()
-    val routineRepository = rememberRoutineRepository(exerciseRepository)
-    val personalRecordRepository = remember { PersonalRecordRepository() }
-    val workoutRepository = remember { WorkoutRepository(personalRecordRepository) }
-    val settingsRepository = rememberSettingsRepository()
+    val databaseRepo = rememberDatabaseRepository()
+    val settingsRepository = rememberSettingsRepository(databaseRepo)
+    val exerciseRepository = rememberExerciseRepository(databaseRepo)
+    val routineRepository = rememberRoutineRepository(exerciseRepository, databaseRepo)
+    val personalRecordRepository = remember(databaseRepo) {
+        PersonalRecordRepository(
+            initialPrs = databaseRepo.getAllPersonalRecords(),
+            databaseRepo = databaseRepo,
+            calculationSettingsProvider = { settingsRepository.settings.value.calculations }
+        )
+    }
+    val workoutRepository = remember(personalRecordRepository, databaseRepo) {
+        WorkoutRepository(
+            prRepository = personalRecordRepository,
+            databaseRepo = databaseRepo,
+            staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
+        )
+    }
 
     val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS, Screen.ME) }
     val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }

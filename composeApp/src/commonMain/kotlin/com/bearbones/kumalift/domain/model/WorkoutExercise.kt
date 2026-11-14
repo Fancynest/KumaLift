@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class WorkoutExercise(
     val id: String,
     val exercise: Exercise,

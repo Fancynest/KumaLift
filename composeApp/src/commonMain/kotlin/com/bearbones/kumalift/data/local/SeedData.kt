@@ -34,7 +34,7 @@ object SeedData {
                 ex("0027"), // Barbell Bent Over Row
                 ex("2330")  // Cable Lat Pulldown Full Range Of Motion
             ),
-            lastPerformedDaysAgo = "Yesterday"
+            lastPerformedDaysAgo = null
         ),
         RoutineBlueprint(
             id = "rt_push_day_a",
@@ -49,7 +49,7 @@ object SeedData {
                 ex("0179"), // Cable Middle Fly
                 ex("0241")  // Cable Triceps Pushdown
             ),
-            lastPerformedDaysAgo = "2 days ago"
+            lastPerformedDaysAgo = null
         ),
         RoutineBlueprint(
             id = "rt_legs_a",
@@ -62,7 +62,7 @@ object SeedData {
                 ex("0043"), // Barbell Full Squat
                 ex("0085")  // Barbell Romanian Deadlift
             ),
-            lastPerformedDaysAgo = "4 days ago"
+            lastPerformedDaysAgo = null
         ),
         RoutineBlueprint(
             id = "rt_upper_body",
@@ -76,50 +76,10 @@ object SeedData {
                 ex("0091"), // Barbell Seated Overhead Press
                 ex("0027")  // Barbell Bent Over Row
             ),
-            lastPerformedDaysAgo = "Last week"
+            lastPerformedDaysAgo = null
         )
     )
 
-    val personalRecords: List<PersonalRecord> = listOf(
-        PersonalRecord(
-            exerciseId = "0025",
-            exerciseName = "Barbell Bench Press",
-            weightKg = 118.0,
-            reps = 3,
-            estimated1RmKg = 129.8,
-            dateAchieved = "Oct 28",
-            deltaWeightKg = 3.0,
-            prTier = "3RM PR"
-        ),
-        PersonalRecord(
-            exerciseId = "0043",
-            exerciseName = "Barbell Full Squat",
-            weightKg = 150.0,
-            reps = 5,
-            estimated1RmKg = 175.0,
-            dateAchieved = "Nov 02",
-            deltaWeightKg = 5.0,
-            prTier = "5RM PR"
-        ),
-        PersonalRecord(
-            exerciseId = "0032",
-            exerciseName = "Barbell Deadlift",
-            weightKg = 185.0,
-            reps = 3,
-            estimated1RmKg = 203.5,
-            dateAchieved = "Nov 06",
-            deltaWeightKg = 5.0,
-            prTier = "3RM PR"
-        ),
-        PersonalRecord(
-            exerciseId = "0091",
-            exerciseName = "Barbell Seated Overhead Press",
-            weightKg = 72.5,
-            reps = 5,
-            estimated1RmKg = 84.5,
-            dateAchieved = "Nov 10",
-            deltaWeightKg = 2.5,
-            prTier = "5RM PR"
-        )
-    )
+    // Real empty PRs on fresh installation (no invented/mock data per project rules)
+    val personalRecords: List<PersonalRecord> = emptyList()
 }

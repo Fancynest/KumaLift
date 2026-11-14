@@ -15,6 +15,16 @@ Built with **Compose Multiplatform (CMP)** targeting **Android** and **iOS** fro
 
 ---
 
+## 💾 Local Storage Architecture: SQLDelight
+KumaLift is **100% pure local** with zero remote servers, cloud dependencies, or remote analytics:
+- **Engine:** [SQLDelight 2.0.2](https://cashapp.github.io/sqldelight/) generates type-safe multiplatform Kotlin APIs directly from SQLite schema (`KumaDatabase.sq`).
+- **Choice Justification:** SQLDelight provides native SQLite performance across Android (`AndroidSqliteDriver`), iOS (`NativeSqliteDriver`), and JVM unit tests (`JdbcSqliteDriver`) without annotation processor friction or runtime reflection.
+- **Tables:** `workouts`, `workout_exercises`, `sets`, `personal_records`, `bodyweight_log`, `custom_exercises`, `routines`, `routine_exercises`, `active_workout_state`, and `user_settings_storage`.
+- **Durability:** The active workout is persisted after every completed set or weight change. In-progress sessions survive app termination, background OS kill, and reboot.
+- **Settings & Migrations:** Full `UserSettings` hierarchy serialized with version tracking (`settingsVersion`) and automatic first-launch migration from legacy files.
+
+---
+
 ## 📁 Project Structure
 
 ```text

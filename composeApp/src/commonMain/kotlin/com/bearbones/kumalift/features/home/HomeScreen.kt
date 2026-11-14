@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,11 +65,17 @@ import kotlinx.datetime.toLocalDateTime
 fun HomeScreen(
     workoutRepository: WorkoutRepository,
     settingsRepository: SettingsRepository,
+    routineRepository: com.bearbones.kumalift.data.repository.RoutineRepository? = null,
+    personalRecordRepository: com.bearbones.kumalift.data.repository.PersonalRecordRepository? = null,
     onStartWorkout: () -> Unit,
     onStartFreestyle: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
+    val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
+    val prList by (personalRecordRepository?.personalRecords ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
+    val routines by (routineRepository?.routines ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
+    val scheduledRoutine = routines.firstOrNull()
 
     val currentHour = remember {
         try {
@@ -84,12 +91,53 @@ fun HomeScreen(
         in 15..18 -> if (isEnglish) "Good afternoon" else "Selamat sore"
         else -> if (isEnglish) "Good evening" else "Selamat malam"
     }
-    val athleteGreeting = settings.profile.username.ifBlank { settings.profile.name.ifBlank { "Alex" } }
+    val athleteGreeting = settings.profile.username.ifBlank { settings.profile.name.ifBlank { if (isEnglish) "Athlete" else "Atlet" } }
     val phaseText = when (settings.profile.goal) {
-        TrainingGoal.HYPERTROPHY -> if (isEnglish) "WEEK 6 · HYPERTROPHY PHASE" else "MINGGU 6 · FASE TAMBAH OTOT"
-        TrainingGoal.STRENGTH -> if (isEnglish) "WEEK 6 · STRENGTH PHASE" else "MINGGU 6 · FASE KEKUATAN"
-        TrainingGoal.GENERAL -> if (isEnglish) "WEEK 6 · GENERAL FITNESS" else "MINGGU 6 · KEBUGARAN UMUM"
+        TrainingGoal.HYPERTROPHY -> if (isEnglish) "HYPERTROPHY PHASE" else "FASE TAMBAH OTOT"
+        TrainingGoal.STRENGTH -> if (isEnglish) "STRENGTH PHASE" else "FASE KEKUATAN"
+        TrainingGoal.GENERAL -> if (isEnglish) "GENERAL FITNESS" else "KEBUGARAN UMUM"
     }
+
+    // Real dynamic stats calculated from stored database data
+    val nowMs = remember { Clock.System.now().toEpochMilliseconds() }
+    val oneWeekAgoMs = nowMs - 7L * 24 * 3600_000L
+    val thisWeekWorkouts = remember(completedWorkouts) {
+        completedWorkouts.filter { it.startTimeEpochMs >= oneWeekAgoMs }
+    }
+    val thisWeekVolumeKg = remember(thisWeekWorkouts) {
+        thisWeekWorkouts.sumOf { it.totalVolumeKg }
+    }
+    val totalVolumeKg = remember(completedWorkouts) {
+        completedWorkouts.sumOf { it.totalVolumeKg }
+    }
+
+    val isLb = settings.units.weightUnit == WeightUnit.LB
+    val unitSuffix = if (isLb) "lb" else "kg"
+    val multiplier = if (isLb) 2.20462 else 1.0
+
+    val weekVolDisplay = thisWeekVolumeKg * multiplier
+    val weekVolFormatted = if (weekVolDisplay >= 1000.0) {
+        val thousands = ((weekVolDisplay / 100.0).toInt()) / 10.0
+        "${thousands}k $unitSuffix"
+    } else {
+        "${weekVolDisplay.toInt()} $unitSuffix"
+    }
+
+    val totalVolDisplay = totalVolumeKg * multiplier
+    val totalVolFormatted = if (totalVolDisplay >= 1000.0) {
+        val thousands = ((totalVolDisplay / 100.0).toInt()) / 10.0
+        "${thousands}k $unitSuffix"
+    } else {
+        "${totalVolDisplay.toInt()} $unitSuffix"
+    }
+
+    val targetGoalWorkouts = settings.profile.trainingDaysPerWeek
+    val weekWorkoutsCount = thisWeekWorkouts.size
+    val targetPct = if (targetGoalWorkouts > 0) minOf(100, (weekWorkoutsCount * 100) / targetGoalWorkouts) else 0
+
+    val volumeBadge = if (isEnglish) "$weekVolFormatted This Week" else "$weekVolFormatted Minggu Ini"
+    val targetBadge = if (isEnglish) "Goal: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)" else "Target: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)"
+    val prBadge = if (isEnglish) "${prList.size} PR Records" else "${prList.size} Rekor PR"
 
     Box(
         modifier = Modifier
@@ -191,7 +239,7 @@ fun HomeScreen(
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "4/${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "Workouts" else "Sesi Latihan"}",
+                                        text = "$weekWorkoutsCount/${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "Workouts" else "Sesi Latihan"}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -202,20 +250,33 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // 7 Days Grid with comfortable breathing room
+                            // 7 Days Grid with honest dynamic completion tracking
+                            val nowInstant = Clock.System.now()
+                            val nowDt = nowInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+                            val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, 7 = Sunday
+                            val daysDone = (1..7).map { dayNum ->
+                                thisWeekWorkouts.any { w ->
+                                    val wDt = kotlinx.datetime.Instant.fromEpochMilliseconds(w.startTimeEpochMs).toLocalDateTime(TimeZone.currentSystemDefault())
+                                    (wDt.dayOfWeek.ordinal + 1) == dayNum
+                                }
+                            }
+                            val dayLabels = if (isEnglish) listOf("M", "T", "W", "T", "F", "S", "S") else listOf("S", "S", "R", "K", "J", "S", "M")
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                DayCircle(if (isEnglish) "M" else "S", isDone = true)
-                                DayCircle(if (isEnglish) "T" else "S", isDone = true)
-                                DayCircle(if (isEnglish) "W" else "R", isRest = true)
-                                DayCircle(if (isEnglish) "T" else "K", isDone = true)
-                                DayCircle(if (isEnglish) "F" else "J", isActive = true)
-                                DayCircle(if (isEnglish) "S" else "S")
-                                DayCircle(if (isEnglish) "S" else "M")
+                                (1..7).forEach { dayNum ->
+                                    val isDone = daysDone[dayNum - 1]
+                                    val isToday = dayNum == todayDayOfWeek
+                                    DayCircle(
+                                        day = dayLabels[dayNum - 1],
+                                        isDone = isDone,
+                                        isActive = isToday && !isDone
+                                    )
+                                }
                             }
                         }
                     }
@@ -329,7 +390,7 @@ fun HomeScreen(
                             ) {
                                 KumaBadge(text = if (isEnglish) "TODAY'S SCHEDULE" else "JADWAL HARI INI")
                                 Text(
-                                    text = if (isEnglish) "Heavy · RPE 8–9" else "Beban Berat · RPE 8–9",
+                                    text = scheduledRoutine?.targetRpeTier ?: if (isEnglish) "Ready to Train" else "Siap Latihan",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -338,7 +399,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Pull Day A",
+                                text = scheduledRoutine?.title ?: if (isEnglish) "Custom Routine" else "Rutinitas Latihan",
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -347,28 +408,40 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = if (isEnglish) "4 exercises · 16 sets · ~55 min" else "4 gerakan · 16 set · ~55 mnt",
+                                text = scheduledRoutine?.let {
+                                    if (isEnglish) "${it.exerciseTemplates.size} exercises · ~${it.estimatedDurationMinutes} min"
+                                    else "${it.exerciseTemplates.size} gerakan · ~${it.estimatedDurationMinutes} mnt"
+                                } ?: if (isEnglish) "Start an empty workout or pick from library" else "Mulai sesi bebas atau pilih gerakan dari katalog",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextSecondary
                             )
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            if (scheduledRoutine != null && scheduledRoutine.exerciseTemplates.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            // Exercise Preview Chips
-                            LazyRow(
-                                modifier = Modifier.isolateHorizontalScroll(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                item { KumaBadge(text = "Deadlift") }
-                                item { KumaBadge(text = "Barbell Row") }
-                                item { KumaBadge(text = "Lat Pulldown") }
+                                // Exercise Preview Chips
+                                LazyRow(
+                                    modifier = Modifier.isolateHorizontalScroll(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(scheduledRoutine.exerciseTemplates.take(4)) { ex ->
+                                        KumaBadge(text = ex.name)
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(20.dp))
 
                             KumaPrimaryButton(
                                 text = if (isEnglish) "START WORKOUT" else "MULAI LATIHAN",
-                                onClick = onStartWorkout
+                                onClick = {
+                                    if (scheduledRoutine != null) {
+                                        workoutRepository.startWorkoutFromRoutine(scheduledRoutine)
+                                    } else {
+                                        workoutRepository.startEmptyWorkout(if (isEnglish) "Freestyle Workout" else "Latihan Bebas")
+                                    }
+                                    onStartWorkout()
+                                }
                             )
                         }
                     }
@@ -383,20 +456,20 @@ fun HomeScreen(
                         MetricTile(
                             modifier = Modifier.weight(1f),
                             label = if (isEnglish) "TOTAL SESSIONS" else "TOTAL SESI",
-                            value = "18",
-                            subtext = if (isEnglish) "+3 vs last mo" else "+3 dr bln lalu"
+                            value = "${completedWorkouts.size}",
+                            subtext = if (isEnglish) "Lifetime sessions" else "Total sesi tercatat"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
                             label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
-                            value = "64.2k",
-                            subtext = if (isEnglish) "+12% tonnage" else "+12% tonase"
+                            value = totalVolFormatted,
+                            subtext = if (isEnglish) "Lifetime tonnage" else "Total tonase"
                         )
                         MetricTile(
                             modifier = Modifier.weight(1f),
                             label = if (isEnglish) "RECORDS (PR)" else "REKOR (PR)",
-                            value = "3",
-                            subtext = if (isEnglish) "New records" else "Rekor baru",
+                            value = "${prList.size}",
+                            subtext = if (isEnglish) "New records" else "Total rekor PR",
                             isAccent = true
                         )
                     }
@@ -412,37 +485,68 @@ fun HomeScreen(
                             )
                         )
 
-                        // Recent Workout Item
-                        KumaCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = KumaColors.SurfaceContainer,
-                            cornerRadius = 16.dp
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(18.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        if (completedWorkouts.isEmpty()) {
+                            KumaCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                backgroundColor = KumaColors.SurfaceContainer,
+                                cornerRadius = 16.dp
                             ) {
-                                Column {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = "Push Day A",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = if (isEnglish) "Yesterday · 14,850 kg · 47 min" else "Kemarin · 14.850 kg · 47 mnt",
+                                        text = if (isEnglish) "No completed workouts yet. Start your journey today!" else "Belum ada riwayat latihan. Mulai latihan pertamamu sekarang!",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = KumaColors.TextMuted
+                                        color = KumaColors.TextMuted,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
                                 }
-                                KumaBadge(
-                                    text = "3RM PR",
-                                    isPr = true
-                                )
+                            }
+                        } else {
+                            completedWorkouts.take(3).forEach { workout ->
+                                val durationMin = workout.durationSeconds / 60
+                                val durationText = "${durationMin} ${if (isEnglish) "min" else "mnt"}"
+                                val volDisplay = if (isLb) (workout.totalVolumeKg * 2.20462).toInt() else workout.totalVolumeKg.toInt()
+                                val volText = "$volDisplay $unitSuffix"
+                                val prCountInWorkout = workout.exercises.sumOf { ex -> ex.sets.count { it.isPr } }
+
+                                KumaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = KumaColors.SurfaceContainer,
+                                    cornerRadius = 16.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(18.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = workout.title,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "$volText · $durationText",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = KumaColors.TextMuted
+                                            )
+                                        }
+                                        if (prCountInWorkout > 0) {
+                                            KumaBadge(
+                                                text = "$prCountInWorkout PR",
+                                                isPr = true
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 

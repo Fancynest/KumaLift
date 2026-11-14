@@ -414,16 +414,15 @@ fun ExerciseDetailScreen(
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                val prWeight = exercise.currentPrWeightKg?.let { "$it kg" } ?: "118.0 kg"
-                                val pr1rm = exercise.currentPrWeightKg?.let { "${(it * 1.1).toInt()}.0 kg" } ?: "129.8 kg"
+                                val prWeight = exercise.currentPrWeightKg?.let { "$it kg" } ?: "—"
+                                val pr1rm = exercise.currentPrWeightKg?.let { "${(it * 1.1).toInt()}.0 kg" } ?: "—"
+                                val bestSetVol = exercise.currentPrWeightKg?.let { "${it * (exercise.currentPrReps ?: 1)} kg" } ?: "—"
 
-                                PrMetricRow(label = "Heaviest Weight", value = prWeight)
+                                PrMetricRow(label = if (isEnglish) "Heaviest Weight" else "Beban Terberat", value = prWeight)
                                 Spacer(modifier = Modifier.height(10.dp))
-                                PrMetricRow(label = "Best 1RM", value = pr1rm)
+                                PrMetricRow(label = if (isEnglish) "Best 1RM" else "Estimasi 1RM Terbaik", value = pr1rm)
                                 Spacer(modifier = Modifier.height(10.dp))
-                                PrMetricRow(label = "Best Set Volume", value = "944.0 kg")
-                                Spacer(modifier = Modifier.height(10.dp))
-                                PrMetricRow(label = "Best Session Volume", value = "3,750 kg")
+                                PrMetricRow(label = if (isEnglish) "Best Set Volume" else "Volume Set Terbaik", value = bestSetVol)
                             }
                         }
 

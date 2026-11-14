@@ -64,9 +64,24 @@ fun RoutinesScreen(
     val settings = settingsRepository?.settings?.collectAsState()?.value
     val isEnglish = settings?.appearance?.language == AppLanguage.EN
     val routines by routineRepository.routines.collectAsState()
+    val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"
     var selectedCategory by remember(isEnglish) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by remember { mutableStateOf(false) }
+
+    val targetDays = settings?.profile?.trainingDaysPerWeek ?: 4
+    val nowMs = remember { kotlinx.datetime.Clock.System.now().toEpochMilliseconds() }
+    val oneWeekAgoMs = nowMs - 7L * 24 * 3600_000L
+    val workoutsThisWeek = remember(completedWorkouts) {
+        completedWorkouts.count { it.startTimeEpochMs >= oneWeekAgoMs }
+    }
+    val adherenceFrac = if (targetDays > 0) (workoutsThisWeek.toFloat() / targetDays).coerceIn(0f, 1f) else 0f
+    val adherencePct = (adherenceFrac * 100).toInt()
+    val goalName = when (settings?.profile?.goal) {
+        com.bearbones.kumalift.domain.model.TrainingGoal.HYPERTROPHY -> if (isEnglish) "Hypertrophy Program" else "Program Hipertrofi"
+        com.bearbones.kumalift.domain.model.TrainingGoal.STRENGTH -> if (isEnglish) "Strength Program" else "Program Kekuatan"
+        com.bearbones.kumalift.domain.model.TrainingGoal.GENERAL, null -> if (isEnglish) "General Fitness Program" else "Program Kebugaran Umum"
+    }
 
     val categories = remember(routines, isEnglish) {
         listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
@@ -144,7 +159,7 @@ fun RoutinesScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "PROGRAM LATIHAN",
+                                    text = if (isEnglish) "TRAINING PROGRAM" else "PROGRAM LATIHAN",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = LocalKumaColors.current.accentText,
                                         letterSpacing = 0.8.sp
@@ -157,7 +172,7 @@ fun RoutinesScreen(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "Minggu 3 dari 6",
+                                        text = "$workoutsThisWeek / $targetDays ${if (isEnglish) "this week" else "minggu ini"}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.TextWhite,
                                             fontWeight = FontWeight.Bold
@@ -170,7 +185,7 @@ fun RoutinesScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "PPL Hypertrophy Phase 2",
+                                text = goalName,
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold
@@ -184,12 +199,12 @@ fun RoutinesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Disiplin Program",
+                                    text = if (isEnglish) "Weekly Adherence" else "Disiplin Mingguan",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
                                 Text(
-                                    text = "75%",
+                                    text = "$adherencePct%",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = LocalKumaColors.current.accentText,
                                         fontWeight = FontWeight.Bold
@@ -198,7 +213,7 @@ fun RoutinesScreen(
                             }
                             Spacer(modifier = Modifier.height(8.dp))
                             LinearProgressIndicator(
-                                progress = { 0.75f },
+                                progress = { adherenceFrac },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(6.dp)

@@ -1789,7 +1789,7 @@ object ExerciseDataset {
             gifUrl = "videos/0025-EIeI8Vf.gif",
             thumbnailUrl = "images/0025-EIeI8Vf.jpg",
             attribution = "© Gym visual",
-            currentPrWeightKg = 118.0, currentPrReps = 3, lastLoggedDate = "2 hari lalu",
+            currentPrWeightKg = null, currentPrReps = null, lastLoggedDate = null,
             defaultIncrementKg = 2.5
         ),
         Exercise(

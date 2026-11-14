@@ -103,12 +103,22 @@ fun MeScreen(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
 
-    val athleteName = settings.profile.name.ifBlank { "Gabriel Radjali" }
-    val athleteUsername = settings.profile.username.ifBlank { "gabriel_radjali" }
-    val workoutCount = if (completedWorkouts.isNotEmpty()) completedWorkouts.size else 18
+    val athleteName = settings.profile.name.ifBlank { if (isEnglish) "Athlete" else "Atlet" }
+    val athleteUsername = settings.profile.username.ifBlank { if (isEnglish) "athlete" else "atlet" }
+    val workoutCount = completedWorkouts.size
     val allPrs by personalRecordRepository.personalRecords.collectAsState()
-    val prCount = if (allPrs.isNotEmpty()) allPrs.size else 3
-    val totalVolumeText = if (settings.units.weightUnit == WeightUnit.LB) "141.5k lbs" else "64.2k kg"
+    val prCount = allPrs.size
+    val isLb = settings.units.weightUnit == WeightUnit.LB
+    val multiplier = if (isLb) 2.20462 else 1.0
+    val unitSuffix = if (isLb) "lb" else "kg"
+    val totalVolumeKg = completedWorkouts.sumOf { it.totalVolumeKg }
+    val totalVolumeDisplay = totalVolumeKg * multiplier
+    val totalVolumeText = if (totalVolumeDisplay >= 1000.0) {
+        val thousands = ((totalVolumeDisplay / 100.0).toInt()) / 10.0
+        "${thousands}k $unitSuffix"
+    } else {
+        "${totalVolumeDisplay.toInt()} $unitSuffix"
+    }
 
     Box(
         modifier = Modifier
@@ -229,8 +239,13 @@ fun MeScreen(
                                 label = if (isEnglish) "PR Records" else "Rekor PR"
                             )
                             StatCounter(
-                                value = if (isEnglish) "64.2k" else "64.2k",
-                                label = if (isEnglish) "Volume" else "Volume"
+                                value = if (totalVolumeDisplay >= 1000.0) {
+                                    val thousands = ((totalVolumeDisplay / 100.0).toInt()) / 10.0
+                                    "${thousands}k"
+                                } else {
+                                    "${totalVolumeDisplay.toInt()}"
+                                },
+                                label = if (isEnglish) "Volume ($unitSuffix)" else "Volume ($unitSuffix)"
                             )
                         }
                     }
@@ -316,10 +331,18 @@ fun MeScreen(
                                 )
 
                                 Text(
-                                    text = when (selectedMetric) {
-                                        AnalyticsMetric.DURATION -> "55 mnt avg"
+                                    text = if (completedWorkouts.isEmpty()) "—" else when (selectedMetric) {
+                                        AnalyticsMetric.DURATION -> {
+                                            val avgMins = (completedWorkouts.map { it.durationSeconds }.average() / 60).toInt()
+                                            "$avgMins ${if (isEnglish) "min avg" else "mnt rata-rata"}"
+                                        }
                                         AnalyticsMetric.VOLUME -> totalVolumeText
-                                        AnalyticsMetric.REPS -> "186 reps"
+                                        AnalyticsMetric.REPS -> {
+                                            val totalReps = completedWorkouts.sumOf { w ->
+                                                w.exercises.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.reps } }
+                                            }
+                                            "$totalReps reps"
+                                        }
                                     },
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.ExtraBold,
@@ -330,51 +353,69 @@ fun MeScreen(
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            // Bar chart visualization
-                            val barData = when (selectedMetric) {
-                                AnalyticsMetric.DURATION -> listOf(45f, 50f, 40f, 65f, 55f, 60f)
-                                AnalyticsMetric.VOLUME -> listOf(12.5f, 14.0f, 13.2f, 16.8f, 15.5f, 18.4f)
-                                AnalyticsMetric.REPS -> listOf(120f, 145f, 135f, 175f, 160f, 186f)
-                            }
-                            val barLabels = listOf("W1", "W2", "W3", "W4", "W5", "W6")
-                            val maxVal = barData.maxOrNull() ?: 1f
+                            if (completedWorkouts.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "No workout data yet. Complete a workout to see your progress chart!" else "Belum ada riwayat latihan. Selesaikan latihan untuk melihat grafik perkembangan!",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = colors.textSecondary,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                val chartWorkouts = completedWorkouts.takeLast(6)
+                                val barData = chartWorkouts.map { w ->
+                                    when (selectedMetric) {
+                                        AnalyticsMetric.DURATION -> (w.durationSeconds / 60).toFloat()
+                                        AnalyticsMetric.VOLUME -> (w.totalVolumeKg * multiplier).toFloat()
+                                        AnalyticsMetric.REPS -> w.exercises.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.reps } }.toFloat()
+                                    }
+                                }
+                                val barLabels = chartWorkouts.mapIndexed { idx, _ -> "S${idx + 1}" }
+                                val maxVal = (barData.maxOrNull() ?: 1f).coerceAtLeast(1f)
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                barData.forEachIndexed { index, value ->
-                                    val isCurrent = index == barData.size - 1
-                                    val heightFraction = (value / maxVal).coerceIn(0.15f, 1f)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    barData.forEachIndexed { index, value ->
+                                        val isCurrent = index == barData.size - 1
+                                        val heightFraction = (value / maxVal).coerceIn(0.15f, 1f)
 
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Bottom,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(26.dp)
-                                                .height((90 * heightFraction).dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(
-                                                    if (isCurrent) colors.accentText else KumaColors.SurfaceContainer
-                                                )
-                                        )
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        Text(
-                                            text = barLabels[index],
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 11.sp,
-                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (isCurrent) colors.accentText else colors.textSecondary
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Bottom,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(26.dp)
+                                                    .height((90 * heightFraction).dp)
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(
+                                                        if (isCurrent) colors.accentText else KumaColors.SurfaceContainer
+                                                    )
                                             )
-                                        )
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            Text(
+                                                text = barLabels[index],
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isCurrent) colors.accentText else colors.textSecondary
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -417,7 +458,7 @@ fun MeScreen(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.FitnessCenter,
                             title = if (isEnglish) "Exercises" else "Katalog",
-                            subtitle = if (isEnglish) "322 Movements" else "322 Gerakan",
+                            subtitle = if (isEnglish) "1,324 Movements" else "1.324 Gerakan",
                             onClick = onNavigateToLibrary
                         )
                     }

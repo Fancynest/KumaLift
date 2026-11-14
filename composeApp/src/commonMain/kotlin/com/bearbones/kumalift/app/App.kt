@@ -206,6 +206,8 @@ fun App() {
                                 Screen.HOME -> HomeScreen(
                                     workoutRepository = workoutRepository,
                                     settingsRepository = settingsRepository,
+                                    routineRepository = routineRepository,
+                                    personalRecordRepository = personalRecordRepository,
                                     onStartWorkout = { currentScreen = Screen.ACTIVE_LOGGER },
                                     onStartFreestyle = { currentScreen = Screen.ACTIVE_LOGGER },
                                     onOpenSettings = { currentScreen = Screen.SETTINGS }
@@ -229,7 +231,8 @@ fun App() {
                                 )
                                 Screen.PROGRESS -> ProgressAnalyticsScreen(
                                     personalRecordRepository = personalRecordRepository,
-                                    settingsRepository = settingsRepository
+                                    settingsRepository = settingsRepository,
+                                    workoutRepository = workoutRepository
                                 )
                                 Screen.ME -> MeScreen(
                                     workoutRepository = workoutRepository,

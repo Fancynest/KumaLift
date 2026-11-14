@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +55,28 @@ fun WorkoutSummaryScreen(
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
     val isEnglish = settings?.appearance?.language == AppLanguage.EN
+    val colors = LocalKumaColors.current
+    val isLb = settings?.units?.weightUnit == com.bearbones.kumalift.domain.model.WeightUnit.LB
+    val mult = if (isLb) 2.20462 else 1.0
+    val unitStr = if (isLb) "lb" else "kg"
+
+    val durationSec = workout?.durationSeconds ?: 0
+    val durMins = durationSec / 60
+    val durSecs = durationSec % 60
+    val durationFormatted = "${durMins}:${if (durSecs < 10) "0$durSecs" else "$durSecs"}"
+
+    val volVal = ((workout?.totalVolumeKg ?: 0.0) * mult).toInt()
+    val volFormatted = "$volVal $unitStr"
+
+    val completedSets = workout?.totalCompletedSets ?: 0
+    val totalSets = workout?.totalSets ?: 0
+    val setsFormatted = "$completedSets / $totalSets"
+    val setsSubtext = if (totalSets > 0) "${(completedSets * 100) / totalSets}% ${if (isEnglish) "completed" else "tuntas"}" else "—"
+
+    val restSec = settings?.logging?.restTimerDefaultSec ?: 90
+    val restFormatted = "$restSec ${if (isEnglish) "sec" else "dtk"}"
+
+    val prSets = workout?.exercises?.flatMap { ex -> ex.sets.filter { it.isPr }.map { ex to it } } ?: emptyList()
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -149,15 +172,15 @@ fun WorkoutSummaryScreen(
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
                                 label = if (isEnglish) "DURATION" else "DURASI",
-                                value = "47:20",
-                                subtext = if (isEnglish) "Target: +4 min" else "Target: +4 mnt",
+                                value = durationFormatted,
+                                subtext = if (isEnglish) "Active session" else "Sesi aktif",
                                 icon = Icons.Default.Timer
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
                                 label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
-                                value = "14,850 kg",
-                                subtext = if (isEnglish) "+8% vs last session" else "+8% dr sesi lalu",
+                                value = volFormatted,
+                                subtext = if (isEnglish) "Total tonnage" else "Total tonase",
                                 icon = Icons.Default.FitnessCenter,
                                 isAccent = true
                             )
@@ -170,15 +193,15 @@ fun WorkoutSummaryScreen(
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
                                 label = if (isEnglish) "COMPLETED SETS" else "SET TUNTAS",
-                                value = "16 / 16",
-                                subtext = if (isEnglish) "100% completed" else "100% disiplin",
+                                value = setsFormatted,
+                                subtext = setsSubtext,
                                 icon = Icons.Default.CheckCircle
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "AVG REST" else "RATA-RATA REHAT",
-                                value = if (isEnglish) "88 sec" else "88 dtk",
-                                subtext = if (isEnglish) "Est. 420 kcal" else "Est. 420 kkal",
+                                label = if (isEnglish) "TARGET REST" else "TARGET REHAT",
+                                value = restFormatted,
+                                subtext = if (isEnglish) "Per set interval" else "Interval antar set",
                                 icon = Icons.Default.Speed
                             )
                         }
@@ -350,54 +373,78 @@ fun WorkoutSummaryScreen(
                 }
 
                 // PR Showcase Card
-                item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainer,
-                        cornerRadius = 16.dp
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "REKOR BARU (PR)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = LocalKumaColors.current.accentText,
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = 0.8.sp
-                                    )
-                                )
-                                KumaBadge(
-                                    text = "+3.0 kg",
-                                    isPr = true
-                                )
+                if (prSets.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            prSets.forEach { (ex, set) ->
+                                val prWeightVal = set.weightKg * mult
+                                val prWeightDisplay = if (prWeightVal % 1.0 == 0.0) "${prWeightVal.toInt()} $unitStr" else "$prWeightVal $unitStr"
+                                KumaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = KumaColors.SurfaceContainer,
+                                    cornerRadius = 16.dp
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(20.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isEnglish) "NEW RECORD (PR)" else "REKOR BARU (PR)",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = LocalKumaColors.current.accentText,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 0.8.sp
+                                                )
+                                            )
+                                            KumaBadge(
+                                                text = "PR",
+                                                isPr = true
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "${ex.exercise.name}: $prWeightDisplay",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "${set.reps} reps",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = KumaColors.TextMuted
+                                        )
+                                    }
+                                }
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Barbell Bench Press: 118.0 kg",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "3RM PR",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = KumaColors.TextMuted
-                            )
                         }
                     }
                 }
 
                 // Volume Distribution by Muscle Group
                 item {
+                    val muscleMap = remember(workout, isEnglish) {
+                        val totalVol = workout?.exercises?.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.weightKg * it.reps } } ?: 0.0
+                        if (totalVol > 0.0) {
+                            val grouped = mutableMapOf<String, Double>()
+                            workout?.exercises?.forEach { we ->
+                                val v = we.sets.filter { it.isCompleted }.sumOf { it.weightKg * it.reps }
+                                val name = we.exercise.primaryMuscle.localizedName(isEnglish)
+                                grouped[name] = (grouped[name] ?: 0.0) + v
+                            }
+                            grouped.entries
+                                .map { Pair(it.key, ((it.value / totalVol) * 100).toInt()) }
+                                .sortedByDescending { it.second }
+                                .take(3)
+                        } else emptyList()
+                    }
+
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
                         backgroundColor = KumaColors.SurfaceContainerLow,
@@ -405,61 +452,57 @@ fun WorkoutSummaryScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "Fokus Otot yang Dilatih",
+                                text = if (isEnglish) "Trained Muscle Focus" else "Fokus Otot yang Dilatih",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
                             )
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Segmented bar
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(12.dp)
-                                    .clip(PillShape)
-                            ) {
-                                Box(
+                            if (muscleMap.isNotEmpty()) {
+                                // Segmented bar
+                                Row(
                                     modifier = Modifier
-                                        .weight(0.52f)
-                                        .fillMaxSize()
-                                        .background(KumaColors.ElectricLime)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(0.28f)
-                                        .fillMaxSize()
-                                        .background(KumaColors.SurfaceContainerHigh)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(0.20f)
-                                        .fillMaxSize()
-                                        .background(KumaColors.SecondaryContainer)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Dada: 52%",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = LocalKumaColors.current.accentText,
-                                        fontWeight = FontWeight.Bold
+                                        .fillMaxWidth()
+                                        .height(12.dp)
+                                        .clip(PillShape)
+                                ) {
+                                    val barColors = listOf(
+                                        KumaColors.ElectricLime,
+                                        KumaColors.SurfaceContainerHigh,
+                                        KumaColors.SecondaryContainer
                                     )
-                                )
+                                    for ((idx, pair) in muscleMap.withIndex()) {
+                                        val weightFraction = (pair.second / 100f).coerceIn(0.05f, 1f)
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(weightFraction)
+                                                .fillMaxSize()
+                                                .background(barColors.getOrElse(idx) { KumaColors.SurfaceContainerHighest })
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    for ((idx, pair) in muscleMap.withIndex()) {
+                                        Text(
+                                            text = "${pair.first}: ${pair.second}%",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = if (idx == 0) colors.accentText else KumaColors.TextMuted,
+                                                fontWeight = if (idx == 0) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        )
+                                    }
+                                }
+                            } else {
                                 Text(
-                                    text = "Bahu: 28%",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = KumaColors.TextMuted
-                                )
-                                Text(
-                                    text = "Trisep: 20%",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    text = if (isEnglish) "No completed volume recorded" else "Belum ada volume beban tercatat",
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextMuted
                                 )
                             }

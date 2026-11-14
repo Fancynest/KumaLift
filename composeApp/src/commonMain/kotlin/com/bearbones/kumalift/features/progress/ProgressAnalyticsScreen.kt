@@ -49,11 +49,16 @@ import com.bearbones.kumalift.domain.model.PersonalRecord
 @Composable
 fun ProgressAnalyticsScreen(
     personalRecordRepository: PersonalRecordRepository,
-    settingsRepository: SettingsRepository? = null
+    settingsRepository: SettingsRepository? = null,
+    workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
     val isEnglish = settings?.appearance?.language == AppLanguage.EN
+    val isLb = settings?.units?.weightUnit == com.bearbones.kumalift.domain.model.WeightUnit.LB
+    val mult = if (isLb) 2.20462 else 1.0
+    val unitStr = if (isLb) "lb" else "kg"
     val prs by personalRecordRepository.personalRecords.collectAsState()
+    val completedWorkouts by (workoutRepository?.completedWorkouts ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     var selectedTimeframe by remember { mutableStateOf("3M") }
     val timeframes = listOf("1M", "3M", "6M", "1Y", "ALL")
 
@@ -128,94 +133,133 @@ fun ProgressAnalyticsScreen(
 
                 // 1. Estimated 1RM Trajectory Card
                 item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow,
-                        cornerRadius = 18.dp
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                    val topPr = prs.maxByOrNull { it.weightKg }
+                    if (topPr == null) {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Column {
-                                    Text(
-                                        text = "ESTIMASI BEBAN MAKSIMAL (1RM)",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = LocalKumaColors.current.accentText,
-                                            letterSpacing = 0.8.sp
-                                        )
+                                Text(
+                                    text = if (isEnglish) "ESTIMATED ONE REP MAX (1RM)" else "ESTIMASI BEBAN MAKSIMAL (1RM)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = LocalKumaColors.current.accentText,
+                                        letterSpacing = 0.8.sp
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Barbell Bench Press",
-                                        style = MaterialTheme.typography.titleLarge.copy(
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(PillShape)
-                                        .background(LocalKumaColors.current.accentTint)
-                                        .border(
-                                            1.dp,
-                                            if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentFillBorder,
-                                            PillShape
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = if (isEnglish) "No PR records logged yet.\nComplete workouts to unlock 1RM estimates and progress charts."
+                                    else "Belum ada rekor PR tercatat.\nSelesaikan latihan untuk melihat estimasi 1RM dan grafik perkembangan.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KumaColors.TextMuted,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    } else {
+                        val exercisePrs = prs.filter { it.exerciseId == topPr.exerciseId }.sortedBy { it.dateAchieved }
+                        val prWeightVal = (topPr.weightKg * mult).let { if (it % 1.0 == 0.0) "${it.toInt()} $unitStr" else "$it $unitStr" }
+
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                            contentDescription = null,
-                                            tint = LocalKumaColors.current.accentTextOnTint,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                    Column {
                                         Text(
-                                            text = "+7.5 kg (+6.8%)",
+                                            text = if (isEnglish) "ESTIMATED ONE REP MAX (1RM)" else "ESTIMASI BEBAN MAKSIMAL (1RM)",
                                             style = MaterialTheme.typography.labelSmall.copy(
-                                                color = LocalKumaColors.current.accentTextOnTint,
+                                                color = LocalKumaColors.current.accentText,
+                                                letterSpacing = 0.8.sp
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = topPr.exerciseName,
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontSize = 20.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )
                                     }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(LocalKumaColors.current.accentTint)
+                                            .border(
+                                                1.dp,
+                                                if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentFill else LocalKumaColors.current.accentFillBorder,
+                                                PillShape
+                                            )
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                                contentDescription = null,
+                                                tint = LocalKumaColors.current.accentTextOnTint,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = topPr.prTier.ifBlank { "PR" },
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = LocalKumaColors.current.accentTextOnTint,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                        }
+                                    }
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
 
-                            Text(
-                                text = "118.0 kg",
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 32.sp,
-                                    color = KumaColors.TextWhite
+                                Text(
+                                    text = prWeightVal,
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 32.sp,
+                                        color = KumaColors.TextWhite
+                                    )
                                 )
-                            )
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(20.dp))
 
-                            // Milestone Graph Representation
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(95.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                ChartPoint(label = "W1", heightFraction = 0.45f, value = "105")
-                                ChartPoint(label = "W2", heightFraction = 0.55f, value = "107.5")
-                                ChartPoint(label = "W3", heightFraction = 0.65f, value = "110")
-                                ChartPoint(label = "W4", heightFraction = 0.75f, value = "112.5")
-                                ChartPoint(label = "W5", heightFraction = 0.82f, value = "115")
-                                ChartPoint(label = "W6", heightFraction = 1.0f, value = "118", isPeak = true)
+                                val maxPrWeight = (exercisePrs.maxOfOrNull { it.weightKg } ?: 1.0).coerceAtLeast(1.0)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(95.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KumaColors.SurfaceContainer)
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    exercisePrs.takeLast(6).forEachIndexed { idx, p ->
+                                        val isPeak = idx == exercisePrs.takeLast(6).size - 1
+                                        val hf = (p.weightKg / maxPrWeight).toFloat().coerceIn(0.2f, 1f)
+                                        val dispVal = (p.weightKg * mult).let { if (it % 1.0 == 0.0) "${it.toInt()}" else "$it" }
+                                        ChartPoint(
+                                            label = "P${idx + 1}",
+                                            heightFraction = hf,
+                                            value = dispVal,
+                                            isPeak = isPeak
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -223,48 +267,80 @@ fun ProgressAnalyticsScreen(
 
                 // 2. Weekly Tonnage & Volume
                 item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow,
-                        cornerRadius = 18.dp
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                    if (completedWorkouts.isEmpty()) {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = "Total Beban per Minggu",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    text = if (isEnglish) "Weekly Volume & Tonnage" else "Total Beban per Minggu",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                 )
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Rata-rata 54.200 kg (+14%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = LocalKumaColors.current.accentText,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    text = if (isEnglish) "No workout volume history yet.\nLog your first session to track your weekly tonnage."
+                                    else "Belum ada riwayat beban latihan.\nCatat sesi pertamamu untuk melacak tonase mingguan.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = KumaColors.TextMuted,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
+                        }
+                    } else {
+                        val recentWorkouts = completedWorkouts.takeLast(6)
+                        val maxVol = (recentWorkouts.maxOfOrNull { it.totalVolumeKg } ?: 1.0).coerceAtLeast(1.0)
+                        val avgVol = (recentWorkouts.map { it.totalVolumeKg }.average() * mult).toInt()
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "Weekly Volume & Tonnage" else "Total Beban per Minggu",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                    Text(
+                                        text = "${if (isEnglish) "Avg" else "Rata-rata"} $avgVol $unitStr",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = LocalKumaColors.current.accentText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
 
-                            // 6-week Volume Bar Chart
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                VolumeBar(week = "W1", heightFraction = 0.60f)
-                                VolumeBar(week = "W2", heightFraction = 0.70f)
-                                VolumeBar(week = "W3", heightFraction = 0.65f)
-                                VolumeBar(week = "W4", heightFraction = 0.85f)
-                                VolumeBar(week = "W5", heightFraction = 0.80f)
-                                VolumeBar(week = "W6", heightFraction = 1.0f, isCurrent = true)
+                                Spacer(modifier = Modifier.height(18.dp))
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(120.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Bottom
+                                ) {
+                                    recentWorkouts.forEachIndexed { idx, w ->
+                                        val hf = (w.totalVolumeKg / maxVol).toFloat().coerceIn(0.15f, 1f)
+                                        VolumeBar(
+                                            week = "S${idx + 1}",
+                                            heightFraction = hf,
+                                            isCurrent = idx == recentWorkouts.size - 1
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -280,8 +356,30 @@ fun ProgressAnalyticsScreen(
                             )
                         )
 
-                        prs.forEach { pr ->
-                            PersonalRecordItem(pr = pr)
+                        if (prs.isEmpty()) {
+                            KumaCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                backgroundColor = KumaColors.SurfaceContainer,
+                                cornerRadius = 16.dp
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "No personal records recorded yet." else "Belum ada rekor angkatan terbaik (PR) yang tercatat.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = KumaColors.TextMuted,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            prs.forEach { pr ->
+                                PersonalRecordItem(pr = pr)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(100.dp))

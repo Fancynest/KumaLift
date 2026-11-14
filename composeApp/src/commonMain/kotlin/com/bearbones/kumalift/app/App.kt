@@ -192,6 +192,7 @@ fun App() {
                     Screen.SETTINGS -> {
                         SettingsScreen(
                             settingsRepository = settingsRepository,
+                            databaseRepo = databaseRepo,
                             onNavigateBack = {
                                 currentScreen = Screen.HOME
                             }

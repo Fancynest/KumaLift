@@ -109,7 +109,7 @@ class KumaDatabaseRepository(
                 durationSeconds = workout.durationSeconds,
                 sessionRpe = workout.sessionRpe,
                 notes = workout.notes,
-                isFinished = if (workout.isFinished) 1L else 0L,
+                isFinished = 1L,
                 avgHeartRateBpm = workout.avgHeartRateBpm?.toLong(),
                 peakHeartRateBpm = workout.peakHeartRateBpm?.toLong(),
                 activeCaloriesKcal = workout.activeCaloriesKcal
@@ -373,5 +373,41 @@ class KumaDatabaseRepository(
     fun saveUserSettings(settings: UserSettings) {
         val jsonStr = json.encodeToString(settings)
         queries.insertUserSettings(jsonStr, settings.settingsVersion.toLong(), currentEpochMillis())
+    }
+
+    // ==========================================
+    // BACKUP, SAFETY SNAPSHOT & DANGER ZONE
+    // ==========================================
+
+    fun saveSafetySnapshot(payloadJson: String) {
+        val id = IdGenerator.nextId("snap")
+        queries.insertSafetySnapshot(id, currentEpochMillis(), payloadJson)
+    }
+
+    fun getLatestSafetySnapshot(): String? {
+        return queries.selectLatestSafetySnapshot().executeAsOneOrNull()
+    }
+
+    fun wipeAllUserData() {
+        database.transaction {
+            queries.clearAllSets()
+            queries.clearAllWorkoutExercises()
+            queries.clearAllWorkouts()
+            queries.clearAllPersonalRecords()
+            queries.clearAllRoutineExercises()
+            queries.clearAllRoutines()
+            queries.clearAllCustomExercises()
+            queries.clearAllBodyweightLog()
+            queries.clearActiveWorkout()
+        }
+    }
+
+    fun clearWorkoutHistoryOnly() {
+        database.transaction {
+            queries.clearAllSets()
+            queries.clearAllWorkoutExercises()
+            queries.clearAllWorkouts()
+            queries.clearActiveWorkout()
+        }
     }
 }

@@ -17,7 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import com.bearbones.kumalift.core.data.rememberDataExportLauncher
+import com.bearbones.kumalift.core.data.rememberDataImportLauncher
+import com.bearbones.kumalift.core.util.currentEpochMillis
+import com.bearbones.kumalift.data.export.DataBackupManager
+import com.bearbones.kumalift.data.export.ImportMode
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -82,6 +92,7 @@ import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.OneRepMaxFormula
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
+import com.bearbones.kumalift.domain.model.UserSettings
 
 enum class SettingsDestination {
     MAIN,
@@ -99,6 +110,7 @@ enum class SettingsDestination {
 @Composable
 fun SettingsScreen(
     settingsRepository: SettingsRepository,
+    databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
     onNavigateBack: () -> Unit
 ) {
     var currentDestination by remember { mutableStateOf(SettingsDestination.MAIN) }
@@ -157,6 +169,7 @@ fun SettingsScreen(
             SettingsDestination.EXPORT_IMPORT -> {
                 ExportImportDataPage(
                     settingsRepository = settingsRepository,
+                    databaseRepo = databaseRepo,
                     onNavigateBack = { currentDestination = SettingsDestination.MAIN }
                 )
             }
@@ -1827,15 +1840,196 @@ private fun ThemeSettingsPage(
 }
 
 /**
- * Export & Import Data Page matching exportandimport.jpg
+ * Export & Import Data Page with real full-fidelity backup, CSV export,
+ * Merge/Replace restore, Safety Snapshot, and Danger Zone.
  */
 @Composable
 private fun ExportImportDataPage(
     settingsRepository: SettingsRepository,
+    databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
     onNavigateBack: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val settings by settingsRepository.settings.collectAsState()
+    val isEnglish = settings.appearance.language == AppLanguage.EN
+    val backupManager = remember(databaseRepo) {
+        databaseRepo?.let { DataBackupManager(it) }
+    }
+
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var pendingImportContent by remember { mutableStateOf<String?>(null) }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberDataExportLauncher { success, msg ->
+        statusMessage = msg
+        if (success) {
+            settingsRepository.update {
+                it.copy(dataBackup = it.dataBackup.copy(lastBackupEpochMs = currentEpochMillis()))
+            }
+        }
+    }
+
+    val importLauncher = rememberDataImportLauncher { content ->
+        if (content != null) {
+            pendingImportContent = content
+        } else {
+            statusMessage = if (isEnglish) "Import cancelled or no file selected." else "Impor dibatalkan atau tidak ada file dipilih."
+        }
+    }
+
+    val storageUsage = remember(settings, statusMessage) {
+        backupManager?.getStorageUsage(settings)
+    }
+
+    // Dialog for Restore: Merge vs Replace
+    if (pendingImportContent != null) {
+        AlertDialog(
+            onDismissRequest = { pendingImportContent = null },
+            title = {
+                Text(
+                    text = if (isEnglish) "Restore Data" else "Pulihkan Cadangan Data",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Text(
+                    text = if (isEnglish)
+                        "Choose restore mode:\n\n• MERGE: Combines with current data. Preserves existing workouts and updates records.\n\n• REPLACE: Wipes current data and restores this backup completely. An automatic safety snapshot will be created before wiping."
+                    else
+                        "Pilih metode pemulihan data:\n\n• MERGE (GABUNGKAN): Menggabungkan dengan data saat ini tanpa menghapus sesi yang sudah ada.\n\n• REPLACE (TIMPA): Menghapus seluruh data saat ini dan menggantinya dengan cadangan ini. Snapshot keselamatan akan otomatis dibuat terlebih dahulu."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val content = pendingImportContent!!
+                        pendingImportContent = null
+                        val result = backupManager?.importBackup(
+                            jsonString = content,
+                            mode = ImportMode.REPLACE,
+                            currentSettings = settings,
+                            onSettingsRestored = { settingsRepository.save(it) }
+                        )
+                        statusMessage = result?.message ?: "Gagal memulihkan cadangan."
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
+                ) {
+                    Text(
+                        text = if (isEnglish) "REPLACE (Full)" else "TIMPA (Replace)",
+                        color = colors.onAccentFill,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { pendingImportContent = null }) {
+                        Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                    }
+                    Button(
+                        onClick = {
+                            val content = pendingImportContent!!
+                            pendingImportContent = null
+                            val result = backupManager?.importBackup(
+                                jsonString = content,
+                                mode = ImportMode.MERGE,
+                                currentSettings = settings,
+                                onSettingsRestored = { settingsRepository.save(it) }
+                            )
+                            statusMessage = result?.message ?: "Gagal menggabungkan cadangan."
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KumaColors.SurfaceContainerHigh)
+                    ) {
+                        Text(
+                            text = if (isEnglish) "MERGE" else "GABUNGKAN",
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        )
+    }
+
+    // Confirmation: Clear Workout History Only
+    if (showClearHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearHistoryDialog = false },
+            title = {
+                Text(
+                    text = if (isEnglish) "Clear Workout History?" else "Hapus Riwayat Latihan?",
+                    fontWeight = FontWeight.Bold,
+                    color = KumaColors.ErrorRed
+                )
+            },
+            text = {
+                Text(
+                    text = if (isEnglish)
+                        "All completed workouts and set logs will be permanently deleted. Custom exercises, routines, and settings will be preserved."
+                    else
+                        "Seluruh riwayat sesi latihan dan log set akan dihapus secara permanen. Gerakan kustom, program latihan, dan preferensi pengaturan akan tetap dipertahankan."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showClearHistoryDialog = false
+                        databaseRepo?.clearWorkoutHistoryOnly()
+                        statusMessage = if (isEnglish) "Workout history cleared successfully." else "Riwayat latihan berhasil dibersihkan."
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
+                ) {
+                    Text(if (isEnglish) "DELETE HISTORY" else "HAPUS RIWAYAT", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearHistoryDialog = false }) {
+                    Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                }
+            }
+        )
+    }
+
+    // Confirmation: Delete All Data
+    if (showDeleteAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllDialog = false },
+            title = {
+                Text(
+                    text = if (isEnglish) "Delete All Data?" else "Hapus Seluruh Data Aplikasi?",
+                    fontWeight = FontWeight.Bold,
+                    color = KumaColors.ErrorRed
+                )
+            },
+            text = {
+                Text(
+                    text = if (isEnglish)
+                        "This will permanently delete all workouts, PR records, custom exercises, routines, and settings. This cannot be undone."
+                    else
+                        "Tindakan ini akan menghapus permanen seluruh riwayat, rekor PR, gerakan kustom, program latihan, dan semua pengaturan. Tindakan ini tidak dapat dibatalkan."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAllDialog = false
+                        databaseRepo?.wipeAllUserData()
+                        settingsRepository.save(UserSettings())
+                        statusMessage = if (isEnglish) "All data deleted. App restored to fresh install." else "Semua data telah dihapus. Aplikasi kembali ke kondisi awal."
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
+                ) {
+                    Text(if (isEnglish) "DELETE EVERYTHING" else "HAPUS SEMUA", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                }
+            }
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -1869,7 +2063,7 @@ private fun ExportImportDataPage(
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Export & Import Data",
+                    text = if (isEnglish) "Export & Import Data" else "Cadangan & Pemulihan Data",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -1877,49 +2071,202 @@ private fun ExportImportDataPage(
                 )
             }
 
-            Column(
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                KumaCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        SettingsNavigationRow(
-                            icon = Icons.Default.FileDownload,
-                            title = "Export Data",
-                            subtitle = "Cadangkan semua riwayat dan preferensi ke file JSON",
-                            onClick = {
-                                statusMessage = "Data berhasil diekspor ke format JSON!"
-                            }
+                // Section 1: Backup & Restore Actions
+                item {
+                    Text(
+                        text = if (isEnglish) "BACKUP & RESTORE (LOCAL ONLY)" else "CADANGAN & PEMULIHAN (LOKAL)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.accentText,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
                         )
-                        SettingsDivider()
-                        SettingsNavigationRow(
-                            icon = Icons.Default.FileUpload,
-                            title = "Import Data",
-                            subtitle = "Pulihkan riwayat latihan dari cadangan JSON sebelumnya",
-                            onClick = {
-                                statusMessage = "Data cadangan berhasil diverifikasi dan dimuat."
-                            }
-                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SettingsNavigationRow(
+                                icon = Icons.Default.FileDownload,
+                                title = if (isEnglish) "Export Backup (JSON)" else "Ekspor Cadangan Lengkap (JSON)",
+                                subtitle = if (isEnglish) "Full-fidelity backup with schema v1" else "Cadangkan seluruh riwayat, PR, program, dan pengaturan",
+                                onClick = {
+                                    if (backupManager != null) {
+                                        val jsonPayload = backupManager.exportJson(settings)
+                                        val now = currentEpochMillis()
+                                        exportLauncher("kumalift_backup_$now.json", jsonPayload)
+                                    } else {
+                                        statusMessage = "Database repository tidak tersedia."
+                                    }
+                                }
+                            )
+                            SettingsDivider()
+                            SettingsNavigationRow(
+                                icon = Icons.Default.FileUpload,
+                                title = if (isEnglish) "Restore from Backup" else "Pulihkan dari Cadangan",
+                                subtitle = if (isEnglish) "Restore with Merge or Replace options" else "Pilih file cadangan JSON dan opsi Gabungkan atau Timpa",
+                                onClick = {
+                                    importLauncher()
+                                }
+                            )
+                            SettingsDivider()
+                            SettingsNavigationRow(
+                                icon = Icons.Default.Restore,
+                                title = if (isEnglish) "Restore Safety Snapshot" else "Pulihkan Snapshot Keselamatan",
+                                subtitle = if (isEnglish) "Revert to automatic pre-replace snapshot" else "Kembalikan data sebelum penimpaan terakhir dilakukan",
+                                onClick = {
+                                    if (backupManager != null) {
+                                        val result = backupManager.restoreSafetySnapshot(settings) {
+                                            settingsRepository.save(it)
+                                        }
+                                        statusMessage = result.message
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
 
+                // Section 2: CSV Data Export
+                item {
+                    Text(
+                        text = if (isEnglish) "CSV EXPORT" else "EKSPOR FORMAT CSV",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SettingsNavigationRow(
+                                icon = Icons.Default.FileDownload,
+                                title = if (isEnglish) "Export Workouts CSV" else "Ekspor Riwayat Latihan (CSV)",
+                                subtitle = if (isEnglish) "Spreadsheet compatible workout log" else "Format CSV yang dapat dibuka di Excel atau Google Sheets",
+                                onClick = {
+                                    if (backupManager != null) {
+                                        val csvFiles = backupManager.exportCsvFiles(settings)
+                                        val workoutsCsv = csvFiles["workouts.csv"] ?: ""
+                                        val now = currentEpochMillis()
+                                        exportLauncher("kumalift_workouts_$now.csv", workoutsCsv)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Section 3: Read-only Data Metrics
+                item {
+                    Text(
+                        text = if (isEnglish) "STORAGE & STATUS" else "STATUS PENYIMPANAN",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "Storage Used" else "Penyimpanan Terpakai",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    text = storageUsage?.let {
+                                        "${it.workoutsCount} ${if (isEnglish) "workouts" else "sesi"} · ${it.setsCount} set"
+                                    } ?: "—",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                                )
+                            }
+                            SettingsDivider()
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "Last Backup" else "Cadangan Terakhir",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Text(
+                                    text = settings.dataBackup.lastBackupEpochMs?.let {
+                                        if (isEnglish) "Recorded" else "Tersimpan"
+                                    } ?: if (isEnglish) "Never" else "Belum pernah",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Status Message Toast Banner
                 if (statusMessage != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    item {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            borderColor = colors.accentText
+                        ) {
+                            Text(
+                                text = statusMessage!!,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = colors.accentText,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Section 4: Danger Zone
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (isEnglish) "DANGER ZONE" else "ZONA BERBAHAYA",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = KumaColors.ErrorRed,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                     KumaCard(
                         modifier = Modifier.fillMaxWidth(),
-                        borderColor = colors.accentText
+                        borderColor = KumaColors.ErrorRed.copy(alpha = 0.5f)
                     ) {
-                        Text(
-                            text = statusMessage!!,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = colors.accentText,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SettingsNavigationRow(
+                                icon = Icons.Default.History,
+                                title = if (isEnglish) "Clear Workout History" else "Hapus Riwayat Latihan",
+                                subtitle = if (isEnglish) "Delete all workouts and sets (keeps routines & settings)" else "Hapus semua sesi dan set (program dan pengaturan tetap aman)",
+                                onClick = { showClearHistoryDialog = true }
+                            )
+                            SettingsDivider()
+                            SettingsNavigationRow(
+                                icon = Icons.Default.DeleteForever,
+                                title = if (isEnglish) "Delete All Data" else "Hapus Semua Data Aplikasi",
+                                subtitle = if (isEnglish) "Factory reset: delete all local data and preferences" else "Hapus permanen seluruh data dan kembalikan ke kondisi baru",
+                                onClick = { showDeleteAllDialog = true }
+                            )
+                        }
                     }
+                    Spacer(modifier = Modifier.height(60.dp))
                 }
             }
         }

@@ -114,6 +114,12 @@ CREATE TABLE user_settings_storage (
     lastUpdatedEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE safety_snapshots (
+    id TEXT NOT NULL PRIMARY KEY,
+    createdAtEpochMs INTEGER NOT NULL,
+    payloadJson TEXT NOT NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
@@ -256,3 +262,36 @@ SELECT * FROM user_settings_storage WHERE id = 'current_user' LIMIT 1;
 insertUserSettings:
 INSERT OR REPLACE INTO user_settings_storage (id, settingsJson, version, lastUpdatedEpochMs)
 VALUES ('current_user', ?, ?, ?);
+
+-- Queries for Safety Snapshots
+insertSafetySnapshot:
+INSERT OR REPLACE INTO safety_snapshots (id, createdAtEpochMs, payloadJson)
+VALUES (?, ?, ?);
+
+selectLatestSafetySnapshot:
+SELECT payloadJson FROM safety_snapshots ORDER BY createdAtEpochMs DESC LIMIT 1;
+
+-- Queries for Full Data Wipe / Restore
+clearAllWorkouts:
+DELETE FROM workouts;
+
+clearAllWorkoutExercises:
+DELETE FROM workout_exercises;
+
+clearAllSets:
+DELETE FROM sets;
+
+clearAllPersonalRecords:
+DELETE FROM personal_records;
+
+clearAllRoutines:
+DELETE FROM routines;
+
+clearAllRoutineExercises:
+DELETE FROM routine_exercises;
+
+clearAllCustomExercises:
+DELETE FROM custom_exercises;
+
+clearAllBodyweightLog:
+DELETE FROM bodyweight_log;

@@ -35,7 +35,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -139,6 +141,17 @@ fun HomeScreen(
     val targetBadge = if (isEnglish) "Goal: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)" else "Target: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)"
     val prBadge = if (isEnglish) "${prList.size} PR Records" else "${prList.size} Rekor PR"
 
+    var backupBannerDismissed by remember { mutableStateOf(false) }
+    val backupReminderDays = settings.dataBackup.backupReminderDays
+    val lastBackupMs = settings.dataBackup.lastBackupEpochMs
+    val isBackupDue = remember(backupReminderDays, lastBackupMs, backupBannerDismissed) {
+        if (backupBannerDismissed || backupReminderDays <= 0) false
+        else {
+            val daysElapsed = if (lastBackupMs == null) 999L else (nowMs - lastBackupMs) / (24L * 3600_000L)
+            daysElapsed >= backupReminderDays
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -175,11 +188,6 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Metric Chips in a horizontally scrollable LazyRow (zero squeezing)
-                    val volumeVal = if (settings.units.weightUnit == WeightUnit.LB) "40.5k lb" else "18.4k kg"
-                    val volumeBadge = if (isEnglish) "$volumeVal Volume This Week" else "$volumeVal Beban Minggu Ini"
-                    val targetBadge = if (isEnglish) "Goal Reached: 80%" else "Target Tercapai: 80%"
-                    val prBadge = if (isEnglish) "3 PR Records" else "3 Rekor (PR)"
-
                     LazyRow(
                         modifier = Modifier.isolateHorizontalScroll(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -193,6 +201,71 @@ fun HomeScreen(
                         }
                         item {
                             KumaBadge(text = prBadge)
+                        }
+                    }
+                }
+
+                // Backup Reminder Banner (data.backupReminderDays)
+                if (isBackupDue) {
+                    item {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainer,
+                            borderColor = Color(0xFFF59E0B).copy(alpha = 0.6f),
+                            cornerRadius = 14.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isEnglish) "Backup Reminder" else "Pengingat Cadangan Data",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFF59E0B)
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (isEnglish) "All data is stored 100% locally. Back up your workouts now to stay safe." else "Data disimpan 100% lokal. Cadangkan sekarang agar riwayat latihanmu tetap aman.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(KumaColors.SurfaceContainerHigh)
+                                            .clickable { onOpenSettings() }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "Backup" else "Cadangkan",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = LocalKumaColors.current.accentText
+                                            )
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { backupBannerDismissed = true }
+                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = "✕",
+                                            style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

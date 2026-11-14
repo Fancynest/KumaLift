@@ -30,6 +30,10 @@ class SettingsRepository(
         onSave?.invoke(_settings.value)
     }
 
+    fun save(settings: UserSettings) {
+        update { settings }
+    }
+
     fun resetAll() {
         update { UserSettings() }
     }

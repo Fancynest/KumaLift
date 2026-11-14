@@ -111,6 +111,7 @@ enum class SettingsDestination {
 fun SettingsScreen(
     settingsRepository: SettingsRepository,
     databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
+    workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
     onNavigateBack: () -> Unit
 ) {
     var currentDestination by remember { mutableStateOf(SettingsDestination.MAIN) }
@@ -145,6 +146,7 @@ fun SettingsScreen(
             SettingsDestination.WORKOUTS -> {
                 WorkoutSettingsPage(
                     settingsRepository = settingsRepository,
+                    workoutRepository = workoutRepository,
                     onNavigateBack = { currentDestination = SettingsDestination.MAIN }
                 )
             }
@@ -1163,6 +1165,7 @@ private fun NotificationSettingsPage(
 @Composable
 private fun WorkoutSettingsPage(
     settingsRepository: SettingsRepository,
+    workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
     onNavigateBack: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
@@ -1425,6 +1428,160 @@ private fun WorkoutSettingsPage(
                                     settingsRepository.update {
                                         it.copy(logging = it.logging.copy(inlineTimer = chk))
                                     }
+                                }
+                            )
+
+                            // Auto-start Rest Timer
+                            Spacer(modifier = Modifier.height(14.dp))
+                            SettingsDivider()
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            WorkoutSettingToggle(
+                                title = "Auto-start Rest Timer",
+                                description = "Automatically start countdown rest timer whenever a set is checked as completed",
+                                isChecked = settings.logging.restTimerAutoStart,
+                                onCheckedChange = { chk ->
+                                    settingsRepository.update {
+                                        it.copy(logging = it.logging.copy(restTimerAutoStart = chk))
+                                    }
+                                }
+                            )
+
+                            // Confirm Before Finish
+                            Spacer(modifier = Modifier.height(14.dp))
+                            SettingsDivider()
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            WorkoutSettingToggle(
+                                title = "Confirm Before Finish",
+                                description = "Show a confirmation prompt before finalizing and closing workout session",
+                                isChecked = settings.logging.confirmFinish,
+                                onCheckedChange = { chk ->
+                                    settingsRepository.update {
+                                        it.copy(logging = it.logging.copy(confirmFinish = chk))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Calculations & 1RM Analytics Card
+                item {
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Calculations & 1RM Analytics",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "Estimated 1RM Formula",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    OneRepMaxFormula.EPLEY to "Epley",
+                                    OneRepMaxFormula.BRZYCKI to "Brzycki",
+                                    OneRepMaxFormula.LOMBARDI to "Lombardi",
+                                    OneRepMaxFormula.OCONNER to "O'Conner"
+                                ).forEach { (formula, name) ->
+                                    val isSel = settings.calculations.oneRepMaxFormula == formula
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSel) colors.accentFill else KumaColors.SurfaceContainer)
+                                            .clickable {
+                                                settingsRepository.update {
+                                                    it.copy(calculations = it.calculations.copy(oneRepMaxFormula = formula))
+                                                }
+                                                workoutRepository?.recomputeDerivedStats()
+                                            }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = name,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (isSel) colors.onAccentFill else colors.textSecondary
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+                            SettingsDivider()
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Max Reps for 1RM Estimate
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Max reps for 1RM estimate",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        color = colors.textPrimary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    listOf(5, 8, 10, 12).forEach { maxReps ->
+                                        val isSel = settings.calculations.maxRepsForEstimate == maxReps
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isSel) colors.accentFill else KumaColors.SurfaceContainer)
+                                                .clickable {
+                                                    settingsRepository.update {
+                                                        it.copy(calculations = it.calculations.copy(maxRepsForEstimate = maxReps))
+                                                    }
+                                                    workoutRepository?.recomputeDerivedStats()
+                                                }
+                                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = "$maxReps",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSel) colors.onAccentFill else colors.textSecondary
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+                            SettingsDivider()
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Count warm-up sets in volume
+                            WorkoutSettingToggle(
+                                title = "Count Warm-up in Volume",
+                                description = "Include warm-up sets when calculating total session and weekly tonnage",
+                                isChecked = settings.calculations.includeWarmupInVolume,
+                                onCheckedChange = { chk ->
+                                    settingsRepository.update {
+                                        it.copy(calculations = it.calculations.copy(includeWarmupInVolume = chk))
+                                    }
+                                    workoutRepository?.recomputeDerivedStats()
                                 }
                             )
                         }

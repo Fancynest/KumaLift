@@ -95,6 +95,8 @@ fun App() {
         WorkoutRepository(
             prRepository = personalRecordRepository,
             databaseRepo = databaseRepo,
+            calculationSettingsProvider = { settingsRepository.settings.value.calculations },
+            loggingSettingsProvider = { settingsRepository.settings.value.logging },
             staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
         )
     }
@@ -193,6 +195,7 @@ fun App() {
                         SettingsScreen(
                             settingsRepository = settingsRepository,
                             databaseRepo = databaseRepo,
+                            workoutRepository = workoutRepository,
                             onNavigateBack = {
                                 currentScreen = Screen.HOME
                             }

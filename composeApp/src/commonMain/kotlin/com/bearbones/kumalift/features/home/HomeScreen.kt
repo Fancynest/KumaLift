@@ -57,6 +57,7 @@ import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
 import kotlinx.datetime.Clock
@@ -271,84 +272,98 @@ fun HomeScreen(
                 }
 
                 // 2. Weekly Horizon (7-Day Tracker)
-                item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow,
-                        cornerRadius = 18.dp
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                if (settings.appearance.showWeeklyHorizon) {
+                    item {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CalendarToday,
-                                        contentDescription = null,
-                                        tint = LocalKumaColors.current.accentText,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "This Week" else "Minggu Ini",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = LocalKumaColors.current.accentText,
+                                            modifier = Modifier.size(18.dp)
                                         )
-                                    )
+                                        Text(
+                                            text = if (isEnglish) "This Week" else "Minggu Ini",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(KumaColors.ElectricLime)
+                                            .border(
+                                                1.dp,
+                                                if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder,
+                                                PillShape
+                                            )
+                                            .padding(horizontal = 12.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = "$weekWorkoutsCount/${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "Workouts" else "Sesi Latihan"}",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = KumaColors.OnElectricLime,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
                                 }
-                                Box(
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 7 Days Grid with firstDayOfWeek setting and honest dynamic completion tracking
+                                val nowInstant = Clock.System.now()
+                                val nowDt = nowInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+                                val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, ..., 7 = Sunday
+
+                                val firstDay = settings.units.firstDayOfWeek
+                                val dayIndices = when (firstDay) {
+                                    FirstDayOfWeek.MONDAY -> listOf(1, 2, 3, 4, 5, 6, 7)
+                                    FirstDayOfWeek.SUNDAY -> listOf(7, 1, 2, 3, 4, 5, 6)
+                                    FirstDayOfWeek.SATURDAY -> listOf(6, 7, 1, 2, 3, 4, 5)
+                                }
+                                val dayLabels = when (firstDay) {
+                                    FirstDayOfWeek.MONDAY -> if (isEnglish) listOf("M", "T", "W", "T", "F", "S", "S") else listOf("S", "S", "R", "K", "J", "S", "M")
+                                    FirstDayOfWeek.SUNDAY -> if (isEnglish) listOf("S", "M", "T", "W", "T", "F", "S") else listOf("M", "S", "S", "R", "K", "J", "S")
+                                    FirstDayOfWeek.SATURDAY -> if (isEnglish) listOf("S", "S", "M", "T", "W", "T", "F") else listOf("S", "M", "S", "S", "R", "K", "J")
+                                }
+
+                                val daysDone = dayIndices.map { dayNum ->
+                                    thisWeekWorkouts.any { w ->
+                                        val wDt = kotlinx.datetime.Instant.fromEpochMilliseconds(w.startTimeEpochMs).toLocalDateTime(TimeZone.currentSystemDefault())
+                                        (wDt.dayOfWeek.ordinal + 1) == dayNum
+                                    }
+                                }
+
+                                Row(
                                     modifier = Modifier
-                                        .clip(PillShape)
-                                        .background(KumaColors.ElectricLime)
-                                        .border(
-                                            1.dp,
-                                            if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder,
-                                            PillShape
-                                        )
-                                        .padding(horizontal = 12.dp, vertical = 3.dp)
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(
-                                        text = "$weekWorkoutsCount/${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "Workouts" else "Sesi Latihan"}",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.OnElectricLime,
-                                            fontWeight = FontWeight.Bold
+                                    dayIndices.forEachIndexed { idx, dayNum ->
+                                        val isDone = daysDone[idx]
+                                        val isToday = dayNum == todayDayOfWeek
+                                        DayCircle(
+                                            day = dayLabels[idx],
+                                            isDone = isDone,
+                                            isActive = isToday && !isDone
                                         )
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // 7 Days Grid with honest dynamic completion tracking
-                            val nowInstant = Clock.System.now()
-                            val nowDt = nowInstant.toLocalDateTime(TimeZone.currentSystemDefault())
-                            val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, 7 = Sunday
-                            val daysDone = (1..7).map { dayNum ->
-                                thisWeekWorkouts.any { w ->
-                                    val wDt = kotlinx.datetime.Instant.fromEpochMilliseconds(w.startTimeEpochMs).toLocalDateTime(TimeZone.currentSystemDefault())
-                                    (wDt.dayOfWeek.ordinal + 1) == dayNum
-                                }
-                            }
-                            val dayLabels = if (isEnglish) listOf("M", "T", "W", "T", "F", "S", "S") else listOf("S", "S", "R", "K", "J", "S", "M")
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                (1..7).forEach { dayNum ->
-                                    val isDone = daysDone[dayNum - 1]
-                                    val isToday = dayNum == todayDayOfWeek
-                                    DayCircle(
-                                        day = dayLabels[dayNum - 1],
-                                        isDone = isDone,
-                                        isActive = isToday && !isDone
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -521,65 +536,68 @@ fun HomeScreen(
                 }
 
                 // 4. Monthly Quick Glance Metrics (Spacious 3-column)
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        MetricTile(
-                            modifier = Modifier.weight(1f),
-                            label = if (isEnglish) "TOTAL SESSIONS" else "TOTAL SESI",
-                            value = "${completedWorkouts.size}",
-                            subtext = if (isEnglish) "Lifetime sessions" else "Total sesi tercatat"
-                        )
-                        MetricTile(
-                            modifier = Modifier.weight(1f),
-                            label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
-                            value = totalVolFormatted,
-                            subtext = if (isEnglish) "Lifetime tonnage" else "Total tonase"
-                        )
-                        MetricTile(
-                            modifier = Modifier.weight(1f),
-                            label = if (isEnglish) "RECORDS (PR)" else "REKOR (PR)",
-                            value = "${prList.size}",
-                            subtext = if (isEnglish) "New records" else "Total rekor PR",
-                            isAccent = true
-                        )
+                if (settings.appearance.showMonthlyGlance) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            MetricTile(
+                                modifier = Modifier.weight(1f),
+                                label = if (isEnglish) "TOTAL SESSIONS" else "TOTAL SESI",
+                                value = "${completedWorkouts.size}",
+                                subtext = if (isEnglish) "Lifetime sessions" else "Total sesi tercatat"
+                            )
+                            MetricTile(
+                                modifier = Modifier.weight(1f),
+                                label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
+                                value = totalVolFormatted,
+                                subtext = if (isEnglish) "Lifetime tonnage" else "Total tonase"
+                            )
+                            MetricTile(
+                                modifier = Modifier.weight(1f),
+                                label = if (isEnglish) "RECORDS (PR)" else "REKOR (PR)",
+                                value = "${prList.size}",
+                                subtext = if (isEnglish) "New records" else "Total rekor PR",
+                                isAccent = true
+                            )
+                        }
                     }
                 }
 
                 // 5. Recent Workouts & Freestyle Button
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            text = if (isEnglish) "Recent Workouts" else "Riwayat Latihan",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
+                if (settings.appearance.showRecentWorkouts) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                text = if (isEnglish) "Recent Workouts" else "Riwayat Latihan",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
                             )
-                        )
 
-                        if (completedWorkouts.isEmpty()) {
-                            KumaCard(
-                                modifier = Modifier.fillMaxWidth(),
-                                backgroundColor = KumaColors.SurfaceContainer,
-                                cornerRadius = 16.dp
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center
+                            if (completedWorkouts.isEmpty()) {
+                                KumaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = KumaColors.SurfaceContainer,
+                                    cornerRadius = 16.dp
                                 ) {
-                                    Text(
-                                        text = if (isEnglish) "No completed workouts yet. Start your journey today!" else "Belum ada riwayat latihan. Mulai latihan pertamamu sekarang!",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = KumaColors.TextMuted,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "No completed workouts yet. Start your journey today!" else "Belum ada riwayat latihan. Mulai latihan pertamamu sekarang!",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = KumaColors.TextMuted,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
                                 }
-                            }
-                        } else {
-                            completedWorkouts.take(3).forEach { workout ->
+                            } else {
+                                completedWorkouts.take(settings.appearance.recentWorkoutsCount).forEach { workout ->
                                 val durationMin = workout.durationSeconds / 60
                                 val durationText = "${durationMin} ${if (isEnglish) "min" else "mnt"}"
                                 val volDisplay = if (isLb) (workout.totalVolumeKg * 2.20462).toInt() else workout.totalVolumeKg.toInt()
@@ -648,6 +666,7 @@ fun HomeScreen(
                     }
                     Spacer(modifier = Modifier.height(100.dp))
                 }
+            }
             }
         }
     }

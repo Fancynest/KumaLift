@@ -8,6 +8,7 @@ import com.bearbones.kumalift.data.local.SeedData
 import com.bearbones.kumalift.domain.model.CalculationSettings
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
+import com.bearbones.kumalift.domain.model.LoggingSettings
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
@@ -148,10 +149,11 @@ class PersonalRecordRepository(
         if (weightKg <= 0.0 || reps <= 0) return null
 
         val calcSettings = calculationSettingsProvider()
-        val e1rm = OneRepMaxCalculator.calculateEstimated1Rm(
-            weightKg,
-            reps,
-            calcSettings.oneRepMaxFormula
+        val e1rm = OneRepMaxCalculator.calculate(
+            weightKg = weightKg,
+            reps = reps,
+            formula = calcSettings.oneRepMaxFormula,
+            maxReps = calcSettings.maxRepsForEstimate
         )
 
         val currentPr = _prs.value.find { it.exerciseId == exercise.id }
@@ -184,6 +186,55 @@ class PersonalRecordRepository(
         return null
     }
 
+    fun recomputePersonalRecords(
+        allWorkouts: List<Workout>,
+        calcSettings: CalculationSettings
+    ) {
+        val newPrs = mutableMapOf<String, PersonalRecord>()
+        val sortedWorkouts = allWorkouts.sortedBy { it.startTimeEpochMs }
+        for (workout in sortedWorkouts) {
+            for (we in workout.exercises) {
+                for (set in we.sets.filter { it.isCompleted }) {
+                    if (set.setType == SetType.WARMUP && !calcSettings.includeWarmupInVolume) continue
+                    if (set.weightKg <= 0.0 || set.reps <= 0) continue
+
+                    val e1rm = OneRepMaxCalculator.calculate(
+                        weightKg = set.weightKg,
+                        reps = set.reps,
+                        formula = calcSettings.oneRepMaxFormula,
+                        maxReps = calcSettings.maxRepsForEstimate
+                    )
+
+                    val existing = newPrs[we.exercise.id]
+                    val isNewPr = if (existing == null) true else (set.weightKg > existing.weightKg)
+                    if (isNewPr) {
+                        val delta = if (existing != null) set.weightKg - existing.weightKg else set.weightKg
+                        val dateAchieved = formatDateEpoch(workout.startTimeEpochMs)
+                        newPrs[we.exercise.id] = PersonalRecord(
+                            exerciseId = we.exercise.id,
+                            exerciseName = we.exercise.name,
+                            weightKg = set.weightKg,
+                            reps = set.reps,
+                            estimated1RmKg = e1rm,
+                            dateAchieved = dateAchieved,
+                            deltaWeightKg = delta,
+                            prTier = "${set.reps}RM PR",
+                            dateAchievedEpochMs = workout.startTimeEpochMs,
+                            sourceSetId = set.id
+                        )
+                    }
+                }
+            }
+        }
+
+        _prs.value = newPrs.values.toList()
+        databaseRepo?.let { db ->
+            newPrs.values.forEach { pr ->
+                db.savePersonalRecord(pr)
+            }
+        }
+    }
+
     fun revokePrBySetId(sourceSetId: String) {
         val affected = _prs.value.find { it.sourceSetId == sourceSetId }
         if (affected != null) {
@@ -205,6 +256,8 @@ class PersonalRecordRepository(
 class WorkoutRepository(
     private val prRepository: PersonalRecordRepository,
     private val databaseRepo: KumaDatabaseRepository? = null,
+    private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
+    private val loggingSettingsProvider: () -> LoggingSettings = { LoggingSettings() },
     staleWorkoutHours: Int = 24
 ) {
     private val _activeWorkout = MutableStateFlow<Workout?>(null)
@@ -460,23 +513,40 @@ class WorkoutRepository(
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val isBodyweight = exercise.equipment == Equipment.BODYWEIGHT
-            val defaultWeight = if (isBodyweight) 0.0 else (exercise.currentPrWeightKg?.let { it * 0.7 } ?: 20.0)
+            val logSettings = loggingSettingsProvider()
+            val previousSet = findPreviousSet(exercise.id, logSettings.prefillSource)
+            val defaultWeight = previousSet?.weightKg
+                ?: if (isBodyweight) 0.0 else (exercise.currentPrWeightKg?.let { it * 0.7 } ?: 20.0)
+            val defaultReps = previousSet?.reps ?: 10
+
+            val count = maxOf(1, minOf(logSettings.defaultSetCount, 10))
+            val sets = (1..count).map { setIndex ->
+                SetLog(
+                    id = IdGenerator.setId(exercise.id, setIndex),
+                    setNumber = setIndex,
+                    setType = SetType.NORMAL,
+                    weightKg = defaultWeight,
+                    reps = defaultReps,
+                    isCompleted = false,
+                    targetWeightKg = defaultWeight,
+                    targetReps = defaultReps,
+                    previousWeightKg = previousSet?.weightKg,
+                    previousReps = previousSet?.reps
+                )
+            }
             val newWe = WorkoutExercise(
                 id = IdGenerator.workoutExerciseId(exercise.id),
                 exercise = exercise,
-                sets = listOf(
-                    SetLog(
-                        id = IdGenerator.setId(exercise.id, 1),
-                        setNumber = 1,
-                        weightKg = defaultWeight,
-                        reps = 10,
-                        isCompleted = false
-                    )
-                )
+                sets = sets
             )
             currentWorkout.copy(exercises = currentWorkout.exercises + newWe)
         }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun recomputeDerivedStats() {
+        val calcSettings = calculationSettingsProvider()
+        prRepository.recomputePersonalRecords(_completedWorkouts.value, calcSettings)
     }
 
     fun removeExerciseFromActiveWorkout(workoutExerciseId: String) {

@@ -1,6 +1,10 @@
 package com.bearbones.kumalift.core.util
 
+import com.bearbones.kumalift.domain.model.BodyweightVolumeMode
+import com.bearbones.kumalift.domain.model.CalculationSettings
+import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.MuscleGroup
+import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.Workout
 import kotlin.math.roundToInt
 
@@ -8,6 +12,36 @@ object VolumeCalculator {
 
     fun calculateTotalVolumeKg(workout: Workout): Double {
         return workout.totalVolumeKg
+    }
+
+    /**
+     * Calculates volume with respect to user's calculation settings
+     * (warm-up inclusion, drop set inclusion, bodyweight volume mode).
+     */
+    fun calculateWorkoutVolumeKg(
+        workout: Workout,
+        calcSettings: CalculationSettings = CalculationSettings(),
+        userBodyweightKg: Double? = null
+    ): Double {
+        return workout.exercises.sumOf { we ->
+            we.sets.filter { it.isCompleted }.sumOf { set ->
+                when (set.setType) {
+                    SetType.WARMUP -> if (!calcSettings.includeWarmupInVolume) 0.0 else set.volume
+                    SetType.DROP -> if (!calcSettings.includeDropSetsInVolume) 0.0 else set.volume
+                    SetType.FAILURE -> if (!calcSettings.includeFailureSetsInVolume) 0.0 else set.volume
+                    SetType.NORMAL -> {
+                        if (we.exercise.equipment == Equipment.BODYWEIGHT &&
+                            calcSettings.bodyweightVolumeMode == BodyweightVolumeMode.BODYWEIGHT_PLUS_ADDED &&
+                            userBodyweightKg != null
+                        ) {
+                            (userBodyweightKg + set.weightKg) * set.reps
+                        } else {
+                            set.weightKg * set.reps
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

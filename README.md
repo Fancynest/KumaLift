@@ -83,10 +83,12 @@ Open `iosApp/` in Xcode or run via CI/CD runner.
 
 ---
 
-## 📱 Platform Media Architecture (Android-First & iOS)
+## 📱 Platform Media & Dataset Architecture (Android-First & iOS)
 
-- **Android:** Exercise thumbnails and animation GIFs are rendered locally with hardware acceleration via Coil (`androidMain/assets`).
-- **iOS:** iOS target builds use lightweight vector icon placeholders (`ExerciseMedia.ios.kt`) keeping iOS builds fast and decoupled from binary asset bundles. Full cross-platform asset streaming via Coil 3 or Compose Resources can be enabled when provisioning an iOS production bundle.
+- **Android:** Exercise thumbnails and animation GIFs are rendered locally with hardware acceleration via Coil (`androidMain/assets`). The exercises dataset is loaded at runtime via Java resource stream from `commonMain/resources/exercises.json` configured in Gradle `sourceSets`.
+- **iOS (Placeholder Status):** 
+  - **Media:** iOS target builds use lightweight vector icon placeholders (`ExerciseMedia.ios.kt`), keeping iOS builds fast and decoupled from binary asset bundles. Full cross-platform asset streaming via Coil 3 or Compose Resources can be enabled when provisioning an iOS production bundle.
+  - **Exercise Dataset:** Loader iOS (`ExerciseResourceLoader.ios.kt`) saat ini membaca `exercises.json` dari `NSBundle.mainBundle`. Karena dataset telah dideduplikasi ke `commonMain/resources/exercises.json` (yang tidak otomatis dimasukkan ke dalam main bundle iOS oleh Kotlin Multiplatform tanpa build phase bundling khusus), loader iOS saat ini mengembalikan array kosong (`"[]"`). Dataset latihan pada iOS saat ini belum tersedia karena implementasi iOS masih berupa placeholder tahap awal. Ketika pengembangan platform iOS dilanjutkan di masa mendatang, loader iOS perlu disesuaikan dengan mekanisme resource bundling iOS (misalnya melalui CocoaPods/SPM resource bundle atau Xcode "Copy Bundle Resources" phase).
 
 ---
 

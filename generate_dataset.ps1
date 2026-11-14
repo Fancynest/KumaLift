@@ -152,7 +152,4 @@ foreach ($ex in $items) {
 $jsonOut = $mappedList | ConvertTo-Json -Depth 5 -Compress
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText("composeApp\src\commonMain\resources\exercises.json", $jsonOut, $utf8NoBom)
-[System.IO.File]::WriteAllText("composeApp\src\androidMain\resources\exercises.json", $jsonOut, $utf8NoBom)
-[System.IO.File]::WriteAllText("composeApp\src\androidUnitTest\resources\exercises.json", $jsonOut, $utf8NoBom)
-[System.IO.File]::WriteAllText("composeApp\src\commonMain\composeResources\files\exercises.json", $jsonOut, $utf8NoBom)
 Write-Host "Generated exercises.json with $($mappedList.Count) exercises successfully."

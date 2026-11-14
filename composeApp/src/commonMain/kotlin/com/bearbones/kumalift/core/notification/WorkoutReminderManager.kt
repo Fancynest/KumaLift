@@ -5,8 +5,6 @@ import com.bearbones.kumalift.domain.model.NotificationSettings
 
 expect class WorkoutReminderManager {
     fun syncSettings(settings: NotificationSettings)
-    fun isBatteryOptimizationIgnored(): Boolean
-    fun requestIgnoreBatteryOptimization()
     fun hasNotificationPermission(): Boolean
     fun openNotificationSettings()
 }

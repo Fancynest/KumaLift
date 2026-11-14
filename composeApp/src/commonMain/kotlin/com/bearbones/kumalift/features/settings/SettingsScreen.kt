@@ -1154,67 +1154,6 @@ private fun NotificationSettingsPage(
                     }
                 }
 
-                // Battery optimization card (Fully interactive & clickable)
-                item {
-                    val isOptimized = workoutReminderManager.isBatteryOptimizationIgnored()
-                    KumaCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { workoutReminderManager.requestIgnoreBatteryOptimization() },
-                        borderColor = if (isOptimized) colors.border else colors.accentText.copy(alpha = 0.5f)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isOptimized) Icons.Default.BatteryChargingFull else Icons.Default.BatteryAlert,
-                                    contentDescription = null,
-                                    tint = if (isOptimized) colors.accentText else colors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = if (isEnglish) "Battery Optimization Exemption" else "Proteksi Penghemat Baterai",
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.textPrimary
-                                        )
-                                    )
-                                    Text(
-                                        text = if (isOptimized) {
-                                            if (isEnglish) "Active: Reminders will ring reliably in background." else "Aktif: Notifikasi dijamin menyala tepat waktu."
-                                        } else {
-                                            if (isEnglish) "Tap to allow KumaLift to ignore battery optimizations." else "Ketuk untuk izinkan KumaLift berjalan tanpa dihentikan sistem."
-                                        },
-                                        style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
-                                    )
-                                }
-                            }
-
-                            if (!isOptimized) {
-                                Button(
-                                    onClick = { workoutReminderManager.requestIgnoreBatteryOptimization() },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = colors.accentFill,
-                                        contentColor = colors.onAccentFill
-                                    ),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = if (isEnglish) "Disable Optimization for KumaLift" else "Buka Pengaturan Bebas Optimasi",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
 
                 item { Spacer(modifier = Modifier.height(40.dp)) }
             }

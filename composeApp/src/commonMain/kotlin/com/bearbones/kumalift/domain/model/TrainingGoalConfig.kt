@@ -20,6 +20,7 @@ data class GoalRecommendation(
 object TrainingGoalConfig {
 
     fun getConfig(goal: TrainingGoal, s: AppStrings): GoalRecommendation {
+        val secUnit = if (s.minAbbrev == "mnt") "dtk" else "sec"
         return when (goal) {
             TrainingGoal.HYPERTROPHY -> GoalRecommendation(
                 goal = goal,
@@ -27,13 +28,13 @@ object TrainingGoalConfig {
                 phaseLabel = s.phaseHypertrophy,
                 defaultSets = 3,
                 defaultReps = 10,
-                setsRangeText = "3–4 Set",
-                repsRangeText = "8–12 Reps",
+                setsRangeText = "3–4 ${s.setsAbbrev}",
+                repsRangeText = "8–12 ${s.repsAbbrev}",
                 restSeconds = 90,
-                restRangeText = "60–90 dtk",
+                restRangeText = "60–90 $secUnit",
                 targetRpe = "RPE 7–9",
-                progressionPrinciple = "Beban bertahap (Progressive Overload), fokus pada waktu di bawah tegangan (TUT) dan kontrol fase eksentrik.",
-                workoutGuideline = "Volume moderat hingga tinggi. Fokus pada kontraksi otot maksimal dan istirahat cukup untuk pemulihan glikogen otot."
+                progressionPrinciple = s.progressionHypertrophy,
+                workoutGuideline = s.guidelineHypertrophy
             )
             TrainingGoal.STRENGTH -> GoalRecommendation(
                 goal = goal,
@@ -41,13 +42,13 @@ object TrainingGoalConfig {
                 phaseLabel = s.phaseStrength,
                 defaultSets = 4,
                 defaultReps = 5,
-                setsRangeText = "3–5 Set",
-                repsRangeText = "3–6 Reps",
+                setsRangeText = "3–5 ${s.setsAbbrev}",
+                repsRangeText = "3–6 ${s.repsAbbrev}",
                 restSeconds = 150,
-                restRangeText = "2–3 mnt",
+                restRangeText = "2–3 ${s.minAbbrev}",
                 targetRpe = "RPE 8–9.5",
-                progressionPrinciple = "Progresi beban linear dengan fokus peningkatan beban angkatan (intensity % 1RM).",
-                workoutGuideline = "Prioritaskan gerakan compound multi-sendi (Bench, Squat, Deadlift, OHP). Istirahat lebih panjang untuk pemulihan sistem saraf pusat (CNS)."
+                progressionPrinciple = s.progressionStrength,
+                workoutGuideline = s.guidelineStrength
             )
             TrainingGoal.ENDURANCE -> GoalRecommendation(
                 goal = goal,
@@ -55,13 +56,13 @@ object TrainingGoalConfig {
                 phaseLabel = s.phaseEndurance,
                 defaultSets = 3,
                 defaultReps = 15,
-                setsRangeText = "3–4 Set",
-                repsRangeText = "15–20+ Reps",
+                setsRangeText = "3–4 ${s.setsAbbrev}",
+                repsRangeText = "15–20+ ${s.repsAbbrev}",
                 restSeconds = 45,
-                restRangeText = "30–45 dtk",
+                restRangeText = "30–45 $secUnit",
                 targetRpe = "RPE 6–8",
-                progressionPrinciple = "Peningkatan repetisi, efisiensi gerak, dan pemendekan interval istirahat.",
-                workoutGuideline = "Gunakan beban ringan hingga sedang dengan repetisi tinggi dan istirahat singkat untuk melatih daya tahan otot dan kapasitas aerobik/anaerobik."
+                progressionPrinciple = s.progressionEndurance,
+                workoutGuideline = s.guidelineEndurance
             )
             TrainingGoal.FAT_LOSS -> GoalRecommendation(
                 goal = goal,
@@ -69,13 +70,13 @@ object TrainingGoalConfig {
                 phaseLabel = s.phaseFatLoss,
                 defaultSets = 3,
                 defaultReps = 12,
-                setsRangeText = "3–4 Set",
-                repsRangeText = "10–15 Reps",
+                setsRangeText = "3–4 ${s.setsAbbrev}",
+                repsRangeText = "10–15 ${s.repsAbbrev}",
                 restSeconds = 60,
-                restRangeText = "45–60 dtk",
+                restRangeText = "45–60 $secUnit",
                 targetRpe = "RPE 7–8.5",
-                progressionPrinciple = "Kepadatan latihan (density training) dan resistensi metabolik untuk memaksimalkan pembakaran kalori.",
-                workoutGuideline = "Kombinasi compound resistance training dengan tempo dinamis dan istirahat singkat untuk menjaga denyut jantung tinggi dan membakar lemak optimal."
+                progressionPrinciple = s.progressionFatLoss,
+                workoutGuideline = s.guidelineFatLoss
             )
             TrainingGoal.GENERAL -> GoalRecommendation(
                 goal = goal,
@@ -83,13 +84,13 @@ object TrainingGoalConfig {
                 phaseLabel = s.phaseGeneral,
                 defaultSets = 3,
                 defaultReps = 10,
-                setsRangeText = "2–3 Set",
-                repsRangeText = "8–12 Reps",
+                setsRangeText = "2–3 ${s.setsAbbrev}",
+                repsRangeText = "8–12 ${s.repsAbbrev}",
                 restSeconds = 75,
-                restRangeText = "60–90 dtk",
+                restRangeText = "60–90 $secUnit",
                 targetRpe = "RPE 7–8",
-                progressionPrinciple = "Kebugaran holistik seimbang antara kekuatan, mobilitas, dan daya tahan tubuh.",
-                workoutGuideline = "Latihan seimbang seluruh tubuh (Full Body) untuk menjaga stamina harian, postur sehat, dan mobilitas sendi."
+                progressionPrinciple = s.progressionGeneral,
+                workoutGuideline = s.guidelineGeneral
             )
         }
     }

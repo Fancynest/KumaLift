@@ -1008,8 +1008,10 @@ fun ExerciseLoggingCard(
                                     color = LocalKumaColors.current.recoveryFresh
                                 )
                             )
+                            val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                            val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
                             Text(
-                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} (${progressionAdvice.details})",
+                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = KumaColors.TextMuted,
                                     fontSize = 11.sp

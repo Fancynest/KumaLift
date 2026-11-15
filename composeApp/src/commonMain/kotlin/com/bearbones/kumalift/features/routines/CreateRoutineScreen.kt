@@ -1,8 +1,10 @@
 package com.bearbones.kumalift.features.routines
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,14 +33,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SwapVert
@@ -48,9 +47,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
@@ -107,6 +110,10 @@ fun CreateRoutineScreen(
     }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
     var showExercisePicker by remember { mutableStateOf(false) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    val density = LocalDensity.current
+    val itemHeightPx = remember(density) { with(density) { 110.dp.toPx() } }
 
     val presetCategories = s.presetRoutineCategories
     val durationOptions = listOf(30, 45, 60, 75, 90)
@@ -543,18 +550,41 @@ fun CreateRoutineScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             selectedConfigs.forEachIndexed { index, config ->
+                                val isThisDragging = draggingIndex == index
                                 SelectedExerciseRow(
                                     index = index + 1,
                                     config = config,
-                                    canMoveUp = index > 0,
-                                    canMoveDown = index < selectedConfigs.size - 1,
-                                    onMoveUp = {
-                                        val item = selectedConfigs.removeAt(index)
-                                        selectedConfigs.add(index - 1, item)
+                                    isDragging = isThisDragging,
+                                    dragOffsetY = if (isThisDragging) dragOffsetY else 0f,
+                                    onDragStart = {
+                                        draggingIndex = index
+                                        dragOffsetY = 0f
                                     },
-                                    onMoveDown = {
-                                        val item = selectedConfigs.removeAt(index)
-                                        selectedConfigs.add(index + 1, item)
+                                    onDrag = { delta ->
+                                        dragOffsetY += delta
+                                        val currentIdx = draggingIndex ?: return@SelectedExerciseRow
+                                        val threshold = itemHeightPx * 0.7f
+                                        if (dragOffsetY > threshold && currentIdx < selectedConfigs.size - 1) {
+                                            val targetIdx = currentIdx + 1
+                                            val item = selectedConfigs.removeAt(currentIdx)
+                                            selectedConfigs.add(targetIdx, item)
+                                            draggingIndex = targetIdx
+                                            dragOffsetY -= itemHeightPx
+                                        } else if (dragOffsetY < -threshold && currentIdx > 0) {
+                                            val targetIdx = currentIdx - 1
+                                            val item = selectedConfigs.removeAt(currentIdx)
+                                            selectedConfigs.add(targetIdx, item)
+                                            draggingIndex = targetIdx
+                                            dragOffsetY += itemHeightPx
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        draggingIndex = null
+                                        dragOffsetY = 0f
+                                    },
+                                    onDragCancel = {
+                                        draggingIndex = null
+                                        dragOffsetY = 0f
                                     },
                                     onSetsChange = { newSets ->
                                         selectedConfigs[index] = config.copy(targetSets = newSets)
@@ -568,7 +598,13 @@ fun CreateRoutineScreen(
                                     onSupersetChange = { newSs ->
                                         selectedConfigs[index] = config.copy(supersetGroupId = newSs)
                                     },
-                                    onRemove = { selectedConfigs.removeAt(index) }
+                                    onRemove = {
+                                        if (draggingIndex == index) {
+                                            draggingIndex = null
+                                            dragOffsetY = 0f
+                                        }
+                                        selectedConfigs.removeAt(index)
+                                    }
                                 )
                             }
 
@@ -628,10 +664,12 @@ fun CreateRoutineScreen(
 private fun SelectedExerciseRow(
     index: Int,
     config: RoutineExerciseConfig,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    isDragging: Boolean,
+    dragOffsetY: Float,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
     onSetsChange: (Int) -> Unit,
     onRepsChange: (Int) -> Unit,
     onRestChange: (Int) -> Unit,
@@ -642,183 +680,165 @@ private fun SelectedExerciseRow(
     val s = LocalStrings.current
     val exercise = config.exercise
 
-    var dragDelta by remember { mutableStateOf(0f) }
+    val cardBorder = when {
+        isDragging -> Modifier.border(2.dp, colors.accentFill, RoundedCornerShape(14.dp))
+        config.supersetGroupId != null -> Modifier.border(1.5.dp, colors.supersetBadge, RoundedCornerShape(14.dp))
+        else -> Modifier
+    }
 
-    KumaCard(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (config.supersetGroupId != null) {
-                    Modifier.border(1.5.dp, colors.supersetBadge, RoundedCornerShape(14.dp))
-                } else Modifier
-            ),
-        backgroundColor = KumaColors.SurfaceContainerLow,
-        cornerRadius = 14.dp
+            .zIndex(if (isDragging) 10f else 0f)
+            .graphicsLayer {
+                if (isDragging) {
+                    translationY = dragOffsetY
+                    scaleX = 1.03f
+                    scaleY = 1.03f
+                    shadowElevation = 16.dp.toPx()
+                    shape = RoundedCornerShape(14.dp)
+                    clip = false
+                }
+            }
+            .then(cardBorder)
+            .animateContentSize()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Drag handle for smooth touch drag reordering
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .pointerInput(canMoveUp, canMoveDown) {
-                            detectVerticalDragGestures(
-                                onVerticalDrag = { change, amount ->
-                                    change.consume()
-                                    dragDelta += amount
-                                    if (dragDelta > 50f && canMoveDown) {
-                                        onMoveDown()
-                                        dragDelta = 0f
-                                    } else if (dragDelta < -50f && canMoveUp) {
-                                        onMoveUp()
-                                        dragDelta = 0f
-                                    }
-                                },
-                                onDragEnd = { dragDelta = 0f },
-                                onDragCancel = { dragDelta = 0f }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
+        KumaCard(
+            modifier = Modifier.fillMaxWidth(),
+            backgroundColor = if (isDragging) KumaColors.SurfaceContainerHigh else KumaColors.SurfaceContainerLow,
+            cornerRadius = 14.dp
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.SwapVert,
-                        contentDescription = s.dragToReorder,
-                        tint = colors.textSecondary.copy(alpha = 0.6f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Index number
-                Box(
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(colors.accentFill),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "$index",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = colors.onAccentFill,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // Thumbnail
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
-                ) {
-                    ExerciseThumbnailMedia(
-                        assetPath = exercise.thumbnailUrl,
-                        contentDescription = exercise.name,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // Title, Muscle & Superset Toggle
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = exercise.name,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = colors.textPrimary
-                            ),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-
-                        // Superset Pill Toggle
-                        Box(
-                            modifier = Modifier
-                                .clip(PillShape)
-                                .background(
-                                    if (config.supersetGroupId != null) colors.supersetBadgeTint
-                                    else KumaColors.SurfaceContainer
-                                )
-                                .clickable {
-                                    val nextSs = when (config.supersetGroupId) {
-                                        null -> "A"
-                                        "A" -> "B"
-                                        "B" -> null
-                                        else -> null
-                                    }
-                                    onSupersetChange(nextSs)
-                                }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = if (config.supersetGroupId != null) "SS ${config.supersetGroupId}" else "+ SS",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (config.supersetGroupId != null) colors.supersetBadge else KumaColors.TextMuted
-                                )
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = exercise.localizedMuscleSubtitle(s),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = colors.textSecondary
-                        ),
-                        maxLines = 1
-                    )
-                }
-
-                // Reorder buttons (Up & Down) + Remove button
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onMoveUp,
-                        enabled = canMoveUp,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowUpward,
-                            contentDescription = s.moveUpAction,
-                            tint = if (canMoveUp) colors.textPrimary else colors.textSecondary.copy(alpha = 0.3f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onMoveDown,
-                        enabled = canMoveDown,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDownward,
-                            contentDescription = s.moveDownAction,
-                            tint = if (canMoveDown) colors.textPrimary else colors.textSecondary.copy(alpha = 0.3f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // Remove button
+                    // Drag handle for smooth touch drag reordering
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isDragging) colors.accentFill.copy(alpha = 0.2f) else Color.Transparent)
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { onDragStart() },
+                                    onVerticalDrag = { change, amount ->
+                                        change.consume()
+                                        onDrag(amount)
+                                    },
+                                    onDragEnd = { onDragEnd() },
+                                    onDragCancel = { onDragCancel() }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = s.dragToReorder,
+                            tint = if (isDragging) colors.accentFill else colors.textSecondary.copy(alpha = 0.7f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Index number
+                    Box(
+                        modifier = Modifier
+                            .size(26.dp)
+                            .clip(CircleShape)
+                            .background(colors.accentFill),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$index",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.onAccentFill,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Thumbnail
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                    ) {
+                        ExerciseThumbnailMedia(
+                            assetPath = exercise.thumbnailUrl,
+                            contentDescription = exercise.name,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // Title, Muscle & Superset Toggle
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = exercise.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+
+                            // Superset Pill Toggle
+                            Box(
+                                modifier = Modifier
+                                    .clip(PillShape)
+                                    .background(
+                                        if (config.supersetGroupId != null) colors.supersetBadgeTint
+                                        else KumaColors.SurfaceContainer
+                                    )
+                                    .clickable {
+                                        val nextSs = when (config.supersetGroupId) {
+                                            null -> "A"
+                                            "A" -> "B"
+                                            "B" -> null
+                                            else -> null
+                                        }
+                                        onSupersetChange(nextSs)
+                                    }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (config.supersetGroupId != null) "SS ${config.supersetGroupId}" else "+ SS",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (config.supersetGroupId != null) colors.supersetBadge else KumaColors.TextMuted
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = exercise.localizedMuscleSubtitle(s),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.textSecondary
+                            ),
+                            maxLines = 1
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Remove button (reorder arrow buttons removed per requirement)
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
                             .clip(CircleShape)
                             .background(KumaColors.SurfaceContainer)
                             .clickable(onClick = onRemove),
@@ -832,38 +852,38 @@ private fun SelectedExerciseRow(
                         )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            // Configuration Steppers (Sets, Reps, Rest)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Sets stepper
-                MiniStepper(
-                    modifier = Modifier.weight(1f),
-                    label = "${config.targetSets} ${s.setsAbbrev}",
-                    onMinus = { onSetsChange(maxOf(1, config.targetSets - 1)) },
-                    onPlus = { onSetsChange(minOf(20, config.targetSets + 1)) }
-                )
+                // Configuration Steppers (Sets, Reps, Rest)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Sets stepper
+                    MiniStepper(
+                        modifier = Modifier.weight(1f),
+                        label = "${config.targetSets} ${s.setsAbbrev}",
+                        onMinus = { onSetsChange(maxOf(1, config.targetSets - 1)) },
+                        onPlus = { onSetsChange(minOf(20, config.targetSets + 1)) }
+                    )
 
-                // Reps stepper
-                MiniStepper(
-                    modifier = Modifier.weight(1.1f),
-                    label = "${config.targetReps} ${s.repsAbbrev}",
-                    onMinus = { onRepsChange(maxOf(1, config.targetReps - 1)) },
-                    onPlus = { onRepsChange(minOf(100, config.targetReps + 1)) }
-                )
+                    // Reps stepper
+                    MiniStepper(
+                        modifier = Modifier.weight(1.1f),
+                        label = "${config.targetReps} ${s.repsAbbrev}",
+                        onMinus = { onRepsChange(maxOf(1, config.targetReps - 1)) },
+                        onPlus = { onRepsChange(minOf(100, config.targetReps + 1)) }
+                    )
 
-                // Rest stepper
-                MiniStepper(
-                    modifier = Modifier.weight(1.2f),
-                    label = s.secondsRestLabel(config.restTimerSeconds),
-                    onMinus = { onRestChange(maxOf(15, config.restTimerSeconds - 15)) },
-                    onPlus = { onRestChange(minOf(300, config.restTimerSeconds + 15)) }
-                )
+                    // Rest stepper
+                    MiniStepper(
+                        modifier = Modifier.weight(1.2f),
+                        label = s.secondsRestLabel(config.restTimerSeconds),
+                        onMinus = { onRestChange(maxOf(15, config.restTimerSeconds - 15)) },
+                        onPlus = { onRestChange(minOf(300, config.restTimerSeconds + 15)) }
+                    )
+                }
             }
         }
     }
@@ -928,7 +948,6 @@ private fun MiniStepper(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExercisePickerModal(
     exerciseRepository: ExerciseRepository,
@@ -938,7 +957,6 @@ private fun ExercisePickerModal(
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val allExercises by exerciseRepository.exercises.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -970,24 +988,34 @@ private fun ExercisePickerModal(
         }
     }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = KumaColors.SurfaceDim
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .kumaKeyboardAvoidance()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = KumaColors.CanvasLowest
         ) {
-            // Header: Title & Done
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .kumaKeyboardAvoidance()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp)
             ) {
+                // Header: Title & Done
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 Text(
                     text = s.exercisePickerTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
@@ -1203,4 +1231,5 @@ private fun ExercisePickerModal(
             }
         }
     }
+}
 }

@@ -13,6 +13,7 @@ sealed class ProgressionAdvice {
         val deltaKg: Double,
         override val suggestedWeightKg: Double,
         val details: String,
+        val detailsId: String = details,
         override val messageId: String = "Siap naik beban! Tambah +$deltaKg kg (target repetisi tercapai di sesi sebelumnya)",
         override val messageEn: String = "Progression ready! Add +$deltaKg kg (target reps reached in previous session)"
     ) : ProgressionAdvice()
@@ -22,6 +23,7 @@ sealed class ProgressionAdvice {
         val targetReps: Int,
         override val suggestedWeightKg: Double,
         val details: String,
+        val detailsId: String = details,
         override val messageId: String = "Pertahankan beban $suggestedWeightKg kg, fokus tambah +1 repetisi",
         override val messageEn: String = "Maintain $suggestedWeightKg kg, aim for +1 rep per set"
     ) : ProgressionAdvice()
@@ -30,6 +32,7 @@ sealed class ProgressionAdvice {
     data class MaintainOrConsolidate(
         override val suggestedWeightKg: Double,
         val details: String,
+        val detailsId: String = details,
         override val messageId: String = "Konsolidasi beban $suggestedWeightKg kg. Prioritaskan teknik dan kontrol gerakan",
         override val messageEn: String = "Consolidate at $suggestedWeightKg kg. Prioritize form and tempo control"
     ) : ProgressionAdvice()
@@ -84,7 +87,8 @@ object ProgressionAdvisor {
                 ProgressionAdvice.IncreaseWeight(
                     deltaKg = deltaKg,
                     suggestedWeightKg = newWeight,
-                    details = "Hit $minReps-$upperRep reps at $lastWeight kg"
+                    details = "Hit $minReps-$upperRep reps at $lastWeight kg",
+                    detailsId = "Tercapai $minReps-$upperRep rep pada $lastWeight kg"
                 )
             }
             // Working comfortably inside target rep range
@@ -93,14 +97,16 @@ object ProgressionAdvisor {
                 ProgressionAdvice.IncreaseReps(
                     targetReps = nextTargetRep,
                     suggestedWeightKg = lastWeight,
-                    details = "Averaged ${avgReps.toInt()} reps. Next step: $nextTargetRep reps before increasing weight"
+                    details = "Averaged ${avgReps.toInt()} reps. Next step: $nextTargetRep reps before increasing weight",
+                    detailsId = "Rata-rata ${avgReps.toInt()} rep. Target berikutnya: $nextTargetRep rep sebelum menaikkan beban"
                 )
             }
             // Below rep target
             else -> {
                 ProgressionAdvice.MaintainOrConsolidate(
                     suggestedWeightKg = lastWeight,
-                    details = "Completed $minReps reps (target: $lowerRep-$upperRep). Maintain load and recover"
+                    details = "Completed $minReps reps (target: $lowerRep-$upperRep). Maintain load and recover",
+                    detailsId = "Selesai $minReps rep (target: $lowerRep-$upperRep). Pertahankan beban dan pulihkan tenaga"
                 )
             }
         }

@@ -416,7 +416,7 @@ fun Modifier.isolateHorizontalScroll(): Modifier {
  */
 @OptIn(ExperimentalLayoutApi::class)
 fun Modifier.kumaKeyboardAvoidance(
-    enableNestedScroll: Boolean = true
+    enableNestedScroll: Boolean = false
 ): Modifier {
     return this
         .imePadding()
@@ -438,8 +438,7 @@ fun KumaKeyboardAwareScrollable(
     Column(
         modifier = modifier
             .verticalScroll(scrollState)
-            .imePadding()
-            .imeNestedScroll(),
+            .imePadding(),
         content = content
     )
 }

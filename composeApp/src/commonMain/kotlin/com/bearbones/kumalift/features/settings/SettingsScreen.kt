@@ -75,10 +75,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -163,69 +165,78 @@ fun SettingsScreen(
         }
     }
 
-    Crossfade(targetState = currentDestination) { destination ->
-        when (destination) {
-            SettingsDestination.MAIN -> {
-                SettingsMainMenu(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = onNavigateBack,
-                    onNavigateTo = { destinationStack.add(it) }
-                )
-            }
-            SettingsDestination.PROFILE -> {
-                ProfileSettingsPage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.ACCOUNT_USERNAME -> {
-                ChangeUsernamePage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.NOTIFICATIONS -> {
-                NotificationSettingsPage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.WORKOUTS -> {
-                WorkoutSettingsPage(
-                    settingsRepository = settingsRepository,
-                    workoutRepository = workoutRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.UNITS -> {
-                UnitsSettingsPage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.LANGUAGE -> {
-                LanguageSettingsPage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.THEME -> {
-                ThemeSettingsPage(
-                    settingsRepository = settingsRepository,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.EXPORT_IMPORT -> {
-                ExportImportDataPage(
-                    settingsRepository = settingsRepository,
-                    databaseRepo = databaseRepo,
-                    onNavigateBack = popDestination
-                )
-            }
-            SettingsDestination.ABOUT -> {
-                AboutSettingsPage(
-                    onNavigateBack = popDestination
-                )
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = KumaColors.CanvasLowest
+    ) {
+        Crossfade(targetState = currentDestination) { destination ->
+            when (destination) {
+                SettingsDestination.MAIN -> {
+                    SettingsMainMenu(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = onNavigateBack,
+                        onNavigateTo = { target ->
+                            if (destinationStack.lastOrNull() != target) {
+                                destinationStack.add(target)
+                            }
+                        }
+                    )
+                }
+                SettingsDestination.PROFILE -> {
+                    ProfileSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.ACCOUNT_USERNAME -> {
+                    ChangeUsernamePage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.NOTIFICATIONS -> {
+                    NotificationSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.WORKOUTS -> {
+                    WorkoutSettingsPage(
+                        settingsRepository = settingsRepository,
+                        workoutRepository = workoutRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.UNITS -> {
+                    UnitsSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.LANGUAGE -> {
+                    LanguageSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.THEME -> {
+                    ThemeSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.EXPORT_IMPORT -> {
+                    ExportImportDataPage(
+                        settingsRepository = settingsRepository,
+                        databaseRepo = databaseRepo,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.ABOUT -> {
+                    AboutSettingsPage(
+                        onNavigateBack = popDestination
+                    )
+                }
             }
         }
     }
@@ -975,6 +986,17 @@ private fun NotificationSettingsPage(
     var showCustomTimeDialog by remember { mutableStateOf(false) }
     var hasPostNotificationPermission by remember {
         mutableStateOf(workoutReminderManager.hasNotificationPermission())
+    }
+
+    // Dynamic sync on resume: automatically dismisses or restores the warning card
+    // when returning from system notification settings.
+    LifecycleResumeEffect(workoutReminderManager) {
+        val currentPermission = workoutReminderManager.hasNotificationPermission()
+        hasPostNotificationPermission = currentPermission
+        if (currentPermission && settings.notifications.workoutReminders) {
+            workoutReminderManager.syncSettings(settings.notifications, settings.appearance.language)
+        }
+        onPauseOrDispose { }
     }
 
     val requestNotificationPermission = rememberNotificationPermissionLauncher { granted ->

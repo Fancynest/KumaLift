@@ -709,4 +709,20 @@ object EnStrings : AppStrings {
     override fun diagnosticLogEntriesCount(count: Int) = "$count entries"
     override fun prCountLabel(count: Int) = "$count Personal Records"
     override val prBadge = "PR"
+
+    override val muscleFocusPush = "Chest · Shoulders · Triceps"
+    override val muscleFocusPull = "Back · Biceps"
+    override val muscleFocusCompound = "Compound Lifts"
+    override val muscleFocusConditioning = "Balanced Conditioning"
+
+    override val progressionHypertrophy = "Progressive overload with emphasis on time under tension (TUT) and controlled eccentric phase."
+    override val guidelineHypertrophy = "Moderate to high volume. Maximize muscle contraction and allow adequate rest for muscle glycogen recovery."
+    override val progressionStrength = "Linear load progression prioritizing percentage of 1RM intensity."
+    override val guidelineStrength = "Prioritize multi-joint compound movements (Bench, Squat, Deadlift, OHP). Longer rest periods for CNS recovery."
+    override val progressionEndurance = "Repetition progression, movement efficiency, and shortening rest intervals."
+    override val guidelineEndurance = "Light to moderate weights with high repetitions and short rest to condition muscular stamina and aerobic capacity."
+    override val progressionFatLoss = "Density training and metabolic resistance to maximize caloric expenditure."
+    override val guidelineFatLoss = "Combine compound resistance training with dynamic tempo and short rest to keep heart rate elevated."
+    override val progressionGeneral = "Holistic fitness balanced across strength, mobility, and cardiovascular health."
+    override val guidelineGeneral = "Full body balanced training to maintain daily vitality, functional posture, and joint mobility."
 }

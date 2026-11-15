@@ -674,4 +674,20 @@ interface AppStrings {
     fun diagnosticLogEntriesCount(count: Int): String
     fun prCountLabel(count: Int): String
     val prBadge: String
+
+    val muscleFocusPush: String
+    val muscleFocusPull: String
+    val muscleFocusCompound: String
+    val muscleFocusConditioning: String
+
+    val progressionHypertrophy: String
+    val guidelineHypertrophy: String
+    val progressionStrength: String
+    val guidelineStrength: String
+    val progressionEndurance: String
+    val guidelineEndurance: String
+    val progressionFatLoss: String
+    val guidelineFatLoss: String
+    val progressionGeneral: String
+    val guidelineGeneral: String
 }

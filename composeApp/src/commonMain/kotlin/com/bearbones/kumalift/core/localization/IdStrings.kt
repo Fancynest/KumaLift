@@ -709,4 +709,20 @@ object IdStrings : AppStrings {
     override fun diagnosticLogEntriesCount(count: Int) = "$count entri"
     override fun prCountLabel(count: Int) = "$count Rekor Pribadi"
     override val prBadge = "PR"
+
+    override val muscleFocusPush = "Dada · Bahu · Trisep"
+    override val muscleFocusPull = "Punggung · Bisep"
+    override val muscleFocusCompound = "Gerakan Majemuk"
+    override val muscleFocusConditioning = "Kondisi Seimbang"
+
+    override val progressionHypertrophy = "Beban bertahap (Progressive Overload), fokus pada waktu di bawah tegangan (TUT) dan kontrol fase eksentrik."
+    override val guidelineHypertrophy = "Volume moderat hingga tinggi. Fokus pada kontraksi otot maksimal dan istirahat cukup untuk pemulihan glikogen otot."
+    override val progressionStrength = "Progresi beban linear dengan fokus peningkatan beban angkatan (intensity % 1RM)."
+    override val guidelineStrength = "Prioritaskan gerakan compound multi-sendi (Bench, Squat, Deadlift, OHP). Istirahat lebih panjang untuk pemulihan sistem saraf pusat (CNS)."
+    override val progressionEndurance = "Peningkatan repetisi, efisiensi gerak, dan pemendekan interval istirahat."
+    override val guidelineEndurance = "Gunakan beban ringan hingga sedang dengan repetisi tinggi dan istirahat singkat untuk melatih daya tahan otot dan kapasitas aerobik/anaerobik."
+    override val progressionFatLoss = "Kepadatan latihan (density training) dan resistensi metabolik untuk memaksimalkan pembakaran kalori."
+    override val guidelineFatLoss = "Kombinasi compound resistance training dengan tempo dinamis dan istirahat singkat untuk menjaga denyut jantung tinggi dan membakar lemak optimal."
+    override val progressionGeneral = "Kebugaran holistik seimbang antara kekuatan, mobilitas, dan daya tahan tubuh."
+    override val guidelineGeneral = "Latihan seimbang seluruh tubuh (Full Body) untuk menjaga stamina harian, postur sehat, dan mobilitas sendi."
 }

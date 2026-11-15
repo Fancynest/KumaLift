@@ -37,12 +37,11 @@ actual fun ExerciseThumbnailMedia(
     val normalizedPath = assetPath.removePrefix("/")
     val assetUri = "file:///android_asset/$normalizedPath"
 
-    // Native 180x180 resolution with ARGB_8888; allowHardware(false) eliminates texture-upload black flickers during scroll
+    // Native 180x180 resolution with hardware bitmaps; allowHardware(true) renders via GPU hardware buffers without UI-thread texture upload stalls
     val imageRequest = remember(assetUri) {
         ImageRequest.Builder(context)
             .data(assetUri)
-            .bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888)
-            .allowHardware(false)
+            .allowHardware(true)
             .memoryCacheKey(assetUri)
             .crossfade(false)
             .build()

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -220,43 +221,50 @@ fun App() {
                 }
 
                 // Fullscreen overlays rendered above tab content
-                when (navigator.currentOverlay) {
-                    is Overlay.ActiveLogger -> {
-                        ActiveWorkoutLoggerScreen(
-                            workoutRepository = workoutRepository,
-                            settingsRepository = settingsRepository,
-                            onNavigateBack = { navigator.back() },
-                            onFinishWorkout = {
-                                navigator.popOverlay()
-                                navigator.push(Overlay.Summary)
-                            },
-                            onAddExerciseClick = {
-                                navigator.popOverlay()
-                                navigator.selectTab(Tab.LIBRARY)
+                if (navigator.currentOverlay != null) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = KumaColors.CanvasLowest
+                    ) {
+                        when (navigator.currentOverlay) {
+                            is Overlay.ActiveLogger -> {
+                                ActiveWorkoutLoggerScreen(
+                                    workoutRepository = workoutRepository,
+                                    settingsRepository = settingsRepository,
+                                    onNavigateBack = { navigator.back() },
+                                    onFinishWorkout = {
+                                        navigator.popOverlay()
+                                        navigator.push(Overlay.Summary)
+                                    },
+                                    onAddExerciseClick = {
+                                        navigator.popOverlay()
+                                        navigator.selectTab(Tab.LIBRARY)
+                                    }
+                                )
                             }
-                        )
-                    }
-                    is Overlay.Summary -> {
-                        val lastCompleted = workoutRepository.completedWorkouts.collectAsState().value.firstOrNull()
-                        WorkoutSummaryScreen(
-                            workout = activeWorkout ?: lastCompleted,
-                            workoutRepository = workoutRepository,
-                            settingsRepository = settingsRepository,
-                            onSaveAndClose = {
-                                navigator.popOverlay()
-                                navigator.selectTab(Tab.HOME)
+                            is Overlay.Summary -> {
+                                val lastCompleted = workoutRepository.completedWorkouts.collectAsState().value.firstOrNull()
+                                WorkoutSummaryScreen(
+                                    workout = activeWorkout ?: lastCompleted,
+                                    workoutRepository = workoutRepository,
+                                    settingsRepository = settingsRepository,
+                                    onSaveAndClose = {
+                                        navigator.popOverlay()
+                                        navigator.selectTab(Tab.HOME)
+                                    }
+                                )
                             }
-                        )
+                            is Overlay.Settings -> {
+                                SettingsScreen(
+                                    settingsRepository = settingsRepository,
+                                    databaseRepo = databaseRepo,
+                                    workoutRepository = workoutRepository,
+                                    onNavigateBack = { navigator.back() }
+                                )
+                            }
+                            null -> Unit
+                        }
                     }
-                    is Overlay.Settings -> {
-                        SettingsScreen(
-                            settingsRepository = settingsRepository,
-                            databaseRepo = databaseRepo,
-                            workoutRepository = workoutRepository,
-                            onNavigateBack = { navigator.back() }
-                        )
-                    }
-                    null -> Unit
                 }
             }
         }

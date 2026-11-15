@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -142,7 +143,7 @@ fun HomeScreen(
     val targetBadge = s.goalProgress(targetPct, weekWorkoutsCount, targetGoalWorkouts)
     val prBadge = s.prRecordsCount(prList.size)
 
-    var backupBannerDismissed by remember { mutableStateOf(false) }
+    var backupBannerDismissed by rememberSaveable { mutableStateOf(false) }
     val backupReminderDays = settings.dataBackup.backupReminderDays
     val lastBackupMs = settings.dataBackup.lastBackupEpochMs
     val isBackupDue = remember(backupReminderDays, lastBackupMs, backupBannerDismissed) {

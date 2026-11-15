@@ -544,4 +544,16 @@ object EnStrings : AppStrings {
     override val failedToMergeBackup = "Failed to merge backup."
     override val workoutHistoryClearedSuccess = "Workout history cleared successfully."
     override val allDataDeletedSuccess = "All data deleted. App restored to fresh install."
+
+    // Diagnostic Logging & Set Management
+    override val diagnosticLogHeader = "DIAGNOSTIC LOGGING"
+    override val localLoggingTitle = "Local Diagnostic Log"
+    override val localLoggingSubtitle = "Write rotating logs locally to diagnose unexpected state or issues"
+    override val exportDiagnosticLogTitle = "Export Diagnostic Log"
+    override val exportDiagnosticLogSubtitle = "Share rotating log file for offline troubleshooting"
+    override val clearDiagnosticLogTitle = "Clear Diagnostic Log"
+    override val clearDiagnosticLogSubtitle = "Erase all current log entries from memory"
+    override val diagnosticLogCleared = "Diagnostic log entries cleared."
+    override val noDiagnosticLogsYet = "No diagnostic log entries recorded yet."
+    override val removeLastSetAction = "Remove Last Set"
 }

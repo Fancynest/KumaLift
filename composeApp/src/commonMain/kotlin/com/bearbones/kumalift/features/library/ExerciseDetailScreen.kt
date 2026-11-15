@@ -53,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,12 +93,12 @@ fun ExerciseDetailScreen(
     onSaveNote: ((String) -> Unit)? = null
 ) {
     val s = LocalStrings.current
-    var selectedTab by remember { mutableStateOf(ExerciseDetailTab.SUMMARY) }
-    var selectedMetric by remember { mutableStateOf(MetricSwitcherType.HEAVIEST_WEIGHT) }
-    var showNoteDialog by remember { mutableStateOf(false) }
-    var currentNote by remember { mutableStateOf(exercise.pinnedNote) }
+    var selectedTab by rememberSaveable { mutableStateOf(ExerciseDetailTab.SUMMARY) }
+    var selectedMetric by rememberSaveable { mutableStateOf(MetricSwitcherType.HEAVIEST_WEIGHT) }
+    var showNoteDialog by rememberSaveable { mutableStateOf(false) }
+    var currentNote by remember(exercise.pinnedNote) { mutableStateOf(exercise.pinnedNote) }
     var showHelpDialog by remember { mutableStateOf<String?>(null) }
-    var showTipDialog by remember { mutableStateOf(false) }
+    var showTipDialog by rememberSaveable { mutableStateOf(false) }
 
     val steps = remember(exercise) {
         exercise.getEffectiveSteps()

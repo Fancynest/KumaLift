@@ -25,10 +25,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -392,6 +396,15 @@ fun ActiveWorkoutLoggerScreen(
                             },
                             onAddSet = {
                                 workoutRepository.addSetToExercise(we.id)
+                            },
+                            onRemoveLastSet = {
+                                val lastSet = we.sets.lastOrNull()
+                                if (lastSet != null) {
+                                    workoutRepository.removeSetFromExercise(we.id, lastSet.id)
+                                }
+                            },
+                            onRemoveExercise = {
+                                workoutRepository.removeExerciseFromActiveWorkout(we.id)
                             }
                         )
                     }
@@ -595,10 +608,13 @@ fun ExerciseLoggingCard(
     onUpdateSet: (String, Double, Int) -> Unit,
     onUpdateSetType: (String, SetType) -> Unit,
     onUpdateSetRpe: (String, Double?) -> Unit,
-    onAddSet: () -> Unit
+    onAddSet: () -> Unit,
+    onRemoveLastSet: () -> Unit = {},
+    onRemoveExercise: () -> Unit = {}
 ) {
     val exercise = workoutExercise.exercise
     val s = LocalStrings.current
+    var showMenu by remember { mutableStateOf(false) }
 
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
@@ -633,6 +649,39 @@ fun ExerciseLoggingCard(
                             fontWeight = FontWeight.Bold
                         )
                     )
+                }
+
+                Box {
+                    IconButton(
+                        onClick = { showMenu = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = null,
+                            tint = KumaColors.TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(s.removeExerciseAction, color = KumaColors.ErrorRed) },
+                            onClick = {
+                                showMenu = false
+                                onRemoveExercise()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = KumaColors.ErrorRed
+                                )
+                            }
+                        )
+                    }
                 }
             }
 
@@ -706,23 +755,46 @@ fun ExerciseLoggingCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Add Set Button
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(KumaColors.SurfaceContainer)
-                    .clickable(onClick = onAddSet),
-                contentAlignment = Alignment.Center
+            // Add / Remove Set Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = s.addSetButton,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = KumaColors.OnSurface,
-                        fontWeight = FontWeight.SemiBold
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable(onClick = onAddSet),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = s.addSetButton,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            color = KumaColors.OnSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
-                )
+                }
+                if (workoutExercise.sets.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .clickable(onClick = onRemoveLastSet),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = s.removeLastSetAction,
+                            tint = KumaColors.TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
     }

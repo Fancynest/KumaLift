@@ -7,10 +7,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.bearbones.kumalift.app.App
+import com.bearbones.kumalift.core.timer.AndroidAppProvider
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidAppProvider.appContext = applicationContext
         window.setBackgroundDrawableResource(android.R.color.black)
         enableEdgeToEdge()
         configureHighRefreshRate(window)

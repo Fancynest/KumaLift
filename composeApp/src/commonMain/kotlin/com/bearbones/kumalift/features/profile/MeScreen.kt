@@ -49,6 +49,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,7 +102,7 @@ fun MeScreen(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
 
-    var selectedMetric by remember { mutableStateOf(AnalyticsMetric.VOLUME) }
+    var selectedMetric by rememberSaveable { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
 

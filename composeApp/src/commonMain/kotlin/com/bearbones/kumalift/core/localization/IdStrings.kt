@@ -544,4 +544,16 @@ object IdStrings : AppStrings {
     override val failedToMergeBackup = "Gagal menggabungkan cadangan."
     override val workoutHistoryClearedSuccess = "Riwayat latihan berhasil dibersihkan."
     override val allDataDeletedSuccess = "Semua data telah dihapus. Aplikasi kembali ke kondisi awal."
+
+    // Diagnostic Logging & Set Management
+    override val diagnosticLogHeader = "PENCATATAN DIAGNOSTIK"
+    override val localLoggingTitle = "Catatan Diagnostik Lokal"
+    override val localLoggingSubtitle = "Tulis log berputar di perangkat untuk mendiagnosis kendala teknis"
+    override val exportDiagnosticLogTitle = "Ekspor Catatan Diagnostik"
+    override val exportDiagnosticLogSubtitle = "Bagikan file log untuk pemecahan masalah luring"
+    override val clearDiagnosticLogTitle = "Bersihkan Catatan Diagnostik"
+    override val clearDiagnosticLogSubtitle = "Hapus seluruh catatan log yang ada di memori"
+    override val diagnosticLogCleared = "Catatan log diagnostik berhasil dibersihkan."
+    override val noDiagnosticLogsYet = "Belum ada catatan log diagnostik yang terekam."
+    override val removeLastSetAction = "Hapus Set Terakhir"
 }

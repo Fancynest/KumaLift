@@ -80,6 +80,7 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
 import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
@@ -2491,7 +2492,88 @@ private fun ExportImportDataPage(
                     }
                 }
 
-                // Section 3: Read-only Data Metrics
+                // Section 3: Diagnostic Logging
+                item {
+                    Text(
+                        text = s.diagnosticLogHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = s.localLoggingTitle,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = s.localLoggingSubtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Switch(
+                                    checked = settings.security.localLogging,
+                                    onCheckedChange = { checked: Boolean ->
+                                        settingsRepository.update { curr ->
+                                            curr.copy(security = curr.security.copy(localLogging = checked))
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = colors.accentText,
+                                        checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
+                                    )
+                                )
+                            }
+                            if (settings.security.localLogging) {
+                                SettingsDivider()
+                                SettingsNavigationRow(
+                                    icon = Icons.Default.FileDownload,
+                                    title = s.exportDiagnosticLogTitle,
+                                    subtitle = "${s.exportDiagnosticLogSubtitle} (${KumaLogger.logCount()} entries)",
+                                    onClick = {
+                                        val logs = KumaLogger.getLogs()
+                                        if (logs.isNotBlank()) {
+                                            val now = currentEpochMillis()
+                                            exportLauncher("kumalift_diagnostic_$now.log", logs)
+                                        } else {
+                                            statusMessage = s.noDiagnosticLogsYet
+                                        }
+                                    }
+                                )
+                                SettingsDivider()
+                                SettingsNavigationRow(
+                                    icon = Icons.Default.DeleteForever,
+                                    title = s.clearDiagnosticLogTitle,
+                                    subtitle = s.clearDiagnosticLogSubtitle,
+                                    onClick = {
+                                        KumaLogger.clear()
+                                        statusMessage = s.diagnosticLogCleared
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Section 4: Read-only Data Metrics
                 item {
                     Text(
                         text = s.storageStatusHeader,

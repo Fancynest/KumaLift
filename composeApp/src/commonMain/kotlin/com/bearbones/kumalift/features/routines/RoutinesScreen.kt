@@ -73,7 +73,7 @@ fun RoutinesScreen(
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val allCategoryLabel = s.allProgramsCategory
     var selectedCategory by rememberSaveable(s.allProgramsCategory) { mutableStateOf(allCategoryLabel) }
-    var showCreateRoutineScreen by remember { mutableStateOf(false) }
+    var showCreateRoutineScreen by rememberSaveable { mutableStateOf(false) }
 
     // T10: Handle back when create routine modal is open
     KumaBackHandler(enabled = showCreateRoutineScreen) {

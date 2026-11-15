@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
+import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -105,6 +107,10 @@ fun App() {
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
     val appStrings = resolveAppStrings(settings.appearance.language)
+
+    LaunchedEffect(settings.security.localLogging) {
+        KumaLogger.isEnabled = settings.security.localLogging
+    }
 
     // Root back handler: Screen-specific sub-navigation handlers (e.g. ExerciseDetail,
     // CreateExercise, Settings sub-menus) register their own KumaBackHandler inside their
@@ -222,11 +228,13 @@ fun App() {
                         )
                     }
                     is Overlay.Summary -> {
+                        val lastCompleted = workoutRepository.completedWorkouts.collectAsState().value.firstOrNull()
                         WorkoutSummaryScreen(
-                            workout = activeWorkout,
+                            workout = activeWorkout ?: lastCompleted,
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
                             onSaveAndClose = {
+                                navigator.popOverlay()
                                 navigator.selectTab(Tab.HOME)
                             }
                         )

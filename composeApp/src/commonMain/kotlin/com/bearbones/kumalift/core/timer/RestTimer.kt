@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.timer
 
+import com.bearbones.kumalift.core.util.currentEpochMillis
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,9 +39,12 @@ class RestTimer(private val scope: CoroutineScope) {
     val state: StateFlow<RestTimerState> = _state.asStateFlow()
 
     private var countdownJob: Job? = null
+    private var targetEndEpochMs: Long = 0L
 
     fun start(seconds: Int = 90) {
         countdownJob?.cancel()
+        val now = currentEpochMillis()
+        targetEndEpochMs = now + seconds * 1000L
         _state.value = RestTimerState(
             totalSeconds = seconds,
             remainingSeconds = seconds,
@@ -49,18 +53,20 @@ class RestTimer(private val scope: CoroutineScope) {
         )
 
         countdownJob = scope.launch(Dispatchers.Default) {
-            while (_state.value.remainingSeconds > 0 && _state.value.isRunning) {
-                delay(1000)
-                val currentRemaining = _state.value.remainingSeconds - 1
-                if (currentRemaining <= 0) {
+            while (_state.value.isRunning) {
+                delay(250)
+                val currentNow = currentEpochMillis()
+                val remaining = ((targetEndEpochMs - currentNow + 999L) / 1000L).coerceAtLeast(0L).toInt()
+                if (remaining <= 0) {
                     _state.value = _state.value.copy(
                         remainingSeconds = 0,
                         isRunning = false,
                         isFinished = true
                     )
                     playTimerCompletionFeedback()
+                    break
                 } else {
-                    _state.value = _state.value.copy(remainingSeconds = currentRemaining)
+                    _state.value = _state.value.copy(remainingSeconds = remaining)
                 }
             }
         }
@@ -70,6 +76,7 @@ class RestTimer(private val scope: CoroutineScope) {
         val current = _state.value
         val newRemaining = (current.remainingSeconds + seconds).coerceAtLeast(0)
         val newTotal = (current.totalSeconds + seconds).coerceAtLeast(newRemaining)
+        targetEndEpochMs += seconds * 1000L
         _state.value = current.copy(
             totalSeconds = newTotal,
             remainingSeconds = newRemaining,

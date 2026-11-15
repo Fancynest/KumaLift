@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.data.repository
 
+import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.util.IdGenerator
 import com.bearbones.kumalift.core.util.OneRepMaxCalculator
 import com.bearbones.kumalift.core.util.currentEpochMillis
@@ -231,6 +232,7 @@ class PersonalRecordRepository(
 
             // T5: Side effects run strictly outside StateFlow.update
             databaseRepo?.savePersonalRecord(newPr)
+            KumaLogger.i("PersonalRecord", "New PR detected for ${exercise.name}: ${weightKg}kg x $reps ($tier)")
             return newPr
         }
         return null
@@ -422,6 +424,7 @@ class WorkoutRepository(
 
         _activeWorkout.value = newWorkout
         databaseRepo?.saveActiveWorkout(newWorkout)
+        KumaLogger.i("WorkoutRepository", "Started workout from routine '${routine.title}' with ${workoutExercises.size} exercises")
     }
 
     fun startEmptyWorkout(title: String = "Freestyle Workout") {
@@ -436,6 +439,7 @@ class WorkoutRepository(
         )
         _activeWorkout.value = newWorkout
         databaseRepo?.saveActiveWorkout(newWorkout)
+        KumaLogger.i("WorkoutRepository", "Started freestyle workout: $title")
     }
 
     fun toggleSetCompletion(
@@ -611,6 +615,7 @@ class WorkoutRepository(
     }
 
     fun removeSetFromExercise(exerciseId: String, setId: String) {
+        val targetExercise = _activeWorkout.value?.exercises?.find { we -> we.id == exerciseId || we.exercise.id == exerciseId }?.exercise
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
@@ -624,8 +629,14 @@ class WorkoutRepository(
             }
             currentWorkout.copy(exercises = updatedExercises)
         }
-        prRepository.revokePrBySetId(setId)
+        val allHistory = _completedWorkouts.value + listOfNotNull(_activeWorkout.value)
+        prRepository.revokePrBySetId(
+            sourceSetId = setId,
+            exerciseId = targetExercise?.id,
+            allWorkouts = allHistory
+        )
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+        KumaLogger.i("WorkoutRepository", "Removed set $setId from exercise $exerciseId")
     }
 
     fun addExerciseToActiveWorkout(exercise: Exercise) {
@@ -669,11 +680,22 @@ class WorkoutRepository(
     }
 
     fun removeExerciseFromActiveWorkout(workoutExerciseId: String) {
+        val exerciseToRemove = _activeWorkout.value?.exercises?.find { it.id == workoutExerciseId || it.exercise.id == workoutExerciseId }
+        val targetExerciseId = exerciseToRemove?.exercise?.id
+        val setIds = exerciseToRemove?.sets?.map { it.id } ?: emptyList()
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             currentWorkout.copy(exercises = currentWorkout.exercises.filterNot { it.id == workoutExerciseId || it.exercise.id == workoutExerciseId })
         }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+        setIds.forEach { setId ->
+            prRepository.revokePrBySetId(setId)
+        }
+        if (targetExerciseId != null) {
+            val allHistory = _completedWorkouts.value + listOfNotNull(_activeWorkout.value)
+            prRepository.recomputePersonalRecordsForExercise(targetExerciseId, allHistory, calculationSettingsProvider())
+        }
+        KumaLogger.i("WorkoutRepository", "Removed exercise $workoutExerciseId from active workout")
     }
 
     fun updateWorkoutNotes(notes: String) {
@@ -709,6 +731,7 @@ class WorkoutRepository(
         // T1: Persist to database and clear active state
         databaseRepo?.saveCompletedWorkout(finished)
         databaseRepo?.clearActiveWorkout()
+        KumaLogger.i("WorkoutRepository", "Finished workout '${finished.title}' (${finished.id}) - duration ${durationSec}s, volume ${finished.totalVolumeKg}kg, sets ${finished.totalCompletedSets}")
 
         return finished
     }

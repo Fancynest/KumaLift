@@ -514,4 +514,16 @@ interface AppStrings {
     val failedToMergeBackup: String
     val workoutHistoryClearedSuccess: String
     val allDataDeletedSuccess: String
+
+    // Diagnostic Logging & Set Management
+    val diagnosticLogHeader: String
+    val localLoggingTitle: String
+    val localLoggingSubtitle: String
+    val exportDiagnosticLogTitle: String
+    val exportDiagnosticLogSubtitle: String
+    val clearDiagnosticLogTitle: String
+    val clearDiagnosticLogSubtitle: String
+    val diagnosticLogCleared: String
+    val noDiagnosticLogsYet: String
+    val removeLastSetAction: String
 }

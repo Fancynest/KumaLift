@@ -41,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,21 +85,22 @@ fun ExerciseLibraryScreen(
     listState: LazyListState = rememberLazyListState(),
     onExerciseSelected: ((Exercise) -> Unit)? = null
 ) {
-    var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
-    var isCreatingExercise by remember { mutableStateOf(false) }
+    var selectedExerciseId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isCreatingExercise by rememberSaveable { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
+    val selectedExerciseForDetail = allExercises.find { it.id == selectedExerciseId }
 
     // T10: Sub-navigation back handlers
-    KumaBackHandler(enabled = selectedExerciseForDetail != null) {
-        selectedExerciseForDetail = null
+    KumaBackHandler(enabled = selectedExerciseId != null) {
+        selectedExerciseId = null
     }
-    KumaBackHandler(enabled = isCreatingExercise && selectedExerciseForDetail == null) {
+    KumaBackHandler(enabled = isCreatingExercise && selectedExerciseId == null) {
         isCreatingExercise = false
     }
 
     Crossfade(
         targetState = when {
-            selectedExerciseForDetail != null -> LibraryViewState.DETAIL
+            selectedExerciseId != null -> LibraryViewState.DETAIL
             isCreatingExercise -> LibraryViewState.CREATE
             else -> LibraryViewState.CATALOG
         }
@@ -111,7 +113,7 @@ fun ExerciseLibraryScreen(
                     val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
                     ExerciseDetailScreen(
                         exercise = liveExercise,
-                        onNavigateBack = { selectedExerciseForDetail = null },
+                        onNavigateBack = { selectedExerciseId = null },
                         onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
                             {
                                 workoutRepository.addExerciseToActiveWorkout(liveExercise)
@@ -136,7 +138,7 @@ fun ExerciseLibraryScreen(
                             movementType = movementType
                         )
                         isCreatingExercise = false
-                        selectedExerciseForDetail = created
+                        selectedExerciseId = created.id
                     }
                 )
             }
@@ -146,7 +148,7 @@ fun ExerciseLibraryScreen(
                     workoutRepository = workoutRepository,
                     filterState = filterState,
                     listState = listState,
-                    onOpenDetail = { selectedExerciseForDetail = it },
+                    onOpenDetail = { selectedExerciseId = it.id },
                     onOpenCreate = { isCreatingExercise = true },
                     onAddExercise = { exercise ->
                         workoutRepository?.addExerciseToActiveWorkout(exercise)

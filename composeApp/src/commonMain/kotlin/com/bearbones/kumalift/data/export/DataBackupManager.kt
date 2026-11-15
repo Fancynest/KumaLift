@@ -2,6 +2,7 @@ package com.bearbones.kumalift.data.export
 
 import com.bearbones.kumalift.core.localization.AppStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
+import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.local.ExerciseDataset
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
@@ -79,7 +80,9 @@ class DataBackupManager(
 
     fun exportJson(settings: UserSettings): String {
         val payload = createBackupPayload(settings)
-        return json.encodeToString(payload)
+        val jsonStr = json.encodeToString(payload)
+        KumaLogger.i("DataBackup", "Exported backup JSON (${jsonStr.length} chars, ${payload.workouts.size} workouts)")
+        return jsonStr
     }
 
     fun exportCsvFiles(settings: UserSettings): Map<String, String> {
@@ -143,6 +146,7 @@ class DataBackupManager(
         val backup = try {
             json.decodeFromString<KumaBackupData>(jsonString)
         } catch (e: Exception) {
+            KumaLogger.e("DataBackup", "Failed to decode backup JSON: ${e.message}", e)
             return ImportResult(
                 success = false,
                 message = strings.backupInvalidJson(e.message ?: "")
@@ -150,6 +154,7 @@ class DataBackupManager(
         }
 
         if (backup.schemaVersion > 1) {
+            KumaLogger.w("DataBackup", "Backup schema version ${backup.schemaVersion} is newer than current (1)")
             return ImportResult(
                 success = false,
                 message = strings.backupNewerVersion(backup.schemaVersion)

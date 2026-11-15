@@ -121,10 +121,11 @@ fun MuscleRecoveryCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 recoveryStates.take(6).forEach { state ->
+                    val colors = LocalKumaColors.current
                     val (statusColor, statusText) = when (state.status) {
-                        MuscleRecoveryStatus.FRESH -> Pair(Color(0xFF10B981), s.recoveryFresh)
-                        MuscleRecoveryStatus.RECOVERING -> Pair(Color(0xFFF59E0B), s.recoveryRecovering)
-                        MuscleRecoveryStatus.FATIGUED -> Pair(Color(0xFFEF4444), s.recoveryFatigued)
+                        MuscleRecoveryStatus.FRESH -> Pair(colors.recoveryFresh, s.recoveryFresh)
+                        MuscleRecoveryStatus.RECOVERING -> Pair(colors.recoveryTired, s.recoveryRecovering)
+                        MuscleRecoveryStatus.FATIGUED -> Pair(colors.recoveryExhausted, s.recoveryFatigued)
                     }
 
                     Row(
@@ -197,10 +198,11 @@ fun MuscleRecoveryDetailDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 recoveryStates.forEach { state ->
+                    val colors = LocalKumaColors.current
                     val (statusColor, statusText) = when (state.status) {
-                        MuscleRecoveryStatus.FRESH -> Pair(Color(0xFF10B981), s.recoveryFresh)
-                        MuscleRecoveryStatus.RECOVERING -> Pair(Color(0xFFF59E0B), s.recoveryRecovering)
-                        MuscleRecoveryStatus.FATIGUED -> Pair(Color(0xFFEF4444), s.recoveryFatigued)
+                        MuscleRecoveryStatus.FRESH -> Pair(colors.recoveryFresh, s.recoveryFresh)
+                        MuscleRecoveryStatus.RECOVERING -> Pair(colors.recoveryTired, s.recoveryRecovering)
+                        MuscleRecoveryStatus.FATIGUED -> Pair(colors.recoveryExhausted, s.recoveryFatigued)
                     }
 
                     Column(

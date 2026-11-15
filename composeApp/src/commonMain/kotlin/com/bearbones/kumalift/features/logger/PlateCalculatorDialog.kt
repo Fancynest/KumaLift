@@ -260,7 +260,7 @@ fun PlateCalculatorDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp)
-                            .background(Color(0xFF141416), RoundedCornerShape(10.dp)),
+                            .background(colors.plateTrack, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         // Barbell shaft line
@@ -268,7 +268,7 @@ fun PlateCalculatorDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(12.dp)
-                                .background(Color(0xFF5A6065))
+                                .background(colors.plateBarbell)
                         )
 
                         // Center Barbell Sleeve with Plates
@@ -281,7 +281,7 @@ fun PlateCalculatorDialog(
                                 modifier = Modifier
                                     .width(10.dp)
                                     .height(55.dp)
-                                    .background(Color(0xFF374151), RoundedCornerShape(2.dp))
+                                    .background(colors.plateSleeve, RoundedCornerShape(2.dp))
                             )
                             Spacer(modifier = Modifier.width(3.dp))
 
@@ -297,6 +297,15 @@ fun PlateCalculatorDialog(
                             } else {
                                 // Draw plates from largest to smallest
                                 calcResult.platesPerSide.forEach { plateCount ->
+                                    val (plateColor, onPlateColor) = when (plateCount.weightKg) {
+                                        25.0 -> Pair(colors.plateRed, colors.onPlateRed)
+                                        20.0 -> Pair(colors.plateBlue, colors.onPlateBlue)
+                                        15.0 -> Pair(colors.plateYellow, colors.onPlateYellow)
+                                        10.0 -> Pair(colors.plateGreen, colors.onPlateGreen)
+                                        5.0 -> Pair(colors.plateWhite, colors.onPlateWhite)
+                                        2.5 -> Pair(colors.plateBlack, colors.onPlateBlack)
+                                        else -> Pair(colors.plateGray, colors.onPlateGray)
+                                    }
                                     repeat(plateCount.countPerSide) {
                                         val plateHeight = (80 * plateCount.heightFraction).dp
                                         Box(
@@ -304,14 +313,14 @@ fun PlateCalculatorDialog(
                                                 .width(16.dp)
                                                 .height(plateHeight)
                                                 .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(plateCount.hexColor))
-                                                .border(1.dp, Color.Black.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
+                                                .background(plateColor)
+                                                .border(1.dp, colors.borderStrong.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
                                                 text = plateCount.weightKg.toString().removeSuffix(".0"),
                                                 style = MaterialTheme.typography.labelSmall.copy(
-                                                    color = if (plateCount.hexColor == 0xFFFAFAFA || plateCount.hexColor == 0xFFFDD835) Color.Black else Color.White,
+                                                    color = onPlateColor,
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.ExtraBold
                                                 )
@@ -334,6 +343,15 @@ fun PlateCalculatorDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             calcResult.platesPerSide.forEach { item ->
+                                val chipPlateColor = when (item.weightKg) {
+                                    25.0 -> colors.plateRed
+                                    20.0 -> colors.plateBlue
+                                    15.0 -> colors.plateYellow
+                                    10.0 -> colors.plateGreen
+                                    5.0 -> colors.plateWhite
+                                    2.5 -> colors.plateBlack
+                                    else -> colors.plateGray
+                                }
                                 Row(
                                     modifier = Modifier
                                         .clip(PillShape)
@@ -346,7 +364,7 @@ fun PlateCalculatorDialog(
                                         modifier = Modifier
                                             .size(10.dp)
                                             .clip(CircleShape)
-                                            .background(Color(item.hexColor))
+                                            .background(chipPlateColor)
                                     )
                                     Text(
                                         text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg)} ${s.unitKg}",

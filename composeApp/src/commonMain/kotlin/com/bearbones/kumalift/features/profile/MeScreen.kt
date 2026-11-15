@@ -217,7 +217,7 @@ fun MeScreen(
                             modifier = Modifier
                                 .size(76.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF111317))
+                                .background(colors.surfaceVariant)
                                 .border(2.dp, colors.accentText.copy(alpha = 0.5f), CircleShape)
                                 .clickable { showEditProfileDialog = true },
                             contentAlignment = Alignment.Center
@@ -912,7 +912,7 @@ private fun EditProfileModal(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF111317))
+                        .background(colors.surfaceVariant)
                         .border(2.dp, colors.accentText, CircleShape)
                         .clickable { imagePicker() },
                     contentAlignment = Alignment.Center

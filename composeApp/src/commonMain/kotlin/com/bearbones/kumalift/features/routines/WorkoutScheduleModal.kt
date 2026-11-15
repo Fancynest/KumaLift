@@ -167,7 +167,7 @@ fun WorkoutScheduleModal(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isPresetActive) colors.accentFill.copy(alpha = 0.15f) else KumaColors.SurfaceContainer)
+                            .background(if (isPresetActive) colors.dayActiveBg else KumaColors.SurfaceContainer)
                             .border(
                                 1.dp,
                                 if (isPresetActive) colors.accentFill else Color.Transparent,
@@ -185,14 +185,14 @@ fun WorkoutScheduleModal(
                             text = preset.title,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = if (isPresetActive) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isPresetActive) colors.accentText else colors.textPrimary
+                                color = if (isPresetActive) colors.dayActiveText else colors.textPrimary
                             )
                         )
                         if (isPresetActive) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = colors.accentText,
+                                tint = colors.dayActiveText,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
+
 @Composable
 actual fun ControllableGifPlayer(
     assetPath: String?,
@@ -22,13 +24,13 @@ actual fun ControllableGifPlayer(
     modifier: Modifier
 ) {
     Box(
-        modifier = modifier.background(Color(0xFF161A22)),
+        modifier = modifier.background(LocalKumaColors.current.mediaPlaceholder),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Default.FitnessCenter,
             contentDescription = contentDescription,
-            tint = Color(0xFF4B5563),
+            tint = LocalKumaColors.current.mediaPlaceholderIcon,
             modifier = Modifier.size(48.dp)
         )
     }

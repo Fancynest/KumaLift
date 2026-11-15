@@ -557,7 +557,7 @@ private fun ProfileSettingsPage(
                             modifier = Modifier
                                 .size(90.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF111317))
+                                .background(colors.surfaceVariant)
                                 .border(2.dp, colors.accentText, CircleShape)
                                 .clickable { imagePicker() },
                             contentAlignment = Alignment.Center

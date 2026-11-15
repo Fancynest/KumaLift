@@ -330,7 +330,7 @@ fun ActiveWorkoutLoggerScreen(
                                                 .background(if (workout.isPaused) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerHigh)
                                                 .border(
                                                     1.dp,
-                                                    if (workout.isPaused) Color(0xFFF59E0B) else KumaColors.BorderDefault,
+                                                    if (workout.isPaused) LocalKumaColors.current.warning else KumaColors.BorderDefault,
                                                     RoundedCornerShape(10.dp)
                                                 )
                                                 .clickable {
@@ -347,13 +347,13 @@ fun ActiveWorkoutLoggerScreen(
                                             Icon(
                                                 imageVector = if (workout.isPaused) Icons.Default.PlayArrow else Icons.Default.Timer,
                                                 contentDescription = null,
-                                                tint = if (workout.isPaused) Color(0xFFF59E0B) else LocalKumaColors.current.accentText,
+                                                tint = if (workout.isPaused) LocalKumaColors.current.warning else LocalKumaColors.current.accentText,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Text(
                                                 text = formattedTimer,
                                                 style = MaterialTheme.typography.titleMedium.copy(
-                                                    color = if (workout.isPaused) Color(0xFFF59E0B) else LocalKumaColors.current.textPrimary,
+                                                    color = if (workout.isPaused) LocalKumaColors.current.warning else LocalKumaColors.current.textPrimary,
                                                     fontWeight = FontWeight.Bold
                                                 ),
                                                 maxLines = 1,
@@ -405,7 +405,7 @@ fun ActiveWorkoutLoggerScreen(
                         item {
                             KumaCard(
                                 modifier = Modifier.fillMaxWidth(),
-                                backgroundColor = Color(0xFF2A2015),
+                                backgroundColor = LocalKumaColors.current.warningTint,
                                 cornerRadius = 14.dp
                             ) {
                                 Row(
@@ -424,13 +424,13 @@ fun ActiveWorkoutLoggerScreen(
                                             modifier = Modifier
                                                 .size(36.dp)
                                                 .clip(CircleShape)
-                                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                                                .background(LocalKumaColors.current.warning.copy(alpha = 0.2f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Timer,
                                                 contentDescription = null,
-                                                tint = Color(0xFFF59E0B),
+                                                tint = LocalKumaColors.current.warning,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -439,7 +439,7 @@ fun ActiveWorkoutLoggerScreen(
                                                 text = s.pauseWorkoutButton.uppercase(),
                                                 style = MaterialTheme.typography.labelMedium.copy(
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFF59E0B)
+                                                    color = LocalKumaColors.current.warning
                                                 )
                                             )
                                             Text(
@@ -453,7 +453,7 @@ fun ActiveWorkoutLoggerScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(PillShape)
-                                            .background(Color(0xFFF59E0B))
+                                            .background(LocalKumaColors.current.warning)
                                             .clickable { workoutRepository.resumeWorkout() }
                                             .padding(horizontal = 14.dp, vertical = 8.dp),
                                         contentAlignment = Alignment.Center
@@ -462,7 +462,7 @@ fun ActiveWorkoutLoggerScreen(
                                             text = s.resumeWorkoutButton,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color.Black
+                                                color = LocalKumaColors.current.onWarning
                                             )
                                         )
                                     }
@@ -850,8 +850,8 @@ fun ExerciseLoggingCard(
                 Row(
                     modifier = Modifier
                         .clip(PillShape)
-                        .background(Color(0xFF06B6D4).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFF06B6D4), PillShape)
+                        .background(LocalKumaColors.current.supersetBadgeTint)
+                        .border(1.dp, LocalKumaColors.current.supersetBadge, PillShape)
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -860,13 +860,13 @@ fun ExerciseLoggingCard(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF06B6D4))
+                            .background(LocalKumaColors.current.supersetBadge)
                     )
                     Text(
                         text = s.supersetBadge(workoutExercise.supersetGroupId ?: ""),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF06B6D4),
+                            color = LocalKumaColors.current.supersetBadge,
                             letterSpacing = 0.5.sp
                         )
                     )
@@ -943,7 +943,7 @@ fun ExerciseLoggingCard(
                                 Icon(
                                     imageVector = Icons.Default.FitnessCenter,
                                     contentDescription = null,
-                                    tint = Color(0xFF1E88E5)
+                                    tint = LocalKumaColors.current.info
                                 )
                             }
                         )
@@ -959,7 +959,7 @@ fun ExerciseLoggingCard(
                                 Icon(
                                     imageVector = Icons.Default.SwapVert,
                                     contentDescription = null,
-                                    tint = Color(0xFF06B6D4)
+                                    tint = LocalKumaColors.current.supersetBadge
                                 )
                             }
                         )
@@ -988,8 +988,8 @@ fun ExerciseLoggingCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF10B981).copy(alpha = 0.12f))
-                        .border(1.dp, Color(0xFF10B981).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .background(LocalKumaColors.current.recoveryFresh.copy(alpha = 0.12f))
+                        .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -1005,7 +1005,7 @@ fun ExerciseLoggingCard(
                                 text = s.progressionReady,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF10B981)
+                                    color = LocalKumaColors.current.recoveryFresh
                                 )
                             )
                             Text(
@@ -1020,7 +1020,7 @@ fun ExerciseLoggingCard(
                     Box(
                         modifier = Modifier
                             .clip(PillShape)
-                            .background(Color(0xFF10B981))
+                            .background(LocalKumaColors.current.recoveryFresh)
                             .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg) }
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
@@ -1028,7 +1028,7 @@ fun ExerciseLoggingCard(
                             text = s.applyProgressionAction,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Black
+                                color = LocalKumaColors.current.onRecoveryFresh
                             )
                         )
                     }
@@ -1262,9 +1262,9 @@ fun SetRowItem(
             SetType.NORMAL -> s.setTypeNormalBadge(set.setNumber)
         }
         val typeColor = when (set.setType) {
-            SetType.WARMUP -> Color(0xFFF59E0B)
-            SetType.DROP -> Color(0xFFEC4899)
-            SetType.FAILURE -> Color(0xFFEF4444)
+            SetType.WARMUP -> LocalKumaColors.current.setTypeWarmup
+            SetType.DROP -> LocalKumaColors.current.setTypeDrop
+            SetType.FAILURE -> LocalKumaColors.current.setTypeFailure
             SetType.NORMAL -> if (set.isCompleted) {
                 if (LocalKumaColors.current.isDark) LocalKumaColors.current.accentText else LocalKumaColors.current.accentTextOnTint
             } else LocalKumaColors.current.textPrimary
@@ -1296,21 +1296,21 @@ fun SetRowItem(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeWarmupMenuLabel, color = Color(0xFFF59E0B)) },
+                    text = { Text(s.setTypeWarmupMenuLabel, color = LocalKumaColors.current.setTypeWarmup) },
                     onClick = {
                         onSetTypeChange(SetType.WARMUP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeDropMenuLabel, color = Color(0xFFEC4899)) },
+                    text = { Text(s.setTypeDropMenuLabel, color = LocalKumaColors.current.setTypeDrop) },
                     onClick = {
                         onSetTypeChange(SetType.DROP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeFailureMenuLabel, color = Color(0xFFEF4444)) },
+                    text = { Text(s.setTypeFailureMenuLabel, color = LocalKumaColors.current.setTypeFailure) },
                     onClick = {
                         onSetTypeChange(SetType.FAILURE)
                         showTypeMenu = false

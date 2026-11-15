@@ -300,7 +300,7 @@ fun ExerciseDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.Lightbulb,
                                         contentDescription = null,
-                                        tint = Color(0xFF38BDF8), // Calm light blue bulb
+                                        tint = colors.info,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
@@ -562,7 +562,7 @@ fun ExerciseDetailScreen(
                                         Icon(
                                             imageVector = Icons.Default.EmojiEvents,
                                             contentDescription = null,
-                                            tint = Color(0xFFFBBF24), // Gold medal color
+                                            tint = colors.gold,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Text(

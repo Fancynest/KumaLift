@@ -154,7 +154,7 @@ fun RoutineDetailScreen(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = s.deleteRoutineContentDesc,
-                            tint = Color(0xFFFF453A),
+                            tint = colors.error,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -307,7 +307,7 @@ fun RoutineDetailScreen(
                     ) {
                         Text(
                             text = s.delete,
-                            color = Color(0xFFFF453A),
+                            color = colors.error,
                             fontWeight = FontWeight.Bold
                         )
                     }

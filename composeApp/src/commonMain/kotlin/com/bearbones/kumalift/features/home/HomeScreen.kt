@@ -224,7 +224,7 @@ fun HomeScreen(
                         KumaCard(
                             modifier = Modifier.fillMaxWidth(),
                             backgroundColor = KumaColors.SurfaceContainer,
-                            borderColor = Color(0xFFF59E0B).copy(alpha = 0.6f),
+                            borderColor = LocalKumaColors.current.warning.copy(alpha = 0.6f),
                             cornerRadius = 14.dp
                         ) {
                             Row(
@@ -239,7 +239,7 @@ fun HomeScreen(
                                         text = s.backupReminderTitle,
                                         style = MaterialTheme.typography.titleSmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFF59E0B)
+                                            color = LocalKumaColors.current.warning
                                         )
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))

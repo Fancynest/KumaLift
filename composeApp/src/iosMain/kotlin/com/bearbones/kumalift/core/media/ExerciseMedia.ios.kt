@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
+
 @Composable
 actual fun ExerciseThumbnailMedia(
     assetPath: String?,
@@ -20,13 +22,13 @@ actual fun ExerciseThumbnailMedia(
     modifier: Modifier
 ) {
     Box(
-        modifier = modifier.background(Color(0xFF1C2028)),
+        modifier = modifier.background(LocalKumaColors.current.mediaPlaceholder),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Default.FitnessCenter,
             contentDescription = contentDescription,
-            tint = Color(0xFF6B7280),
+            tint = LocalKumaColors.current.mediaPlaceholderIcon,
             modifier = Modifier.size(20.dp)
         )
     }

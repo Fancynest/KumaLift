@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.bearbones.kumalift.core.designsystem.DarkColors
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.media.ControllableGifPlayer
 import com.bearbones.kumalift.core.media.ExerciseGifMedia
 import com.bearbones.kumalift.core.media.ExerciseThumbnailMedia
@@ -147,7 +149,7 @@ fun ExerciseVisualAnimation(
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                 contentDescription = if (isPlaying) "Pause animation" else "Play animation",
-                tint = Color(0xFF1F2937),
+                tint = LocalKumaColors.current.onAccentFill,
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -156,15 +158,15 @@ fun ExerciseVisualAnimation(
 
 /** Returns a vivid accent colour for the given muscle group */
 fun muscleAccentColor(muscle: MuscleGroup): Color = when (muscle) {
-    MuscleGroup.CHEST     -> Color(0xFFFF6B6B)
-    MuscleGroup.BACK      -> Color(0xFF4ECDC4)
-    MuscleGroup.LEGS      -> Color(0xFFFFE66D)
-    MuscleGroup.SHOULDERS -> Color(0xFF6BCB77)
-    MuscleGroup.ARMS      -> Color(0xFF4D96FF)
-    MuscleGroup.CORE      -> Color(0xFFFF9F43)
-    MuscleGroup.CARDIO    -> Color(0xFFFF5252)
-    MuscleGroup.NECK      -> Color(0xFFE056FD)
-    else                  -> Color(0xFFBDBDBD)
+    MuscleGroup.CHEST     -> DarkColors.muscleChest
+    MuscleGroup.BACK      -> DarkColors.muscleBack
+    MuscleGroup.LEGS      -> DarkColors.muscleLegs
+    MuscleGroup.SHOULDERS -> DarkColors.muscleShoulders
+    MuscleGroup.ARMS      -> DarkColors.muscleArms
+    MuscleGroup.CORE      -> DarkColors.muscleCore
+    MuscleGroup.CARDIO    -> DarkColors.muscleCardio
+    MuscleGroup.NECK      -> DarkColors.muscleNeck
+    else                  -> DarkColors.muscleOther
 }
 
 // =========================================================================
@@ -210,7 +212,7 @@ fun ExerciseVisualAnimationPreview360dp() {
     Column(
         modifier = Modifier
             .width(360.dp)
-            .background(Color(0xFF0C0E12))
+            .background(DarkColors.canvas)
             .padding(vertical = 12.dp)
     ) {
         // Dada (Chest) - soft coral tint
@@ -230,7 +232,7 @@ fun ExerciseVisualAnimationPreview412dp() {
     Column(
         modifier = Modifier
             .width(412.dp)
-            .background(Color(0xFF0C0E12))
+            .background(DarkColors.canvas)
             .padding(vertical = 12.dp)
     ) {
         // Dada (Chest) - soft coral tint

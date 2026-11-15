@@ -81,7 +81,7 @@ fun ProfilePhotoCropDialog(
                     modifier = Modifier
                         .size(200.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF111317))
+                        .background(colors.surfaceVariant)
                         .border(2.dp, colors.accentText, CircleShape)
                         .pointerInput(Unit) {
                             detectTransformGestures { _, pan, zoom, _ ->

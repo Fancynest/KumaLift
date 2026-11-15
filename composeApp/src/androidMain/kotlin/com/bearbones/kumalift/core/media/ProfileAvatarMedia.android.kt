@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import java.io.File
 
@@ -67,7 +68,7 @@ private fun AvatarInitialFallback(
 ) {
     Box(
         modifier = modifier
-            .background(Color(0xFF111317), CircleShape),
+            .background(KumaColors.SurfaceContainerHigh, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(

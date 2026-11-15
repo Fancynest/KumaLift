@@ -235,7 +235,7 @@ fun CreateRoutineScreen(
                             .background(KumaColors.SurfaceContainer)
                             .border(
                                 width = 1.dp,
-                                color = if (hasAttemptedSubmit && !isTitleValid) Color(0xFFFF453A) else Color.Transparent,
+                                color = if (hasAttemptedSubmit && !isTitleValid) colors.error else Color.Transparent,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -267,7 +267,7 @@ fun CreateRoutineScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = s.routineNameRequiredError,
-                            color = Color(0xFFFF453A),
+                            color = colors.error,
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -536,7 +536,7 @@ fun CreateRoutineScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = s.exercisesInRoutineRequiredError,
-                                color = Color(0xFFFF453A),
+                                color = colors.error,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -649,7 +649,7 @@ private fun SelectedExerciseRow(
             .fillMaxWidth()
             .then(
                 if (config.supersetGroupId != null) {
-                    Modifier.border(1.5.dp, Color(0xFF06B6D4), RoundedCornerShape(14.dp))
+                    Modifier.border(1.5.dp, colors.supersetBadge, RoundedCornerShape(14.dp))
                 } else Modifier
             ),
         backgroundColor = KumaColors.SurfaceContainerLow,
@@ -751,7 +751,7 @@ private fun SelectedExerciseRow(
                             modifier = Modifier
                                 .clip(PillShape)
                                 .background(
-                                    if (config.supersetGroupId != null) Color(0xFF06B6D4).copy(alpha = 0.2f)
+                                    if (config.supersetGroupId != null) colors.supersetBadgeTint
                                     else KumaColors.SurfaceContainer
                                 )
                                 .clickable {
@@ -770,7 +770,7 @@ private fun SelectedExerciseRow(
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (config.supersetGroupId != null) Color(0xFF06B6D4) else KumaColors.TextMuted
+                                    color = if (config.supersetGroupId != null) colors.supersetBadge else KumaColors.TextMuted
                                 )
                             )
                         }

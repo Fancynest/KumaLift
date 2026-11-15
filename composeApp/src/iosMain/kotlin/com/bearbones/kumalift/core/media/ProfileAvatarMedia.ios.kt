@@ -21,7 +21,7 @@ actual fun ProfileAvatarMedia(
     val colors = LocalKumaColors.current
     Box(
         modifier = modifier
-            .background(Color(0xFF111317), CircleShape),
+            .background(colors.surfaceVariant, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Text(

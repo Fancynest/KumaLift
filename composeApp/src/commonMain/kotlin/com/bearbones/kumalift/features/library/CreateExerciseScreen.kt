@@ -181,7 +181,7 @@ fun CreateExerciseScreen(
                                 .background(KumaColors.SurfaceContainer)
                                 .border(
                                     width = 1.dp,
-                                    color = if (hasAttemptedSubmit && !isNameValid) Color(0xFFFF5252) else colors.border,
+                                    color = if (hasAttemptedSubmit && !isNameValid) colors.error else colors.border,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .padding(horizontal = 14.dp),
@@ -213,7 +213,7 @@ fun CreateExerciseScreen(
                             Text(
                                 text = s.exerciseNameRequiredError,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    color = Color(0xFFFF5252),
+                                    color = colors.error,
                                     fontSize = 11.sp
                                 )
                             )

@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.bearbones.kumalift.core.designsystem.KumaColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -232,7 +233,7 @@ actual fun ControllableGifPlayer(
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
                 strokeWidth = 2.dp,
-                color = Color(0x66888888)
+                color = KumaColors.TextMuted.copy(alpha = 0.4f)
             )
         }
     } else {

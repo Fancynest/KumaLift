@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 
 @Composable
 actual fun ExerciseThumbnailMedia(
@@ -47,13 +48,14 @@ actual fun ExerciseThumbnailMedia(
             .build()
     }
 
+    val placeholderColor = LocalKumaColors.current.mediaPlaceholder
     AsyncImage(
         model = imageRequest,
         contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier,
         placeholder = remember { ColorPainter(Color.White) },
-        error = remember { ColorPainter(Color(0xFFF3F4F6)) }
+        error = remember(placeholderColor) { ColorPainter(placeholderColor) }
     )
 }
 
@@ -80,7 +82,7 @@ internal fun ThumbnailFallback(modifier: Modifier = Modifier) {
         Icon(
             imageVector = Icons.Default.FitnessCenter,
             contentDescription = null,
-            tint = Color(0xFF6B7280),
+            tint = LocalKumaColors.current.mediaPlaceholderIcon,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -89,13 +91,13 @@ internal fun ThumbnailFallback(modifier: Modifier = Modifier) {
 @Composable
 internal fun GifFallback(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.background(Color(0xFF161A22)),
+        modifier = modifier.background(LocalKumaColors.current.mediaPlaceholder),
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = Icons.Default.FitnessCenter,
             contentDescription = null,
-            tint = Color(0xFF4B5563),
+            tint = LocalKumaColors.current.mediaPlaceholderIcon,
             modifier = Modifier.size(48.dp)
         )
     }

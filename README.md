@@ -108,6 +108,26 @@ This project utilizes the fitness exercises dataset and media from:
 
 ---
 
+## 🎬 High-Resolution Animation Sprite Pipeline (FSRCNN x3 Super-Resolution)
+
+To solve the pixelation and dither noise of the 180×180 GIFs when displayed on modern high-DPI smartphone displays (180dp ≈ 540 physical pixels), KumaLift incorporates a high-performance offline pre-processing pipeline:
+
+- **Neural Super-Resolution:** `tools/upscale_gifs.py` uses FSRCNN x3 (Fast Super-Resolution Convolutional Neural Network) to upscale each frame cleanly to 540×540 while stripping dithering artifacts.
+- **Single-Texture WebP Sprite Sheets:** Instead of loading multiple individual frame bitmaps or animated GIFs at runtime, all upscaled frames are packed into a single 4-column WebP sprite sheet stored in `anim/<stem>.webp` along with metadata in `anim/manifest.json`.
+- **Zero-Allocation GPU Rendering:** `ControllableGifPlayer` samples directly from the single `ImageBitmap` using `drawImage(image, srcOffset, srcSize, dstOffset, dstSize, filterQuality = FilterQuality.High)`, avoiding all runtime bitmap slicing allocations.
+- **Strict Memory Budget:** Bounded by `SpriteCache` to max 3 concurrent animations in memory (max 48 MB cap) with single-flight request deduplication.
+- **Graceful Fallback:** Automatically falls back to the native `GifParser` if a WebP sprite sheet is not found.
+
+### Regenerating / Adding Animations:
+```bash
+pip install opencv-contrib-python numpy pillow
+python tools/upscale_gifs.py --src composeApp/src/androidMain/assets/videos \
+                             --out composeApp/src/androidMain/assets/anim \
+                             --scale 3 --quality 80 --resume
+```
+
+---
+
 ## 📋 Technical Debt & Schema Evolution Ledger
 
 ### 1. Nullable Heart Rate Fields (`workouts.avgHeartRateBpm`, `workouts.peakHeartRateBpm`, `sets.heartRateBpm`)

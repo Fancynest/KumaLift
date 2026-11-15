@@ -33,3 +33,10 @@ assets/keystore*
 */release/
 *.apk
 *.aab
+
+# Neural super-resolution model cache
+.sr_models/
+**/.sr_models/
+
+# Upscaled sprite sheets (derivative works of Gym visual, generated locally via tools/upscale_gifs.py)
+composeApp/src/androidMain/assets/anim/*.webp

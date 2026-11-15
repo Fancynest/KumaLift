@@ -1,6 +1,7 @@
 package com.bearbones.kumalift.core.media
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -43,37 +44,67 @@ actual fun ControllableGifPlayer(
     }
 
     val context = LocalContext.current
-    var decodedGif by remember(assetPath) { mutableStateOf<DecodedGif?>(null) }
+    var loadedSprite by remember(assetPath) { mutableStateOf<SpriteAnimation?>(null) }
+    var loadedGif by remember(assetPath) { mutableStateOf<DecodedGif?>(null) }
     var isLoading by remember(assetPath) { mutableStateOf(true) }
 
-    // Persistent playback offset in milliseconds across play/pause and speed changes (Requirement E)
+    // Persistent playback offset in milliseconds across play/pause and speed changes
     var timeMs by remember(assetPath) { mutableLongStateOf(0L) }
 
-    // Asynchronously load & decode with bounded LRU cache (Requirement D)
+    // Asynchronously load sprite sheet with LRU cache, falling back to legacy GIF parser
     LaunchedEffect(assetPath) {
         isLoading = true
         try {
-            val normalizedPath = assetPath.removePrefix("/")
-            val result = DefaultGifCache.getOrDecode(normalizedPath) {
-                withContext(Dispatchers.IO) {
-                    val bytes = context.assets.open(normalizedPath).use { it.readBytes() }
-                    GifParser.parse(bytes, normalizedPath)
+            val stem = resolveAssetStem(assetPath)
+            val meta = SpriteManifestRepository.getMeta(context, stem)
+
+            var spriteResult: SpriteAnimation? = null
+            if (meta != null) {
+                try {
+                    spriteResult = DefaultSpriteCache.getOrLoad(stem) {
+                        withContext(Dispatchers.IO) {
+                            context.assets.open("anim/$stem.webp").use { stream ->
+                                val bitmap = BitmapFactory.decodeStream(stream)
+                                    ?: throw IllegalStateException("Failed to decode WebP stream for $stem")
+                                val imageBitmap = bitmap.asImageBitmap()
+                                val byteSize = bitmap.allocationByteCount.toLong()
+                                SpriteAnimation(stem, imageBitmap, meta, byteSize)
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    spriteResult = null
                 }
             }
-            decodedGif = result
+
+            if (spriteResult != null) {
+                loadedSprite = spriteResult
+                loadedGif = null
+            } else {
+                // Fallback to legacy GIF parsing if sprite sheet is not available
+                val normalizedPath = assetPath.removePrefix("/")
+                val gifResult = DefaultGifCache.getOrDecode(normalizedPath) {
+                    withContext(Dispatchers.IO) {
+                        val bytes = context.assets.open(normalizedPath).use { it.readBytes() }
+                        GifParser.parse(bytes, normalizedPath)
+                    }
+                }
+                loadedGif = gifResult
+                loadedSprite = null
+            }
         } catch (_: Exception) {
-            decodedGif = null
+            loadedSprite = null
+            loadedGif = null
         } finally {
             isLoading = false
         }
     }
 
-    // Animation loop: advances timeMs only when isPlaying is true (Requirement C & E)
-    // Automatically cleans up and cancels on exit or when isPlaying becomes false
+    // Animation loop: advances timeMs only when isPlaying is true
     val currentSpeed by rememberUpdatedState(speed)
-    LaunchedEffect(isPlaying, decodedGif) {
-        val gif = decodedGif
-        if (!isPlaying || gif == null || gif.totalDurationMs <= 0) return@LaunchedEffect
+    val totalDurationMs = loadedSprite?.totalDurationMs ?: loadedGif?.totalDurationMs ?: 0
+    LaunchedEffect(isPlaying, totalDurationMs) {
+        if (!isPlaying || totalDurationMs <= 0) return@LaunchedEffect
 
         var lastFrameTimeNanos = withFrameNanos { it }
         while (isActive) {
@@ -86,15 +117,60 @@ actual fun ControllableGifPlayer(
         }
     }
 
-    val gif = decodedGif
-    if (gif != null && gif.frames.isNotEmpty()) {
+    val sprite = loadedSprite
+    val gif = loadedGif
+
+    if (sprite != null && sprite.image != null && sprite.meta.count > 0) {
+        val frameIndex = sprite.findFrameIndex(timeMs)
+        val nextFrameIndex = (frameIndex + 1) % sprite.meta.count
+        val transitionAlpha = sprite.calculateTransitionAlpha(timeMs, frameIndex)
+
+        Canvas(modifier = modifier) {
+            val spriteImage = sprite.image ?: return@Canvas
+            val canvasWidth = size.width
+            val canvasHeight = size.height
+            val srcW = sprite.meta.frameW.toFloat()
+            val srcH = sprite.meta.frameH.toFloat()
+
+            val scale = minOf(canvasWidth / srcW, canvasHeight / srcH)
+            val dstW = srcW * scale
+            val dstH = srcH * scale
+            val dstLeft = (canvasWidth - dstW) / 2f
+            val dstTop = (canvasHeight - dstH) / 2f
+
+            val dstOffset = IntOffset(dstLeft.roundToInt(), dstTop.roundToInt())
+            val dstSize = IntSize(dstW.roundToInt(), dstH.roundToInt())
+
+            // 1. Draw base current frame from sprite sheet using FilterQuality.High
+            drawImage(
+                image = spriteImage,
+                srcOffset = sprite.getFrameSrcOffset(frameIndex),
+                srcSize = sprite.frameSize,
+                dstOffset = dstOffset,
+                dstSize = dstSize,
+                filterQuality = FilterQuality.High
+            )
+
+            // 2. Draw next frame during crossfade window with transitionAlpha
+            if (transitionAlpha > 0f) {
+                drawImage(
+                    image = spriteImage,
+                    srcOffset = sprite.getFrameSrcOffset(nextFrameIndex),
+                    srcSize = sprite.frameSize,
+                    dstOffset = dstOffset,
+                    dstSize = dstSize,
+                    alpha = transitionAlpha,
+                    filterQuality = FilterQuality.High
+                )
+            }
+        }
+    } else if (gif != null && gif.frames.isNotEmpty()) {
         val frameIndex = gif.findFrameIndex(timeMs)
         val currentFrame = gif.frames[frameIndex]
         val nextFrameIndex = (frameIndex + 1) % gif.frames.size
         val nextFrame = gif.frames[nextFrameIndex]
         val transitionAlpha = gif.calculateTransitionAlpha(timeMs, frameIndex)
 
-        // Ensure Compose ImageBitmaps are created for rendering
         if (currentFrame.imageBitmap == null) {
             currentFrame.imageBitmap = Bitmap.createBitmap(
                 currentFrame.pixels,
@@ -112,12 +188,8 @@ actual fun ControllableGifPlayer(
             ).asImageBitmap()
         }
 
-        Canvas(
-            modifier = modifier
-        ) {
+        Canvas(modifier = modifier) {
             val currentImage = currentFrame.imageBitmap ?: return@Canvas
-
-            // Calculate destination rect to fit source into canvas while preserving aspect ratio
             val srcWidth = currentImage.width.toFloat()
             val srcHeight = currentImage.height.toFloat()
             val canvasWidth = size.width
@@ -132,7 +204,6 @@ actual fun ControllableGifPlayer(
             val dstOffset = IntOffset(dstLeft.roundToInt(), dstTop.roundToInt())
             val dstSize = IntSize(dstW.roundToInt(), dstH.roundToInt())
 
-            // 1. Draw base current frame at full opacity (alpha = 1.0f) using FilterQuality.High (Requirement B)
             drawImage(
                 image = currentImage,
                 dstOffset = dstOffset,
@@ -140,7 +211,6 @@ actual fun ControllableGifPlayer(
                 filterQuality = FilterQuality.High
             )
 
-            // 2. Draw next frame during crossfade window with transitionAlpha (Requirement B)
             if (transitionAlpha > 0f) {
                 val nextImage = nextFrame.imageBitmap
                 if (nextImage != null) {

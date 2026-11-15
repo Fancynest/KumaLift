@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,6 +49,7 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.domain.model.Equipment
@@ -152,6 +154,7 @@ fun CreateExerciseScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .kumaKeyboardAvoidance()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -489,6 +492,7 @@ fun CreateExerciseScreen(
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.navigationBarsPadding())
             }
         }
     }

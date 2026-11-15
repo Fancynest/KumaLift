@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,8 +21,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -73,6 +76,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaSetCheckbox
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
@@ -258,6 +262,7 @@ fun ActiveWorkoutLoggerScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
+                        .kumaKeyboardAvoidance()
                         .padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(22.dp)
                 ) {
@@ -1086,6 +1091,7 @@ fun WeightInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
         containerColor = KumaColors.SurfaceContainerLow,
         title = {
             Text(
@@ -1097,7 +1103,12 @@ fun WeightInputDialog(
             )
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp)
+            ) {
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { input ->
@@ -1199,6 +1210,7 @@ fun RepsInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
         containerColor = KumaColors.SurfaceContainerLow,
         title = {
             Text(
@@ -1210,7 +1222,12 @@ fun RepsInputDialog(
             )
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 8.dp)
+            ) {
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { input ->

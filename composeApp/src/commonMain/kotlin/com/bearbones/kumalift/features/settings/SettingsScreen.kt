@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.bearbones.kumalift.core.data.rememberDataExportLauncher
 import com.bearbones.kumalift.core.data.rememberDataImportLauncher
 import com.bearbones.kumalift.core.util.currentEpochMillis
@@ -81,6 +84,7 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
 import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
@@ -533,6 +537,7 @@ private fun ProfileSettingsPage(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .kumaKeyboardAvoidance()
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -756,6 +761,8 @@ private fun ChangeUsernamePage(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .kumaKeyboardAvoidance()
                     .padding(20.dp)
             ) {
                 Text(
@@ -1195,6 +1202,7 @@ private fun NotificationSettingsPage(
 
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showCustomTimeDialog = false },
+            modifier = Modifier.imePadding(),
             containerColor = KumaColors.SurfaceContainerLow,
             title = {
                 Text(
@@ -1209,6 +1217,7 @@ private fun NotificationSettingsPage(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

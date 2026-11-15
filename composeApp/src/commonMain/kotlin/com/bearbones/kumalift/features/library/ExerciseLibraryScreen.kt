@@ -57,6 +57,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
+import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
@@ -404,7 +405,9 @@ private fun ExerciseCatalogList(
                 LazyColumn(
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .kumaKeyboardAvoidance(),
                     contentPadding = PaddingValues(bottom = 90.dp)
                 ) {
                     items(

@@ -6,11 +6,18 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imeNestedScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -399,3 +406,41 @@ fun Modifier.isolateHorizontalScroll(): Modifier {
     }
     return this.nestedScroll(connection)
 }
+
+/**
+ * Global Keyboard Avoidance Modifier for KumaLift.
+ *
+ * Automatically shifts and adds dynamic padding when the software keyboard appears.
+ * Coordinates nested scrolling with the keyboard so that active input fields
+ * and lower content can be smoothly scrolled into view.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+fun Modifier.kumaKeyboardAvoidance(
+    enableNestedScroll: Boolean = true
+): Modifier {
+    return this
+        .imePadding()
+        .then(if (enableNestedScroll) Modifier.imeNestedScroll() else Modifier)
+}
+
+/**
+ * Reusable scrollable container for dialogs, bottom sheets, and forms containing inputs.
+ * Ensures that all inputs, labels, and action buttons remain fully visible and accessible
+ * when the software keyboard opens and closes.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun KumaKeyboardAwareScrollable(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = modifier
+            .verticalScroll(scrollState)
+            .imePadding()
+            .imeNestedScroll(),
+        content = content
+    )
+}
+

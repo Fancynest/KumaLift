@@ -674,22 +674,17 @@ def build_html():
                             <tr>
                                 <td class="num-col"><span class="callout-num">2</span></td>
                                 <td><strong>Tombol Top Create</strong></td>
-                                <td>Tombol cepat di pojok kanan atas untuk membuka layar pembuatan routine baru.</td>
+                                <td>Tombol cepat di pojok kanan atas ("Create Routine") untuk langsung membuka formulir pembuatan routine baru.</td>
                             </tr>
                             <tr>
                                 <td class="num-col"><span class="callout-num">3</span></td>
-                                <td><strong>Kartu Training Program</strong></td>
-                                <td>Menampilkan nama program aktif (<em>Hypertrophy Program</em>) dan bilah persentase kepatuhan mingguan (Weekly Adherence).</td>
+                                <td><strong>Wadah Status Kosong</strong></td>
+                                <td>Ilustrasi barbel dan pesan informatif: "<em>No Routines Yet — Build your custom workout routines from scratch to fit your training program</em>". Kartu program latihan dan filter kategori disembunyikan secara bersih hingga Anda menyusun routine pertama.</td>
                             </tr>
                             <tr>
                                 <td class="num-col"><span class="callout-num">4</span></td>
-                                <td><strong>Chip Filter Kategori</strong></td>
-                                <td>Filter horizontal: <em>All Programs</em>, <em>PPL Split</em>, <em>Upper / Lower</em>, dan <em>Full Body</em> untuk memilah kartu routine.</td>
-                            </tr>
-                            <tr>
-                                <td class="num-col"><span class="callout-num">5</span></td>
-                                <td><strong>Wadah Empty State</strong></td>
-                                <td>Ilustrasi barbel dan pesan informatif: "<em>No Routines Yet — Build your custom workout routines from scratch to fit your training program</em>" disertai tombol "Create Routine".</td>
+                                <td><strong>Tombol Utama Buat Routine</strong></td>
+                                <td>Tombol aksi utama (CTA) berwarna hijau terang di tengah layar untuk memulai perancangan rutinitas pertama dari nol.</td>
                             </tr>
                         </tbody>
                     </table>

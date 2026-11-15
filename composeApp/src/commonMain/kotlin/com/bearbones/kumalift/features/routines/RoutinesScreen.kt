@@ -151,181 +151,205 @@ fun RoutinesScreen(
                 }
             }
 
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp)
-            ) {
-                item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    // Mesocycle Progress Banner
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainerLow,
-                        cornerRadius = 18.dp
+            if (routines.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 72.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = s.trainingProgramHeader,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = LocalKumaColors.current.accentText,
-                                        letterSpacing = 0.8.sp
-                                    )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .clip(PillShape)
-                                        .background(KumaColors.SurfaceContainerHigh)
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = s.adherenceProgress(workoutsThisWeek, targetDays),
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = KumaColors.TextWhite,
-                                            fontWeight = FontWeight.Bold
-                                        ),
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = goalName,
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = s.weeklyAdherenceLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = KumaColors.TextMuted
-                                )
-                                Text(
-                                    text = "$adherencePct%",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = LocalKumaColors.current.accentText,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { adherenceFrac },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                                    .clip(PillShape),
-                                color = LocalKumaColors.current.accentChart,
-                                trackColor = KumaColors.SurfaceContainerHighest
-                            )
-                        }
-                    }
-                }
-
-                // Category Filter Pills
-                item {
-                    LazyRow(
-                        modifier = Modifier.isolateHorizontalScroll(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(vertical = 2.dp)
-                    ) {
-                        items(categories) { category ->
-                            val isSelected = category == selectedCategory
-                            Box(
-                                modifier = Modifier
-                                    .clip(PillShape)
-                                    .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
-                                        shape = PillShape
-                                    )
-                                    .clickable { selectedCategory = category }
-                                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                            ) {
-                                Text(
-                                    text = category,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Routine Cards or Empty State
-                if (filteredRoutines.isEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 40.dp, horizontal = 20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FitnessCenter,
-                                contentDescription = null,
-                                tint = KumaColors.TextMuted,
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = s.noRoutinesMessage,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = LocalKumaColors.current.textPrimary
-                                ),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = s.createFirstRoutineHint,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = KumaColors.TextSecondary,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(24.dp))
-                            KumaPrimaryButton(
-                                text = s.createRoutineButton,
-                                onClick = { showCreateRoutineScreen = true },
-                                modifier = Modifier.fillMaxWidth(0.7f)
-                            )
-                        }
-                    }
-                } else {
-                    items(filteredRoutines, key = { it.id }) { routine ->
-                        RoutineCardItem(
-                            routine = routine,
-                            onStart = {
-                                workoutRepository.startWorkoutFromRoutine(routine)
-                                onStartRoutine()
-                            },
-                            onDelete = { routineRepository.deleteRoutine(routine.id) }
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = KumaColors.TextMuted,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text(
+                            text = s.noRoutinesMessage,
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = LocalKumaColors.current.textPrimary
+                            ),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = s.createFirstRoutineHint,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = KumaColors.TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        KumaPrimaryButton(
+                            text = s.createRoutineButton,
+                            onClick = { showCreateRoutineScreen = true },
+                            modifier = Modifier.fillMaxWidth(0.7f)
                         )
                     }
                 }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(22.dp)
+                ) {
+                    item {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        // Mesocycle Progress Banner
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = s.trainingProgramHeader,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = LocalKumaColors.current.accentText,
+                                            letterSpacing = 0.8.sp
+                                        )
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(KumaColors.SurfaceContainerHigh)
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = s.adherenceProgress(workoutsThisWeek, targetDays),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = KumaColors.TextWhite,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
 
-                item {
-                    Spacer(modifier = Modifier.height(100.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = goalName,
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = s.weeklyAdherenceLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                    Text(
+                                        text = "$adherencePct%",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = LocalKumaColors.current.accentText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { adherenceFrac },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(PillShape),
+                                    color = LocalKumaColors.current.accentChart,
+                                    trackColor = KumaColors.SurfaceContainerHighest
+                                )
+                            }
+                        }
+                    }
+
+                    // Category Filter Pills
+                    item {
+                        LazyRow(
+                            modifier = Modifier.isolateHorizontalScroll(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(vertical = 2.dp)
+                        ) {
+                            items(categories) { category ->
+                                val isSelected = category == selectedCategory
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
+                                            shape = PillShape
+                                        )
+                                        .clickable { selectedCategory = category }
+                                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                                ) {
+                                    Text(
+                                        text = category,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Routine Cards or Empty State
+                    if (filteredRoutines.isEmpty()) {
+                        item {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp, horizontal = 20.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = s.noRoutinesMessage,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = LocalKumaColors.current.textPrimary
+                                    ),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        items(filteredRoutines, key = { it.id }) { routine ->
+                            RoutineCardItem(
+                                routine = routine,
+                                onStart = {
+                                    workoutRepository.startWorkoutFromRoutine(routine)
+                                    onStartRoutine()
+                                },
+                                onDelete = { routineRepository.deleteRoutine(routine.id) }
+                            )
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(100.dp))
+                    }
                 }
             }
         }

@@ -14,6 +14,9 @@ data class Workout(
     val sessionRpe: Double? = null,
     val notes: String = "",
     val isFinished: Boolean = false,
+    val isPaused: Boolean = false,
+    val pausedAtEpochMs: Long? = null,
+    val totalPausedDurationMs: Long = 0L,
     val avgHeartRateBpm: Int? = null,
     val peakHeartRateBpm: Int? = null,
     val activeCaloriesKcal: Double? = null

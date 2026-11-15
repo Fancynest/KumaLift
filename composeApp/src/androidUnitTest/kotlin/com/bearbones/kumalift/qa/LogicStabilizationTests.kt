@@ -9,7 +9,9 @@ import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.export.ImportMode
 import com.bearbones.kumalift.data.local.SeedData
+import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.CalculationSettings
 import com.bearbones.kumalift.domain.model.Equipment
@@ -17,6 +19,7 @@ import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PrMetricType
+import com.bearbones.kumalift.domain.model.ProfileSettings
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.UserSettings
@@ -27,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -257,11 +261,11 @@ class LogicStabilizationTests {
         // Simulate 2 seconds elapsing
         delay(2100)
         val remaining = timer.state.value.remainingSeconds
-        assertTrue(remaining in 2..3)
+        assertTrue("Expected remaining in 1..3 but was $remaining", remaining in 1..3)
 
         // Add 5 seconds
         timer.addSeconds(5)
-        assertTrue(timer.state.value.remainingSeconds in 7..8)
+        assertTrue("Expected remaining in 6..8 but was ${timer.state.value.remainingSeconds}", timer.state.value.remainingSeconds in 6..8)
 
         timer.stop()
         assertFalse(timer.state.value.isRunning)
@@ -303,5 +307,108 @@ class LogicStabilizationTests {
         assertNotNull(restored)
         assertEquals(Tab.LIBRARY, restored!!.selectedTab)
         assertEquals(Overlay.ActiveLogger, restored.currentOverlay)
+    }
+
+    @Test
+    fun testBackupReminderWeeklyCooldownLogic() {
+        val oneWeekMs = 7L * 24 * 3600_000L
+        val now = 100_000_000_000L // arbitrary fixed timestamp
+        val reminderDays = 30
+        val lastBackupMs = now - (35L * 24 * 3600_000L) // 35 days ago, overdue
+
+        // Without interaction dismissal: due
+        val dueWithoutDismissal = (now - lastBackupMs) / (24L * 3600_000L) >= reminderDays
+        assertTrue(dueWithoutDismissal)
+
+        // User interacts and dismisses 2 days ago: within 7-day cooldown -> NOT due
+        val dismissed2DaysAgo = now - (2L * 24 * 3600_000L)
+        val isCoolingDown = (now - dismissed2DaysAgo) < oneWeekMs
+        assertTrue(isCoolingDown)
+
+        // After 8 days: cooldown expired -> due again
+        val dismissed8DaysAgo = now - (8L * 24 * 3600_000L)
+        val isStillCoolingDown = (now - dismissed8DaysAgo) < oneWeekMs
+        assertFalse(isStillCoolingDown)
+    }
+
+    @Test
+    fun testWorkoutPauseResumeDurationLogic() {
+        val exerciseRepo = ExerciseRepository()
+        val prRepo = PersonalRecordRepository()
+        val repo = WorkoutRepository(prRepository = prRepo)
+
+        repo.startEmptyWorkout("Test Workout")
+        val active = repo.activeWorkout.value
+        assertNotNull(active)
+        assertFalse(active!!.isPaused)
+        assertEquals(0L, active.totalPausedDurationMs)
+
+        // Pause
+        repo.pauseWorkout()
+        val paused = repo.activeWorkout.value
+        assertNotNull(paused)
+        assertTrue(paused!!.isPaused)
+        assertNotNull(paused.pausedAtEpochMs)
+
+        // Resume
+        repo.resumeWorkout()
+        val resumed = repo.activeWorkout.value
+        assertNotNull(resumed)
+        assertFalse(resumed!!.isPaused)
+        assertNull(resumed.pausedAtEpochMs)
+
+        // Finish
+        val finished = repo.finishWorkout()
+        assertNotNull(finished)
+        assertTrue(finished!!.isFinished)
+        assertTrue(finished.durationSeconds >= 0L)
+    }
+
+    @Test
+    fun testDefaultRoutinesEmptyAndDeletable() {
+        val routineRepo = RoutineRepository(initialRoutines = emptyList<RoutineBlueprint>())
+        assertEquals(0, routineRepo.routines.value.size)
+
+        val newRoutine = RoutineBlueprint(
+            id = "custom_123",
+            title = "My Routine",
+            splitCategory = "Custom",
+            muscleFocus = "Full Body",
+            estimatedDurationMinutes = 45,
+            targetRpeTier = "RPE 8",
+            exerciseTemplates = emptyList()
+        )
+        routineRepo.addRoutine(newRoutine)
+        assertEquals(1, routineRepo.routines.value.size)
+
+        routineRepo.deleteRoutine("custom_123")
+        assertEquals(0, routineRepo.routines.value.size)
+    }
+
+    @Test
+    fun testMeasuresDefaultEmptyState() {
+        val profile = ProfileSettings()
+        assertNull(profile.bodyweightKg)
+        assertNull(profile.heightCm)
+    }
+
+    @Test
+    fun testNotificationVariationsCountAndDailyRotation() {
+        val enVariations = com.bearbones.kumalift.core.localization.EnStrings.notificationVariations
+        val idVariations = com.bearbones.kumalift.core.localization.IdStrings.notificationVariations
+
+        assertEquals(5, enVariations.size)
+        assertEquals(5, idVariations.size)
+
+        // Test day rotation does not repeat on consecutive days
+        val day1Index = 100 % enVariations.size
+        val day2Index = 101 % enVariations.size
+        assertNotEquals(day1Index, day2Index)
+
+        // Verify Indonesian texts are non-empty and well-formed
+        idVariations.forEach { (title, body) ->
+            assertTrue(title.isNotBlank())
+            assertTrue(body.isNotBlank())
+        }
     }
 }

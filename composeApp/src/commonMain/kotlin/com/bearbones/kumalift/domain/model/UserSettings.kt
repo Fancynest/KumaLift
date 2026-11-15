@@ -311,7 +311,8 @@ data class DataBackupSettings(
     val autoBackupFolderUri: String? = null,
     val autoBackupKeepLast: Int = 5,
     val backupReminderDays: Int = 30,
-    val lastBackupEpochMs: Long? = null
+    val lastBackupEpochMs: Long? = null,
+    val lastReminderDismissedEpochMs: Long? = null
 )
 
 @Serializable

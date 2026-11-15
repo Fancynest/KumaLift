@@ -473,13 +473,22 @@ fun MeScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Measures Card
-                        val bw = settings.profile.bodyweightKg ?: 75.0
-                        val ht = settings.profile.heightCm ?: 175.0
+                        val bw = settings.profile.bodyweightKg
+                        val ht = settings.profile.heightCm
+                        val measuresSubtitle = if (bw != null && ht != null) {
+                            "$bw kg · ${ht.toInt()} cm"
+                        } else if (bw != null) {
+                            "$bw kg"
+                        } else if (ht != null) {
+                            "${ht.toInt()} cm"
+                        } else {
+                            s.noMeasuresRecorded
+                        }
                         DashboardCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.AccessibilityNew,
                             title = s.measuresCardTitle,
-                            subtitle = "$bw kg · ${ht.toInt()} cm",
+                            subtitle = measuresSubtitle,
                             onClick = { showMeasuresDialog = true }
                         )
 
@@ -1068,10 +1077,10 @@ private fun MeasuresModal(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var weightInput by remember {
-        mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "75.0")
+        mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "")
     }
     var heightInput by remember {
-        mutableStateOf(settings.profile.heightCm?.toString() ?: "175.0")
+        mutableStateOf(settings.profile.heightCm?.toString() ?: "")
     }
 
     ModalBottomSheet(
@@ -1100,7 +1109,7 @@ private fun MeasuresModal(
                 label = "${s.bodyWeightMeasureLabel} ($weightUnitStr)",
                 value = weightInput,
                 onValueChange = { weightInput = it },
-                placeholder = "75.0"
+                placeholder = "0.0"
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -1109,7 +1118,7 @@ private fun MeasuresModal(
                 label = "${s.bodyHeightMeasureLabel} (cm)",
                 value = heightInput,
                 onValueChange = { heightInput = it },
-                placeholder = "175.0"
+                placeholder = "0"
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1121,8 +1130,8 @@ private fun MeasuresModal(
                     settingsRepository.update { current ->
                         current.copy(
                             profile = current.profile.copy(
-                                bodyweightKg = w ?: current.profile.bodyweightKg,
-                                heightCm = h ?: current.profile.heightCm
+                                bodyweightKg = w,
+                                heightCm = h
                             )
                         )
                     }

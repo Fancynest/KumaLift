@@ -22,6 +22,15 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
         }
 
         val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+
+        // Prevent duplicate delivery for the same trigger window (within 60s)
+        val now = System.currentTimeMillis()
+        val lastTrigger = prefs.getLong("last_trigger_ms", 0L)
+        if (now - lastTrigger < 60_000L) {
+            return
+        }
+        prefs.edit().putLong("last_trigger_ms", now).apply()
+
         val langStr = prefs.getString("language_code", null)
         val appLanguage = try {
             if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
@@ -30,10 +39,19 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
         }
         val strings = resolveAppStrings(appLanguage)
 
+        // Select daily message variation (consistent for today, changes daily across 5 variations)
+        val variations = strings.notificationVariations
+        val dayOfYear = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
+        val selectedVariation = if (variations.isNotEmpty()) {
+            variations[dayOfYear % variations.size]
+        } else {
+            strings.notifReminderTitle to strings.notifReminderBody
+        }
+
         showReminderNotification(
             context = context,
-            title = strings.notifReminderTitle,
-            message = strings.notifReminderBody,
+            title = selectedVariation.first,
+            message = selectedVariation.second,
             channelName = strings.notifChannelName,
             channelDesc = strings.notifChannelDescription
         )

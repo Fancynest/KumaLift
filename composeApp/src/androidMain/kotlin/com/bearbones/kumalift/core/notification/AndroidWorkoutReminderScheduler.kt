@@ -83,19 +83,43 @@ object AndroidWorkoutReminderScheduler {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Using inexact wakeable alarm (battery friendly, Play Store policy compliant)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                nextTriggerMillis,
-                pendingIntent
-            )
-        } else {
-            alarmManager.set(
-                AlarmManager.RTC_WAKEUP,
-                nextTriggerMillis,
-                pendingIntent
-            )
+        // Using exact wakeable alarm for high precision (maximum tolerance < 1 minute)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        nextTriggerMillis,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        nextTriggerMillis,
+                        pendingIntent
+                    )
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    nextTriggerMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    nextTriggerMillis,
+                    pendingIntent
+                )
+            }
+        } catch (_: SecurityException) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    nextTriggerMillis,
+                    pendingIntent
+                )
+            }
         }
     }
 
@@ -123,7 +147,7 @@ object AndroidWorkoutReminderScheduler {
                 else -> 1
             }
 
-            if (days.contains(appDay) && candidate.timeInMillis > now.timeInMillis + 60_000L) {
+            if (days.contains(appDay) && candidate.timeInMillis > now.timeInMillis + 5_000L) {
                 return candidate.timeInMillis
             }
         }

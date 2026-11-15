@@ -96,7 +96,7 @@ class ExerciseRepository(
 }
 
 class RoutineRepository(
-    initialRoutines: List<RoutineBlueprint> = SeedData.defaultRoutines,
+    initialRoutines: List<RoutineBlueprint> = emptyList(),
     private val databaseRepo: KumaDatabaseRepository? = null,
     private val onSave: ((List<RoutineBlueprint>) -> Unit)? = null
 ) {
@@ -703,6 +703,31 @@ class WorkoutRepository(
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 
+    fun pauseWorkout() {
+        val current = _activeWorkout.value ?: return
+        if (current.isPaused) return
+        val now = currentEpochMillis()
+        val updated = current.copy(isPaused = true, pausedAtEpochMs = now)
+        _activeWorkout.value = updated
+        databaseRepo?.saveActiveWorkout(updated)
+        KumaLogger.i("WorkoutRepository", "Paused workout '${current.title}' (${current.id})")
+    }
+
+    fun resumeWorkout() {
+        val current = _activeWorkout.value ?: return
+        if (!current.isPaused) return
+        val now = currentEpochMillis()
+        val pausedDuration = if (current.pausedAtEpochMs != null) now - current.pausedAtEpochMs else 0L
+        val updated = current.copy(
+            isPaused = false,
+            pausedAtEpochMs = null,
+            totalPausedDurationMs = current.totalPausedDurationMs + maxOf(0L, pausedDuration)
+        )
+        _activeWorkout.value = updated
+        databaseRepo?.saveActiveWorkout(updated)
+        KumaLogger.i("WorkoutRepository", "Resumed workout '${current.title}' (${current.id})")
+    }
+
     fun finishWorkout(
         sessionRpe: Double = 8.5,
         avgHeartRateBpm: Int? = null,
@@ -712,7 +737,8 @@ class WorkoutRepository(
         val current = _activeWorkout.value ?: return null
         val now = currentEpochMillis()
         val durationSec = if (current.startTimeEpochMs > 0L) {
-            maxOf(1L, (now - current.startTimeEpochMs) / 1000L)
+            val finalNow = if (current.isPaused && current.pausedAtEpochMs != null) current.pausedAtEpochMs else now
+            maxOf(1L, (finalNow - current.startTimeEpochMs - current.totalPausedDurationMs) / 1000L)
         } else current.durationSeconds
 
         val finished = current.copy(

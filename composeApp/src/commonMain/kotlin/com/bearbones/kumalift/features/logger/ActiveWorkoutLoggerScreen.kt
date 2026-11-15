@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.features.logger
 
+import kotlinx.datetime.Clock
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,8 +52,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -132,15 +140,27 @@ fun ActiveWorkoutLoggerScreen(
         }
     }
 
-    var elapsedSeconds by remember(workout?.id) {
-        val initial = workout?.durationSeconds?.takeIf { it > 0 } ?: (34 * 60 + 18L)
-        mutableStateOf(initial)
+    val computeElapsed = {
+        if (workout == null || workout.startTimeEpochMs <= 0L) 0L
+        else {
+            val now = Clock.System.now().toEpochMilliseconds()
+            if (workout.isPaused && workout.pausedAtEpochMs != null) {
+                maxOf(0L, (workout.pausedAtEpochMs - workout.startTimeEpochMs - workout.totalPausedDurationMs) / 1000L)
+            } else {
+                maxOf(0L, (now - workout.startTimeEpochMs - workout.totalPausedDurationMs) / 1000L)
+            }
+        }
     }
 
-    LaunchedEffect(workout?.id) {
-        while (true) {
+    var elapsedSeconds by remember(workout?.id, workout?.startTimeEpochMs) {
+        mutableStateOf(computeElapsed())
+    }
+
+    LaunchedEffect(workout?.id, workout?.startTimeEpochMs, workout?.isPaused, workout?.pausedAtEpochMs) {
+        while (workout != null && workout.startTimeEpochMs > 0L) {
+            elapsedSeconds = computeElapsed()
+            if (workout.isPaused) break
             delay(1000)
-            elapsedSeconds++
         }
     }
 
@@ -293,26 +313,37 @@ fun ActiveWorkoutLoggerScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Timer Box (Always single horizontal line with stopwatch icon)
+                                        // Timer Box (Interactive pause/resume with accurate wall-clock timer)
                                         Row(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(KumaColors.SurfaceContainerHigh)
-                                                .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(10.dp))
+                                                .background(if (workout.isPaused) KumaColors.SurfaceContainerHighest else KumaColors.SurfaceContainerHigh)
+                                                .border(
+                                                    1.dp,
+                                                    if (workout.isPaused) Color(0xFFF59E0B) else KumaColors.BorderDefault,
+                                                    RoundedCornerShape(10.dp)
+                                                )
+                                                .clickable {
+                                                    if (workout.isPaused) {
+                                                        workoutRepository.resumeWorkout()
+                                                    } else {
+                                                        workoutRepository.pauseWorkout()
+                                                    }
+                                                }
                                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Timer,
+                                                imageVector = if (workout.isPaused) Icons.Default.PlayArrow else Icons.Default.Timer,
                                                 contentDescription = null,
-                                                tint = LocalKumaColors.current.accentText,
+                                                tint = if (workout.isPaused) Color(0xFFF59E0B) else LocalKumaColors.current.accentText,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                             Text(
                                                 text = formattedTimer,
                                                 style = MaterialTheme.typography.titleMedium.copy(
-                                                    color = LocalKumaColors.current.textPrimary,
+                                                    color = if (workout.isPaused) Color(0xFFF59E0B) else LocalKumaColors.current.textPrimary,
                                                     fontWeight = FontWeight.Bold
                                                 ),
                                                 maxLines = 1,
@@ -687,51 +718,57 @@ fun ExerciseLoggingCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Set Matrix Header with clean spacing
+            // Set Matrix Header with clean spacing and precise alignment
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = s.setColumnHeader,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = KumaColors.TextMuted,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.width(36.dp)
                 )
                 if (settings.logging.showPreviousColumn) {
                     Text(
                         text = s.prevColumnHeader,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1.1f)
                     )
                 }
                 Text(
                     text = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb.uppercase() else s.unitKg.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = KumaColors.TextMuted,
-                    modifier = Modifier.weight(1.2f)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1.2f).padding(horizontal = 4.dp)
                 )
                 Text(
                     text = s.repsColumnHeader,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = KumaColors.TextMuted,
-                    modifier = Modifier.weight(1.0f)
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1.0f).padding(horizontal = 4.dp)
                 )
                 if (settings.logging.trackIntensity) {
                     Text(
                         text = if (settings.logging.intensityScale == IntensityScale.RIR) "RIR" else "RPE",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = KumaColors.TextMuted,
-                        modifier = Modifier.weight(0.9f)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(0.9f).padding(horizontal = 4.dp)
                     )
                 }
                 Text(
                     text = s.checkColumnHeader,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = KumaColors.TextMuted,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier.width(48.dp)
                 )
             }
@@ -812,6 +849,35 @@ fun SetRowItem(
     onRpeChange: (Double?) -> Unit
 ) {
     val bg = if (set.isCompleted) KumaColors.SurfaceContainer.copy(alpha = 0.5f) else KumaColors.SurfaceContainer
+    val unit = settings.units.weightUnit
+    val displayWeight = UnitConverters.toDisplayWeight(set.weightKg, unit)
+
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showRepsDialog by remember { mutableStateOf(false) }
+
+    if (showWeightDialog) {
+        WeightInputDialog(
+            initialWeight = displayWeight,
+            unit = unit,
+            onDismiss = { showWeightDialog = false },
+            onConfirm = { newWeight ->
+                val newStorageKg = UnitConverters.toStorageWeightKg(newWeight, unit)
+                onWeightChange(newStorageKg)
+                showWeightDialog = false
+            }
+        )
+    }
+
+    if (showRepsDialog) {
+        RepsInputDialog(
+            initialReps = set.reps,
+            onDismiss = { showRepsDialog = false },
+            onConfirm = { newReps ->
+                onRepsChange(newReps)
+                showRepsDialog = false
+            }
+        )
+    }
 
     Row(
         modifier = Modifier
@@ -846,7 +912,7 @@ fun SetRowItem(
                     val nextType = enabledTypes[(if (currentIndex >= 0) currentIndex + 1 else 0) % enabledTypes.size]
                     onSetTypeChange(nextType)
                 },
-            contentAlignment = Alignment.CenterStart
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = label,
@@ -859,18 +925,22 @@ fun SetRowItem(
 
         // Previous & Set Heart Rate (respects showPreviousColumn)
         if (settings.logging.showPreviousColumn) {
-            Box(modifier = Modifier.weight(1.1f)) {
+            Box(
+                modifier = Modifier.weight(1.1f),
+                contentAlignment = Alignment.Center
+            ) {
                 val prevText = if (set.previousWeightKg != null && set.previousReps != null) {
                     val prevDisp = UnitConverters.toDisplayWeight(set.previousWeightKg, settings.units.weightUnit)
                     "$prevDisp × ${set.previousReps}"
                 } else "-"
-                Column {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = prevText,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             color = KumaColors.TextMuted,
                             fontSize = 13.sp
-                        )
+                        ),
+                        textAlign = TextAlign.Center
                     )
                     if (set.heartRateBpm != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -895,23 +965,15 @@ fun SetRowItem(
             }
         }
 
-        // Weight input box (respects active weight unit & equipment-based step)
-        val unit = settings.units.weightUnit
-        val displayWeight = UnitConverters.toDisplayWeight(set.weightKg, unit)
-        val step = getWeightStep(exercise.equipment, unit, settings.logging)
-
+        // Weight input box (opens custom decimal weight dialog)
         Box(
             modifier = Modifier
                 .weight(1.2f)
-                .padding(end = 6.dp)
+                .padding(horizontal = 4.dp)
                 .height(44.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(KumaColors.SurfaceContainerHigh)
-                .clickable {
-                    val newDisplay = (displayWeight + step)
-                    val newStorageKg = UnitConverters.toStorageWeightKg(newDisplay, unit)
-                    onWeightChange(newStorageKg)
-                },
+                .clickable { showWeightDialog = true },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -923,19 +985,15 @@ fun SetRowItem(
             )
         }
 
-        // Reps input box (respects repStep setting)
+        // Reps input box (opens custom reps dialog)
         Box(
             modifier = Modifier
                 .weight(1.0f)
-                .padding(end = 6.dp)
+                .padding(horizontal = 4.dp)
                 .height(44.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(KumaColors.SurfaceContainerHigh)
-                .clickable {
-                    val repStep = maxOf(1, settings.logging.repStep)
-                    val nextReps = if (set.reps >= 30) 1 else (set.reps + repStep)
-                    onRepsChange(nextReps)
-                },
+                .clickable { showRepsDialog = true },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -959,7 +1017,7 @@ fun SetRowItem(
             Box(
                 modifier = Modifier
                     .weight(0.9f)
-                    .padding(end = 6.dp)
+                    .padding(horizontal = 4.dp)
                     .height(44.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(KumaColors.SurfaceContainerHigh)
@@ -998,10 +1056,10 @@ fun SetRowItem(
             }
         }
 
-        // Complete Checkbox (48x48 hit area)
+        // Complete Checkbox (48x48 hit area, centered with check column)
         Box(
             modifier = Modifier.width(48.dp),
-            contentAlignment = Alignment.CenterEnd
+            contentAlignment = Alignment.Center
         ) {
             KumaSetCheckbox(
                 isCompleted = set.isCompleted,
@@ -1009,6 +1067,236 @@ fun SetRowItem(
             )
         }
     }
+}
+
+@Composable
+fun WeightInputDialog(
+    initialWeight: Double,
+    unit: WeightUnit,
+    onDismiss: () -> Unit,
+    onConfirm: (Double) -> Unit
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+    val initialStr = if (initialWeight > 0.0) {
+        if (initialWeight == initialWeight.toLong().toDouble()) initialWeight.toLong().toString() else initialWeight.toString()
+    } else ""
+    var textValue by remember { mutableStateOf(initialStr) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = KumaColors.SurfaceContainerLow,
+        title = {
+            Text(
+                text = "${s.editWeightTitle} (${if (unit == WeightUnit.LB) s.unitLb else s.unitKg})",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d*$"""))) {
+                            textValue = input
+                            errorMessage = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("0.0", color = KumaColors.TextMuted) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    isError = errorMessage != null,
+                    supportingText = {
+                        if (errorMessage != null) {
+                            Text(errorMessage!!, color = KumaColors.ErrorRed)
+                        } else {
+                            Text(s.enterValidWeightHint, color = KumaColors.TextMuted)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedBorderColor = colors.accentFill,
+                        unfocusedBorderColor = KumaColors.BorderDefault
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(-5.0, -1.0, 1.0, 5.0).forEach { delta ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    val curr = textValue.toDoubleOrNull() ?: 0.0
+                                    val next = maxOf(0.0, curr + delta)
+                                    textValue = if (next == next.toLong().toDouble()) next.toLong().toString() else next.toString()
+                                    errorMessage = null
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (if (delta > 0) "+$delta" else "$delta").removeSuffix(".0"),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (delta > 0) colors.accentText else colors.textSecondary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsed = textValue.toDoubleOrNull()
+                    if (parsed == null || parsed < 0.0 || parsed > 999.9) {
+                        errorMessage = s.enterValidWeightHint
+                    } else {
+                        onConfirm(parsed)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.onAccentFill
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(s.save, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(s.cancel, color = colors.textSecondary)
+            }
+        }
+    )
+}
+
+@Composable
+fun RepsInputDialog(
+    initialReps: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+    var textValue by remember { mutableStateOf(if (initialReps > 0) initialReps.toString() else "") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = KumaColors.SurfaceContainerLow,
+        title = {
+            Text(
+                text = s.editRepsTitle,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { input ->
+                        if (input.isEmpty() || input.all { it.isDigit() }) {
+                            textValue = input
+                            errorMessage = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("10", color = KumaColors.TextMuted) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    isError = errorMessage != null,
+                    supportingText = {
+                        if (errorMessage != null) {
+                            Text(errorMessage!!, color = KumaColors.ErrorRed)
+                        } else {
+                            Text(s.enterValidRepsHint, color = KumaColors.TextMuted)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedBorderColor = colors.accentFill,
+                        unfocusedBorderColor = KumaColors.BorderDefault
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(-5, -1, 1, 5).forEach { delta ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    val curr = textValue.toIntOrNull() ?: 0
+                                    val next = maxOf(1, curr + delta)
+                                    textValue = next.toString()
+                                    errorMessage = null
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (if (delta > 0) "+$delta" else "$delta"),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (delta > 0) colors.accentText else colors.textSecondary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsed = textValue.toIntOrNull()
+                    if (parsed == null || parsed < 1 || parsed > 999) {
+                        errorMessage = s.enterValidRepsHint
+                    } else {
+                        onConfirm(parsed)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.onAccentFill
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(s.save, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(s.cancel, color = colors.textSecondary)
+            }
+        }
+    )
 }
 
 @Composable

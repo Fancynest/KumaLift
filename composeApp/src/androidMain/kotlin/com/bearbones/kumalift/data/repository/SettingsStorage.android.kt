@@ -84,7 +84,7 @@ actual fun rememberRoutineRepository(
         }
 
         RoutineRepository(
-            initialRoutines = custom + SeedData.defaultRoutines,
+            initialRoutines = custom.filterNot { it.id.startsWith("rt_") },
             databaseRepo = databaseRepo
         )
     }

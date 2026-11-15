@@ -143,12 +143,19 @@ fun HomeScreen(
     val targetBadge = s.goalProgress(targetPct, weekWorkoutsCount, targetGoalWorkouts)
     val prBadge = s.prRecordsCount(prList.size)
 
-    var backupBannerDismissed by rememberSaveable { mutableStateOf(false) }
+    var bannerDismissedByUser by remember { mutableStateOf(false) }
     val backupReminderDays = settings.dataBackup.backupReminderDays
     val lastBackupMs = settings.dataBackup.lastBackupEpochMs
-    val isBackupDue = remember(backupReminderDays, lastBackupMs, backupBannerDismissed) {
-        if (backupBannerDismissed || backupReminderDays <= 0) false
-        else {
+    val lastDismissedMs = settings.dataBackup.lastReminderDismissedEpochMs
+    val oneWeekMs = 7L * 24 * 3600_000L
+
+    val isBackupDue = remember(backupReminderDays, lastBackupMs, lastDismissedMs, bannerDismissedByUser) {
+        if (bannerDismissedByUser || backupReminderDays <= 0) {
+            false
+        } else if (lastDismissedMs != null && (nowMs - lastDismissedMs) < oneWeekMs) {
+            // Dismissed/interacted within the last 7 days: respect weekly cooldown
+            false
+        } else {
             val daysElapsed = if (lastBackupMs == null) 999L else (nowMs - lastBackupMs) / (24L * 3600_000L)
             daysElapsed >= backupReminderDays
         }
@@ -244,7 +251,13 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(KumaColors.SurfaceContainerHigh)
-                                            .clickable { onOpenSettings() }
+                                            .clickable {
+                                                bannerDismissedByUser = true
+                                                settingsRepository.update { current ->
+                                                    current.copy(dataBackup = current.dataBackup.copy(lastReminderDismissedEpochMs = nowMs))
+                                                }
+                                                onOpenSettings()
+                                            }
                                             .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
@@ -258,7 +271,12 @@ fun HomeScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .clickable { backupBannerDismissed = true }
+                                            .clickable {
+                                                bannerDismissedByUser = true
+                                                settingsRepository.update { current ->
+                                                    current.copy(dataBackup = current.dataBackup.copy(lastReminderDismissedEpochMs = nowMs))
+                                                }
+                                            }
                                             .padding(horizontal = 8.dp, vertical = 6.dp)
                                     ) {
                                         Text(

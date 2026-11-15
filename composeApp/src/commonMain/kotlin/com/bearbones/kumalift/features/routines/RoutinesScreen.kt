@@ -43,9 +43,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FitnessCenter
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
@@ -270,18 +272,56 @@ fun RoutinesScreen(
                     }
                 }
 
-                // Routine Cards
-                items(filteredRoutines, key = { it.id }) { routine ->
-                    RoutineCardItem(
-                        routine = routine,
-                        onStart = {
-                            workoutRepository.startWorkoutFromRoutine(routine)
-                            onStartRoutine()
-                        },
-                        onDelete = if (routine.id.startsWith("custom_")) {
-                            { routineRepository.deleteRoutine(routine.id) }
-                        } else null
-                    )
+                // Routine Cards or Empty State
+                if (filteredRoutines.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp, horizontal = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = KumaColors.TextMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = s.noRoutinesMessage,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalKumaColors.current.textPrimary
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = s.createFirstRoutineHint,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KumaColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            KumaPrimaryButton(
+                                text = s.createRoutineButton,
+                                onClick = { showCreateRoutineScreen = true },
+                                modifier = Modifier.fillMaxWidth(0.7f)
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredRoutines, key = { it.id }) { routine ->
+                        RoutineCardItem(
+                            routine = routine,
+                            onStart = {
+                                workoutRepository.startWorkoutFromRoutine(routine)
+                                onStartRoutine()
+                            },
+                            onDelete = { routineRepository.deleteRoutine(routine.id) }
+                        )
+                    }
                 }
 
                 item {

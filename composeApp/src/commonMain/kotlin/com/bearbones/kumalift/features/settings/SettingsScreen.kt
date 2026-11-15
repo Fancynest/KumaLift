@@ -34,6 +34,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BatteryAlert
@@ -1183,11 +1184,14 @@ private fun NotificationSettingsPage(
         }
     }
 
-    // Custom Time Picker Dialog
+    // Custom Time Picker Dialog (Redesigned per contohtampilancustomreminder.jpg with flexible 00-59 minute keypad)
     if (showCustomTimeDialog) {
         val initialParts = settings.notifications.reminderTime.split(":")
         var selectedHour by remember { mutableStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: 17) }
         var selectedMinute by remember { mutableStateOf(initialParts.getOrNull(1)?.toIntOrNull() ?: 0) }
+        var isEditingHour by remember { mutableStateOf(true) }
+        var hourInputBuffer by remember { mutableStateOf("") }
+        var minuteInputBuffer by remember { mutableStateOf("") }
 
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showCustomTimeDialog = false },
@@ -1203,103 +1207,190 @@ private fun NotificationSettingsPage(
             },
             text = {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Large Hours : Minutes Display matching contohtampilancustomreminder.jpg
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Hour Selector
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .clickable { selectedHour = (selectedHour + 1) % 24 },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("+", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                        // Hours Box
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                isEditingHour = true
+                                hourInputBuffer = ""
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .border(1.dp, colors.accentText.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+                                    .width(88.dp)
+                                    .height(72.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isEditingHour) colors.accentFill.copy(alpha = 0.15f) else KumaColors.SurfaceContainer)
+                                    .border(
+                                        width = if (isEditingHour) 2.dp else 1.dp,
+                                        color = if (isEditingHour) colors.accentFill else KumaColors.BorderDefault,
+                                        shape = RoundedCornerShape(16.dp)
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = selectedHour.toString().padStart(2, '0'),
-                                    style = MaterialTheme.typography.titleLarge.copy(
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        fontSize = 38.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary
+                                        color = if (isEditingHour) colors.accentText else colors.textPrimary
                                     )
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .clickable { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("-", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
-                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Hours",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (isEditingHour) colors.accentText else KumaColors.TextMuted,
+                                    fontWeight = if (isEditingHour) FontWeight.Bold else FontWeight.Normal
+                                )
+                            )
                         }
 
                         Text(
                             text = ":",
                             style = MaterialTheme.typography.headlineLarge.copy(
+                                fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary
                             ),
-                            modifier = Modifier.padding(horizontal = 14.dp)
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 18.dp)
                         )
 
-                        // Minute Selector
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .clickable { selectedMinute = (selectedMinute + 5) % 60 },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("+", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                        // Minutes Box
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable {
+                                isEditingHour = false
+                                minuteInputBuffer = ""
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(54.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .border(1.dp, colors.accentText.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+                                    .width(88.dp)
+                                    .height(72.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (!isEditingHour) colors.accentFill.copy(alpha = 0.15f) else KumaColors.SurfaceContainer)
+                                    .border(
+                                        width = if (!isEditingHour) 2.dp else 1.dp,
+                                        color = if (!isEditingHour) colors.accentFill else KumaColors.BorderDefault,
+                                        shape = RoundedCornerShape(16.dp)
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = selectedMinute.toString().padStart(2, '0'),
-                                    style = MaterialTheme.typography.titleLarge.copy(
+                                    style = MaterialTheme.typography.headlineLarge.copy(
+                                        fontSize = 38.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary
+                                        color = if (!isEditingHour) colors.accentText else colors.textPrimary
                                     )
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(KumaColors.SurfaceContainer)
-                                    .clickable { selectedMinute = if (selectedMinute < 5) 55 else selectedMinute - 5 },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("-", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = colors.accentText))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Minutes",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = if (!isEditingHour) colors.accentText else KumaColors.TextMuted,
+                                    fontWeight = if (!isEditingHour) FontWeight.Bold else FontWeight.Normal
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Numeric Keypad matching contohtampilancustomreminder.jpg
+                    val keys = listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                        listOf("00", "0", "DEL")
+                    )
+
+                    keys.forEach { row ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)
+                        ) {
+                            row.forEach { key ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 76.dp, height = 48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(KumaColors.SurfaceContainer)
+                                        .clickable {
+                                            when (key) {
+                                                "DEL" -> {
+                                                    if (isEditingHour) {
+                                                        hourInputBuffer = ""
+                                                        selectedHour = 0
+                                                    } else {
+                                                        minuteInputBuffer = ""
+                                                        selectedMinute = 0
+                                                    }
+                                                }
+                                                "00" -> {
+                                                    if (isEditingHour) {
+                                                        selectedHour = 0
+                                                        isEditingHour = false
+                                                        minuteInputBuffer = ""
+                                                    } else {
+                                                        selectedMinute = 0
+                                                    }
+                                                }
+                                                else -> {
+                                                    val digit = key.toIntOrNull() ?: 0
+                                                    if (isEditingHour) {
+                                                        val newBuf = (hourInputBuffer + digit).takeLast(2)
+                                                        hourInputBuffer = newBuf
+                                                        val parsed = newBuf.toIntOrNull() ?: digit
+                                                        selectedHour = minOf(23, parsed)
+                                                        if (newBuf.length >= 2 || parsed >= 3) {
+                                                            isEditingHour = false
+                                                            minuteInputBuffer = ""
+                                                        }
+                                                    } else {
+                                                        val newBuf = (minuteInputBuffer + digit).takeLast(2)
+                                                        minuteInputBuffer = newBuf
+                                                        val parsed = newBuf.toIntOrNull() ?: digit
+                                                        selectedMinute = minOf(59, parsed)
+                                                    }
+                                                }
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (key == "DEL") {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Backspace,
+                                            contentDescription = "Backspace",
+                                            tint = colors.textPrimary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = key,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

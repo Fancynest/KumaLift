@@ -47,7 +47,7 @@ actual fun rememberRoutineRepository(
     return remember(exerciseRepository, databaseRepo) {
         val custom = databaseRepo.getAllCustomRoutines { id -> exerciseRepository.getExerciseById(id) }
         RoutineRepository(
-            initialRoutines = custom + SeedData.defaultRoutines,
+            initialRoutines = custom.filterNot { it.id.startsWith("rt_") },
             databaseRepo = databaseRepo
         )
     }

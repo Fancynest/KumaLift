@@ -413,6 +413,16 @@ interface AppStrings {
     val notifChannelDescription: String
     val notifReminderTitle: String
     val notifReminderBody: String
+    val notificationVariations: List<Pair<String, String>>
+
+    // Empty states & Dialogs
+    val noRoutinesMessage: String
+    val createFirstRoutineHint: String
+    val noMeasuresRecorded: String
+    val editWeightTitle: String
+    val editRepsTitle: String
+    val enterValidWeightHint: String
+    val enterValidRepsHint: String
 
     // Enums - Muscle Groups
     val muscleChest: String

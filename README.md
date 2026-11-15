@@ -138,3 +138,12 @@ python tools/upscale_gifs.py --src composeApp/src/androidMain/assets/videos \
   3. **Backward Compatibility Cadangan:** Menjaga field ini tetap ada memastikan data cadangan JSON/CSV yang pernah diekspor oleh pengguna tetap valid dan dapat di-restore tanpa *schema mismatch exception*.
 - **Rencana Migrasi Mendatang:**
   Ketika ada penambahan fitur database v2 di masa depan yang memang memerlukan file migrasi SQLDelight (`.sqm`), penghapusan kolom ini dapat digabungkan secara terstruktur dengan pengujian migrasi end-to-end.
+
+---
+
+## 🌐 Localization & Language Architecture
+
+KumaLift strictly separates localized UI strings from business logic and database persistence:
+- **Languages Supported:** Indonesian (`id`) and English (`en`), with system locale matching by default.
+- **Strict Guard Tests:** `LanguageGuardTests` verifies that no hardcoded user-facing strings or `.displayName` exist in UI and notifications, and tests key parity across `IdStrings` and `EnStrings`.
+- **Exercise Names:** Exercise titles remain in English matching the standard global gym terminology from the upstream exercise library dataset (e.g. "Barbell Bench Press", "Romanian Deadlift"). Surrounding UI labels, instructions, muscle groups, equipment, and category badges are fully localized.

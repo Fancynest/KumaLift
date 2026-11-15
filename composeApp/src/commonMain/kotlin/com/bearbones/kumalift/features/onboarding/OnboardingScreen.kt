@@ -86,7 +86,7 @@ fun OnboardingScreen(
                 TrainingGoal.HYPERTROPHY -> listOf(
                     RoutineBlueprint(
                         id = "starter_push",
-                        title = "Push Day (Dada & Bahu)",
+                        title = s.routinePushDayTitle,
                         splitCategory = "PPL Split",
                         muscleFocus = "Dada · Bahu · Triceps",
                         estimatedDurationMinutes = 55,
@@ -95,7 +95,7 @@ fun OnboardingScreen(
                     ),
                     RoutineBlueprint(
                         id = "starter_pull",
-                        title = "Pull Day (Punggung & Biceps)",
+                        title = s.routinePullDayTitle,
                         splitCategory = "PPL Split",
                         muscleFocus = "Punggung · Biceps",
                         estimatedDurationMinutes = 50,
@@ -106,7 +106,7 @@ fun OnboardingScreen(
                 TrainingGoal.STRENGTH -> listOf(
                     RoutineBlueprint(
                         id = "starter_strength_a",
-                        title = "Full Body A (Strength)",
+                        title = s.routineFullBodyTitle,
                         splitCategory = "Full Body",
                         muscleFocus = "Compound Lifts",
                         estimatedDurationMinutes = 65,
@@ -117,7 +117,7 @@ fun OnboardingScreen(
                 else -> listOf(
                     RoutineBlueprint(
                         id = "starter_general_full",
-                        title = "Upper / Lower Split",
+                        title = s.routineUpperLowerTitle,
                         splitCategory = "Upper / Lower",
                         muscleFocus = "Balanced Conditioning",
                         estimatedDurationMinutes = 45,
@@ -203,7 +203,7 @@ fun OnboardingScreen(
                                 )
                             )
                             Text(
-                                text = "Pilih fokus utama agar KumaLift dapat menyesuaikan rekomendasi repetisi dan progresi beban.",
+                                text = s.onboardingGoalDescription,
                                 style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.TextSecondary)
                             )
                         }
@@ -324,7 +324,7 @@ fun OnboardingScreen(
                                 )
                             )
                             Text(
-                                text = "Berapa hari dalam seminggu Anda berencana untuk berlatih? Anda dapat mengubah jadwal ini kapan saja.",
+                                text = s.onboardingDaysDescription,
                                 style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.TextSecondary)
                             )
                         }
@@ -370,7 +370,7 @@ fun OnboardingScreen(
                         // Day Toggle Pills
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Pilih Hari Latihan:",
+                                text = s.onboardingPickTrainingDays,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = KumaColors.TextSecondary
@@ -422,7 +422,7 @@ fun OnboardingScreen(
                                 )
                             )
                             Text(
-                                text = "Tentukan tingkat pengalaman latihan Anda untuk menyesuaikan laju kenaikan beban yang optimal.",
+                                text = s.onboardingExpDescription,
                                 style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.TextSecondary)
                             )
                         }
@@ -432,17 +432,17 @@ fun OnboardingScreen(
                                 Triple(
                                     ExperienceLevel.BEGINNER,
                                     s.levelBeginner,
-                                    "0–1 tahun · Adaptasi teknik & kenaikan beban linier"
+                                    "${s.levelBeginner} · 0–1 yr"
                                 ),
                                 Triple(
                                     ExperienceLevel.INTERMEDIATE,
                                     s.levelIntermediate,
-                                    "1–3 tahun · Progresi periodisasi mingguan"
+                                    "${s.levelIntermediate} · 1–3 yr"
                                 ),
                                 Triple(
                                     ExperienceLevel.ADVANCED,
                                     s.levelAdvanced,
-                                    "3+ tahun · Volume periodisasi & intensitas RPE presisi"
+                                    "${s.levelAdvanced} · 3+ yr"
                                 )
                             ).forEach { (exp, title, desc) ->
                                 val isSelected = selectedExperience == exp
@@ -488,7 +488,7 @@ fun OnboardingScreen(
             ) {
                 if (currentStep < 3) {
                     KumaPrimaryButton(
-                        text = "Lanjut (${currentStep}/3)",
+                        text = s.onboardingNextStep(currentStep),
                         onClick = { currentStep += 1 }
                     )
                 } else {

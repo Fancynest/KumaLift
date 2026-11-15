@@ -571,7 +571,7 @@ fun HomeScreen(
                                         }
                                         if (prCountInWorkout > 0) {
                                             KumaBadge(
-                                                text = "$prCountInWorkout PR",
+                                                text = s.prCountLabel(prCountInWorkout),
                                                 isPr = true
                                             )
                                         }

@@ -469,6 +469,7 @@ fun VolumeBar(week: String, heightFraction: Float, isCurrent: Boolean = false) {
 
 @Composable
 fun PersonalRecordItem(pr: PersonalRecord) {
+    val s = LocalStrings.current
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = KumaColors.SurfaceContainer,
@@ -490,7 +491,7 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${pr.weightKg} kg × ${pr.reps} reps · Est 1RM: ${pr.estimated1RmKg} kg",
+                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev} · ${s.estimatedOneRepMaxHeader}: ${pr.estimated1RmKg} ${s.unitKg}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 13.sp

@@ -137,11 +137,6 @@ fun WorkoutSummaryScreen(
                                         )
                                     )
                                 }
-                                Text(
-                                    text = "RPE 8.5",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = KumaColors.TextMuted
-                                )
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
@@ -156,7 +151,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "${s.todaySummaryPrefix} · 11:30 – 12:17",
+                                text = "${s.todaySummaryPrefix} · $durationFormatted",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextMuted
                             )
@@ -242,7 +237,7 @@ fun WorkoutSummaryScreen(
                                                 )
                                             )
                                             KumaBadge(
-                                                text = "PR",
+                                                text = s.prBadge,
                                                 isPr = true
                                             )
                                         }

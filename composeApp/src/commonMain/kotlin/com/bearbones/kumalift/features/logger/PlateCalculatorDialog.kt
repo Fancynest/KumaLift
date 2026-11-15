@@ -50,6 +50,9 @@ import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.domain.model.PlateCalculator
 import com.bearbones.kumalift.domain.model.WeightUnit
 
+private fun formatWeightDisplay(weight: Double): String =
+    if (weight % 1.0 == 0.0) "${weight.toInt()}" else "$weight"
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlateCalculatorDialog(
@@ -102,7 +105,7 @@ fun PlateCalculatorDialog(
                         )
                     )
                     Text(
-                        text = "Barbell Plate Breakdown",
+                        text = s.plateCalculatorSubtitle,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = KumaColors.TextMuted
                         )
@@ -147,7 +150,7 @@ fun PlateCalculatorDialog(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "${targetWeight.toString().removeSuffix(".0")} kg",
+                                text = "${formatWeightDisplay(targetWeight)} ${s.unitKg}",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.accentText
@@ -223,7 +226,7 @@ fun PlateCalculatorDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "${barWeight.toInt()} kg",
+                                    text = "${barWeight.toInt()} ${s.unitKg}",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) colors.onAccentFill else colors.textPrimary
@@ -244,7 +247,7 @@ fun PlateCalculatorDialog(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${s.loadEachSide}: ${calcResult.weightPerSideKg} kg",
+                        text = "${s.loadEachSide}: ${calcResult.weightPerSideKg} ${s.unitKg}",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -284,7 +287,7 @@ fun PlateCalculatorDialog(
 
                             if (calcResult.platesPerSide.isEmpty()) {
                                 Text(
-                                    text = "Bare Barbell",
+                                    text = s.bareBarbellLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.TextMuted,
                                         fontSize = 11.sp
@@ -346,7 +349,7 @@ fun PlateCalculatorDialog(
                                             .background(Color(item.hexColor))
                                     )
                                     Text(
-                                        text = "${item.countPerSide} × ${item.weightKg.toString().removeSuffix(".0")} kg",
+                                        text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg)} ${s.unitKg}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -361,7 +364,7 @@ fun PlateCalculatorDialog(
         },
         confirmButton = {
             KumaPrimaryButton(
-                text = "${s.save} (${calcResult.totalCalculatedWeightKg.toString().removeSuffix(".0")} kg)",
+                text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg)} ${s.unitKg})",
                 onClick = {
                     onConfirm(calcResult.totalCalculatedWeightKg)
                     onDismiss()

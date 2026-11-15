@@ -13,6 +13,9 @@ import android.os.VibratorManager
 import com.bearbones.kumalift.MainActivity
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_30
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
+import com.bearbones.kumalift.core.localization.AppStrings
+import com.bearbones.kumalift.core.localization.resolveAppStrings
+import com.bearbones.kumalift.domain.model.AppLanguage
 
 object AndroidAppProvider {
     @Volatile
@@ -26,16 +29,28 @@ private const val NOTIF_ID_ALERT = 2003
 
 private var lastOngoingExerciseName: String? = null
 
+private fun getStrings(context: Context): AppStrings {
+    val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+    val langStr = prefs.getString("language_code", null)
+    val appLanguage = try {
+        if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
+    } catch (_: Exception) {
+        AppLanguage.SYSTEM
+    }
+    return resolveAppStrings(appLanguage)
+}
+
 private fun ensureNotificationChannels(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val strings = getStrings(context)
 
         val ongoingChannel = NotificationChannel(
             CHANNEL_ONGOING_ID,
-            "Rest Timer Ongoing",
+            strings.restTimerChannelName,
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Persistent live countdown on lockscreen and status bar"
+            description = strings.restTimerChannelDescription
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             setSound(null, null)
             enableVibration(false)
@@ -43,10 +58,10 @@ private fun ensureNotificationChannels(context: Context) {
 
         val alertChannel = NotificationChannel(
             CHANNEL_ALERT_ID,
-            "Rest Timer Finished",
+            strings.restTimerNotificationTitle,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Alerts and vibration when rest timer finishes"
+            description = strings.restTimerChannelDescription
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             enableVibration(true)
         }
@@ -112,8 +127,9 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = if (!exerciseName.isNullOrBlank()) "Resting · $exerciseName" else "Rest Timer"
-        val subtitle = "Resting between sets"
+        val strings = getStrings(context)
+        val title = if (!exerciseName.isNullOrBlank()) "${strings.restTimerRestingSubtitle} · $exerciseName" else strings.restTimerChannelName
+        val subtitle = strings.restTimerRestingSubtitle
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(context, CHANNEL_ONGOING_ID)
@@ -140,13 +156,13 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
             val addAction = Notification.Action.Builder(
                 null,
-                "+30s",
+                strings.restTimerActionAdd30,
                 add30Intent
             ).build()
 
             val skipAction = Notification.Action.Builder(
                 null,
-                "Skip",
+                strings.restTimerActionSkip,
                 skipIntent
             ).build()
 
@@ -201,10 +217,11 @@ actual fun playTimerCompletionFeedback() {
             Notification.Builder(context)
         }
 
+        val alertStrings = getStrings(context)
         val alertNotification = alertBuilder
             .setSmallIcon(appIconRes)
-            .setContentTitle("Rest Finished!")
-            .setContentText("Your rest timer is done. Ready for the next set!")
+            .setContentTitle(alertStrings.restTimerNotificationTitle)
+            .setContentText(alertStrings.restTimerNotificationText)
             .setContentIntent(openIntent)
             .setAutoCancel(true)
             .setShowWhen(true)

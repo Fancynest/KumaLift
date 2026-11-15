@@ -134,7 +134,7 @@ fun ProfilePhotoCropDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "${((scale * 10).toInt() / 10.0)}x",
+                        text = "${((scale * 10).toInt() / 10.0)}×",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary

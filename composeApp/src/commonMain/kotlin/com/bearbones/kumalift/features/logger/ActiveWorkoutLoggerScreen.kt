@@ -863,7 +863,7 @@ fun ExerciseLoggingCard(
                             .background(Color(0xFF06B6D4))
                     )
                     Text(
-                        text = "SUPERSET ${workoutExercise.supersetGroupId}",
+                        text = s.supersetBadge(workoutExercise.supersetGroupId ?: ""),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF06B6D4),
@@ -888,7 +888,7 @@ fun ExerciseLoggingCard(
                         KumaBadge(text = "${exercise.equipment.label(s)} · ${exercise.primaryMuscle.label(s)}")
                         if (exercise.currentPrWeightKg != null) {
                             KumaBadge(
-                                text = "PR: ${UnitConverters.formatWeight(exercise.currentPrWeightKg, settings.units.weightUnit)}",
+                                text = "${s.prBadge}: ${UnitConverters.formatWeight(exercise.currentPrWeightKg, settings.units.weightUnit)}",
                                 isPr = true
                             )
                         }
@@ -949,7 +949,7 @@ fun ExerciseLoggingCard(
                         )
                         DropdownMenuItem(
                             text = {
-                                Text(if (workoutExercise.supersetGroupId != null) "Ubah/Lepas Superset" else "Gabung ke Superset")
+                                Text(if (workoutExercise.supersetGroupId != null) s.supersetUngroupAction else s.supersetGroupAction)
                             },
                             onClick = {
                                 showMenu = false
@@ -1009,7 +1009,7 @@ fun ExerciseLoggingCard(
                                 )
                             )
                             Text(
-                                text = "+${progressionAdvice.deltaKg} kg (${progressionAdvice.details})",
+                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} (${progressionAdvice.details})",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = KumaColors.TextMuted,
                                     fontSize = 11.sp
@@ -1025,7 +1025,7 @@ fun ExerciseLoggingCard(
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = "Terapkan",
+                            text = s.applyProgressionAction,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.Black
@@ -1256,10 +1256,10 @@ fun SetRowItem(
         // Set number / type badge (clicking cycles enabled set types)
         val enabledTypes = settings.logging.enabledSetTypes.toList().ifEmpty { listOf(SetType.NORMAL) }
         val label = when (set.setType) {
-            SetType.WARMUP -> "W"
-            SetType.DROP -> "D"
-            SetType.FAILURE -> "F"
-            SetType.NORMAL -> "${set.setNumber}"
+            SetType.WARMUP -> s.setTypeWarmupBadge
+            SetType.DROP -> s.setTypeDropBadge
+            SetType.FAILURE -> s.setTypeFailureBadge
+            SetType.NORMAL -> s.setTypeNormalBadge(set.setNumber)
         }
         val typeColor = when (set.setType) {
             SetType.WARMUP -> Color(0xFFF59E0B)
@@ -1289,28 +1289,28 @@ fun SetRowItem(
                 onDismissRequest = { showTypeMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("${s.setTypeNormal} (${set.setNumber})") },
+                    text = { Text(s.setTypeNormalMenuLabel(set.setNumber)) },
                     onClick = {
                         onSetTypeChange(SetType.NORMAL)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("W · ${s.setTypeWarmup}", color = Color(0xFFF59E0B)) },
+                    text = { Text(s.setTypeWarmupMenuLabel, color = Color(0xFFF59E0B)) },
                     onClick = {
                         onSetTypeChange(SetType.WARMUP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("D · ${s.setTypeDrop}", color = Color(0xFFEC4899)) },
+                    text = { Text(s.setTypeDropMenuLabel, color = Color(0xFFEC4899)) },
                     onClick = {
                         onSetTypeChange(SetType.DROP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("F · ${s.setTypeFailure}", color = Color(0xFFEF4444)) },
+                    text = { Text(s.setTypeFailureMenuLabel, color = Color(0xFFEF4444)) },
                     onClick = {
                         onSetTypeChange(SetType.FAILURE)
                         showTypeMenu = false
@@ -1814,7 +1814,7 @@ fun FloatingRestTimerCard(
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "-${subtractStepSec}s",
+                    text = "-${s.secondsShort(subtractStepSec)}",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textPrimary,
                         fontWeight = FontWeight.Bold
@@ -1829,7 +1829,7 @@ fun FloatingRestTimerCard(
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "+${addStepSec}s",
+                    text = "+${s.secondsShort(addStepSec)}",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.accentText,
                         fontWeight = FontWeight.Bold

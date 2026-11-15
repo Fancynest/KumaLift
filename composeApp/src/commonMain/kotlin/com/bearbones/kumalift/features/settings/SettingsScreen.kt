@@ -694,7 +694,7 @@ private fun ProfileSettingsPage(
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             KumaInputField(
-                                label = "${s.bodyHeightMeasureLabel} (cm)",
+                                label = "${s.bodyHeightMeasureLabel} (${s.sizeUnitCm})",
                                 value = htInput,
                                 onValueChange = { htInput = it },
                                 placeholder = "175.0"
@@ -1383,7 +1383,7 @@ private fun NotificationSettingsPage(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Hours",
+                                text = s.hoursLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = if (isEditingHour) colors.accentText else KumaColors.TextMuted,
                                     fontWeight = if (isEditingHour) FontWeight.Bold else FontWeight.Normal
@@ -1433,7 +1433,7 @@ private fun NotificationSettingsPage(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Minutes",
+                                text = s.minutesLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = if (!isEditingHour) colors.accentText else KumaColors.TextMuted,
                                     fontWeight = if (!isEditingHour) FontWeight.Bold else FontWeight.Normal
@@ -1510,7 +1510,7 @@ private fun NotificationSettingsPage(
                                     if (key == "DEL") {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Backspace,
-                                            contentDescription = "Backspace",
+                                            contentDescription = null,
                                             tint = colors.textPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -1666,7 +1666,7 @@ private fun WorkoutSettingsPage(
                                     )
                                 )
                                 Text(
-                                    text = "${settings.logging.restTimerDefaultSec / 60}${s.minAbbrev} ${settings.logging.restTimerDefaultSec % 60}s",
+                                    text = "${settings.logging.restTimerDefaultSec / 60}${s.minAbbrev} ${s.secondsShort(settings.logging.restTimerDefaultSec % 60)}",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.accentText,
                                         fontWeight = FontWeight.Bold
@@ -2629,10 +2629,10 @@ private fun ExportImportDataPage(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section: Google Drive & Cloud Auto-Backup
+                // Section: Local Folder Auto-Backup
                 item {
                     Text(
-                        text = s.googleDriveHeader,
+                        text = s.autoBackupHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -2661,14 +2661,14 @@ private fun ExportImportDataPage(
                                     )
                                     Column {
                                         Text(
-                                            text = s.autoBackupGoogleDriveTitle,
+                                            text = s.autoBackupToFolderTitle,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = colors.textPrimary
                                             )
                                         )
                                         Text(
-                                            text = s.autoBackupGoogleDriveSubtitle,
+                                            text = s.autoBackupToFolderSubtitle,
                                             style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted)
                                         )
                                     }
@@ -2694,13 +2694,13 @@ private fun ExportImportDataPage(
                             SettingsDivider()
                             SettingsNavigationRow(
                                 icon = Icons.Default.FileDownload,
-                                title = s.backupToGoogleDriveNow,
-                                subtitle = s.backupToGoogleDriveNowSubtitle,
+                                title = s.backupNowChooseLocation,
+                                subtitle = s.backupNowChooseLocationSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
                                         val jsonPayload = backupManager.exportJson(settings)
                                         val now = currentEpochMillis()
-                                        exportLauncher("KumaLift_GoogleDrive_Backup_$now.json", jsonPayload)
+                                        exportLauncher("KumaLift_Backup_$now.json", jsonPayload)
                                         settingsRepository.update { current ->
                                             current.copy(
                                                 dataBackup = current.dataBackup.copy(
@@ -2716,8 +2716,8 @@ private fun ExportImportDataPage(
                             SettingsDivider()
                             SettingsNavigationRow(
                                 icon = Icons.Default.FileUpload,
-                                title = s.restoreFromGoogleDriveTitle,
-                                subtitle = s.restoreFromGoogleDriveSubtitle,
+                                title = s.restoreBackupChooseLocation,
+                                subtitle = s.restoreBackupChooseLocationSubtitle,
                                 onClick = {
                                     importLauncher()
                                 }
@@ -2868,7 +2868,7 @@ private fun ExportImportDataPage(
                                 SettingsNavigationRow(
                                     icon = Icons.Default.FileDownload,
                                     title = s.exportDiagnosticLogTitle,
-                                    subtitle = "${s.exportDiagnosticLogSubtitle} (${KumaLogger.logCount()} entries)",
+                                    subtitle = "${s.exportDiagnosticLogSubtitle} (${s.diagnosticLogEntriesCount(KumaLogger.logCount())})",
                                     onClick = {
                                         val logs = KumaLogger.getLogs()
                                         if (logs.isNotBlank()) {

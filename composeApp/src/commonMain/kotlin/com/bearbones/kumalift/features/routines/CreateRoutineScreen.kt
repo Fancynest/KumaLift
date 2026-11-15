@@ -686,7 +686,7 @@ private fun SelectedExerciseRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SwapVert,
-                        contentDescription = "Drag to reorder",
+                        contentDescription = s.dragToReorder,
                         tint = colors.textSecondary.copy(alpha = 0.6f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -844,7 +844,7 @@ private fun SelectedExerciseRow(
                 // Sets stepper
                 MiniStepper(
                     modifier = Modifier.weight(1f),
-                    label = "${config.targetSets} Set",
+                    label = "${config.targetSets} ${s.setsAbbrev}",
                     onMinus = { onSetsChange(maxOf(1, config.targetSets - 1)) },
                     onPlus = { onSetsChange(minOf(20, config.targetSets + 1)) }
                 )
@@ -852,7 +852,7 @@ private fun SelectedExerciseRow(
                 // Reps stepper
                 MiniStepper(
                     modifier = Modifier.weight(1.1f),
-                    label = "${config.targetReps} Reps",
+                    label = "${config.targetReps} ${s.repsAbbrev}",
                     onMinus = { onRepsChange(maxOf(1, config.targetReps - 1)) },
                     onPlus = { onRepsChange(minOf(100, config.targetReps + 1)) }
                 )
@@ -860,7 +860,7 @@ private fun SelectedExerciseRow(
                 // Rest stepper
                 MiniStepper(
                     modifier = Modifier.weight(1.2f),
-                    label = "${config.restTimerSeconds}s Rest",
+                    label = s.secondsRestLabel(config.restTimerSeconds),
                     onMinus = { onRestChange(maxOf(15, config.restTimerSeconds - 15)) },
                     onPlus = { onRestChange(minOf(300, config.restTimerSeconds + 15)) }
                 )

@@ -42,6 +42,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.MuscleRecoveryState
 import com.bearbones.kumalift.domain.model.MuscleRecoveryStatus
@@ -105,7 +106,7 @@ fun MuscleRecoveryCard(
                 }
 
                 Text(
-                    text = "72h Window",
+                    text = s.recoveryWindow72h,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 11.sp
@@ -142,7 +143,7 @@ fun MuscleRecoveryCard(
                                 .background(statusColor)
                         )
                         Text(
-                            text = state.muscleGroup.name.lowercase().replaceFirstChar { it.uppercase() },
+                            text = state.muscleGroup.label(s),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textPrimary
@@ -183,7 +184,7 @@ fun MuscleRecoveryDetailDialog(
                     )
                 )
                 Text(
-                    text = "Estimasi Kesiapan Otot Berdasarkan Riwayat Latihan",
+                    text = s.recoveryDialogSubtitle,
                     style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted)
                 )
             }
@@ -215,7 +216,7 @@ fun MuscleRecoveryDetailDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = state.muscleGroup.name.lowercase().replaceFirstChar { it.uppercase() },
+                                text = state.muscleGroup.label(s),
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textPrimary
@@ -232,7 +233,7 @@ fun MuscleRecoveryDetailDialog(
                                         .background(statusColor)
                                 )
                                 Text(
-                                    text = "$statusText · ${state.readinessPercentage}%",
+                                    text = s.recoveryStatusFormat(statusText, state.readinessPercentage),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = statusColor
@@ -268,9 +269,9 @@ fun MuscleRecoveryDetailDialog(
                         ) {
                             Text(
                                 text = if (state.hoursSinceLastTrained != null) {
-                                    "${state.hoursSinceLastTrained}j lalu (${state.setsLast72h} set)"
+                                    s.recoveryTrainedAgo(state.hoursSinceLastTrained.toInt(), state.setsLast72h)
                                 } else {
-                                    "Belum dilatih dalam 72j"
+                                    s.recoveryNotTrainedIn72h
                                 },
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = KumaColors.TextMuted,

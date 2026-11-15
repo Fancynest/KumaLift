@@ -8,8 +8,7 @@ import kotlin.math.round
 data class WarmupSetTemplate(
     val percentageOfWorkingWeight: Double,
     val targetWeightKg: Double,
-    val targetReps: Int,
-    val label: String
+    val targetReps: Int
 )
 
 object WarmupSetCalculator {
@@ -44,8 +43,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = barWeightKg / workingWeightKg,
                         targetWeightKg = barWeightKg,
-                        targetReps = 8,
-                        label = "Bar Warm-up"
+                        targetReps = 8
                     )
                 )
             }
@@ -55,8 +53,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = barWeightKg / workingWeightKg,
                         targetWeightKg = barWeightKg,
-                        targetReps = 10,
-                        label = "Bar Warm-up"
+                        targetReps = 10
                     )
                 )
                 val set2Weight = roundToStep(workingWeightKg * 0.60, weightStepKg).coerceAtLeast(barWeightKg)
@@ -64,19 +61,17 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.60,
                         targetWeightKg = set2Weight,
-                        targetReps = 5,
-                        label = "Moderate Warm-up (60%)"
+                        targetReps = 5
                     )
                 )
             }
             workingWeightKg <= 110.0 -> {
-                // Heavy compound: 3 sets
+                // Heavier weight: 3 sets
                 templates.add(
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = barWeightKg / workingWeightKg,
                         targetWeightKg = barWeightKg,
-                        targetReps = 10,
-                        label = "Bar Warm-up"
+                        targetReps = 10
                     )
                 )
                 val set2Weight = roundToStep(workingWeightKg * 0.50, weightStepKg).coerceAtLeast(barWeightKg)
@@ -84,8 +79,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.50,
                         targetWeightKg = set2Weight,
-                        targetReps = 5,
-                        label = "Light Warm-up (50%)"
+                        targetReps = 5
                     )
                 )
                 val set3Weight = roundToStep(workingWeightKg * 0.75, weightStepKg).coerceAtLeast(set2Weight)
@@ -93,19 +87,17 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.75,
                         targetWeightKg = set3Weight,
-                        targetReps = 3,
-                        label = "Heavy Prep (75%)"
+                        targetReps = 3
                     )
                 )
             }
             else -> {
-                // Very heavy compound: 4 ramping sets
+                // Heavy lifts: 4 sets
                 templates.add(
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = barWeightKg / workingWeightKg,
                         targetWeightKg = barWeightKg,
-                        targetReps = 10,
-                        label = "Bar Warm-up"
+                        targetReps = 10
                     )
                 )
                 val set2Weight = roundToStep(workingWeightKg * 0.50, weightStepKg).coerceAtLeast(barWeightKg)
@@ -113,8 +105,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.50,
                         targetWeightKg = set2Weight,
-                        targetReps = 5,
-                        label = "Light Warm-up (50%)"
+                        targetReps = 5
                     )
                 )
                 val set3Weight = roundToStep(workingWeightKg * 0.70, weightStepKg).coerceAtLeast(set2Weight)
@@ -122,8 +113,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.70,
                         targetWeightKg = set3Weight,
-                        targetReps = 3,
-                        label = "Moderate Prep (70%)"
+                        targetReps = 3
                     )
                 )
                 val set4Weight = roundToStep(workingWeightKg * 0.85, weightStepKg).coerceAtLeast(set3Weight)
@@ -131,8 +121,7 @@ object WarmupSetCalculator {
                     WarmupSetTemplate(
                         percentageOfWorkingWeight = 0.85,
                         targetWeightKg = set4Weight,
-                        targetReps = 1,
-                        label = "Potentiation Single (85%)"
+                        targetReps = 1
                     )
                 )
             }

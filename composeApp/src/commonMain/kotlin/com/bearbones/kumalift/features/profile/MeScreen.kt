@@ -175,7 +175,7 @@ fun MeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Profile",
+                                contentDescription = s.editProfileContentDesc,
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -192,7 +192,7 @@ fun MeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
+                                contentDescription = s.settingsContentDesc,
                                 tint = colors.textPrimary,
                                 modifier = Modifier.size(19.dp)
                             )
@@ -1130,7 +1130,7 @@ private fun MeasuresModal(
             Spacer(modifier = Modifier.height(12.dp))
 
             ProfileField(
-                label = "${s.bodyHeightMeasureLabel} (cm)",
+                label = "${s.bodyHeightMeasureLabel} (${s.sizeUnitCm})",
                 value = heightInput,
                 onValueChange = { heightInput = it },
                 placeholder = "0"

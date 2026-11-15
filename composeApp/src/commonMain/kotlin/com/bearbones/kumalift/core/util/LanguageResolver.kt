@@ -29,9 +29,3 @@ fun resolveIsEnglish(preference: AppLanguage): Boolean {
         }
     }
 }
-
-val AppearanceSettings.isEnglish: Boolean
-    get() = resolveIsEnglish(this.language)
-
-val UserSettings.isEnglish: Boolean
-    get() = this.appearance.isEnglish

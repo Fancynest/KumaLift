@@ -448,7 +448,7 @@ fun ExerciseDetailScreen(
                                             ) {
                                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                     Text(
-                                                        text = "Target",
+                                                        text = s.targetLabel,
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = KumaColors.TextMuted
                                                     )

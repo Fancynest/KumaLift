@@ -146,7 +146,7 @@ fun KumaSetCheckbox(
             if (isCompleted) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Completed",
+                    contentDescription = null,
                     tint = KumaColors.OnElectricLime,
                     modifier = Modifier.size(22.dp)
                 )
@@ -225,7 +225,7 @@ fun KumaNumericStepper(
         ) {
             Icon(
                 imageVector = Icons.Default.Remove,
-                contentDescription = "Decrease",
+                contentDescription = null,
                 tint = KumaColors.OnSurface,
                 modifier = Modifier.size(18.dp)
             )
@@ -264,7 +264,7 @@ fun KumaNumericStepper(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Increase",
+                contentDescription = null,
                 tint = KumaColors.OnSurface,
                 modifier = Modifier.size(18.dp)
             )

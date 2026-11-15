@@ -261,7 +261,7 @@ fun RoutineDetailScreen(
                             )
                         )
                         Text(
-                            text = "${configs.size} Latihan",
+                            text = s.exerciseCountLabel(configs.size),
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.Medium
@@ -378,26 +378,26 @@ private fun RoutineExerciseDetailCard(config: RoutineExerciseConfig) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ConfigBadge(
-                    label = "${config.targetSets} Set",
+                    label = "${config.targetSets} ${s.setsAbbrev}",
                     containerColor = KumaColors.SurfaceContainer
                 )
                 ConfigBadge(
-                    label = "${config.targetReps} Reps",
+                    label = "${config.targetReps} ${s.repsAbbrev}",
                     containerColor = KumaColors.SurfaceContainer
                 )
                 if (config.targetWeightKg != null && config.targetWeightKg > 0) {
                     ConfigBadge(
-                        label = "${config.targetWeightKg} kg",
+                        label = "${config.targetWeightKg} ${s.unitKg}",
                         containerColor = KumaColors.SurfaceContainer
                     )
                 } else {
                     ConfigBadge(
-                        label = "Progresif",
+                        label = s.progressiveLabel,
                         containerColor = KumaColors.SurfaceContainer
                     )
                 }
                 ConfigBadge(
-                    label = "${config.restTimerSeconds} dtk Istirahat",
+                    label = s.secondsRestLabel(config.restTimerSeconds),
                     containerColor = KumaColors.SurfaceContainer
                 )
             }

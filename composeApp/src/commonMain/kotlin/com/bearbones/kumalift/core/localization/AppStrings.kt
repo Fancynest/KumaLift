@@ -557,7 +557,7 @@ interface AppStrings {
     val noDiagnosticLogsYet: String
     val removeLastSetAction: String
 
-    // Advanced Features: Plate Calc, Warm-up, Progression, Recovery, Superset, Onboarding, Drive
+    // Advanced Features: Plate Calc, Warm-up, Progression, Recovery, Superset, Onboarding, Backup
     val barWeight: String
     val totalWeight: String
     val loadEachSide: String
@@ -577,11 +577,95 @@ interface AppStrings {
     val onboardingStepDays: String
     val onboardingStepExp: String
     val onboardingFinish: String
-    val googleDriveHeader: String
-    val autoBackupGoogleDriveTitle: String
-    val autoBackupGoogleDriveSubtitle: String
-    val backupToGoogleDriveNow: String
-    val backupToGoogleDriveNowSubtitle: String
-    val restoreFromGoogleDriveTitle: String
-    val restoreFromGoogleDriveSubtitle: String
+
+    // E1 & E2 Backup & Encryption
+    val autoBackupHeader: String
+    val autoBackupToFolderTitle: String
+    val autoBackupToFolderSubtitle: String
+    val backupNowChooseLocation: String
+    val backupNowChooseLocationSubtitle: String
+    val restoreBackupChooseLocation: String
+    val restoreBackupChooseLocationSubtitle: String
+    val autoBackupFrequencyLabel: String
+    val autoBackupKeepLastLabel: String
+    val autoBackupFolderLabel: String
+    val autoBackupSelectFolder: String
+    val autoBackupNoFolderSelected: String
+    fun autoBackupStatusOk(timestamp: String): String
+    fun autoBackupStatusFailed(error: String): String
+    val autoBackupNeedsAttention: String
+    val autoBackupFailureNotificationTitle: String
+    val autoBackupFailureNotificationBody: String
+    val autoBackupRunNow: String
+    val encryptBackupsTitle: String
+    val encryptBackupsSubtitle: String
+    val setBackupPasswordTitle: String
+    val changeBackupPasswordTitle: String
+    val backupPasswordWarning: String
+    val passwordFieldLabel: String
+    val confirmPasswordFieldLabel: String
+    val passwordMismatchError: String
+    val enterPasswordPrompt: String
+    val decryptionFailedError: String
+
+    // E3 Language Cleanup Additions
+    val dayNamesFull: List<String>
+    val dayNamesShort: List<String>
+    val onboardingGoalDescription: String
+    val onboardingDaysDescription: String
+    val onboardingPickTrainingDays: String
+    val onboardingExpDescription: String
+    fun onboardingNextStep(step: Int): String
+    val routinePushDayTitle: String
+    val routinePullDayTitle: String
+    val routineLegDayTitle: String
+    val routineFullBodyTitle: String
+    val routineUpperLowerTitle: String
+
+    val scheduleFrequencyDescription: String
+    val scheduleQuickPatterns: String
+    fun schedulePickDaysHeader(count: Int): String
+    val scheduleSummaryHeader: String
+    fun scheduleDaysPerWeekSummary(count: Int): String
+
+    val setTypeWarmupBadge: String
+    val setTypeDropBadge: String
+    val setTypeFailureBadge: String
+    fun setTypeNormalBadge(setNumber: Int): String
+    val setTypeWarmupMenuLabel: String
+    val setTypeDropMenuLabel: String
+    val setTypeFailureMenuLabel: String
+    fun setTypeNormalMenuLabel(setNumber: Int): String
+
+    val bareBarbellLabel: String
+    fun supersetBadge(id: String): String
+    val supersetGroupAction: String
+    val supersetUngroupAction: String
+    val dragToReorder: String
+    fun exerciseCountLabel(count: Int): String
+    val progressiveLabel: String
+    fun secondsRestLabel(seconds: Int): String
+
+    val restTimerNotificationTitle: String
+    val restTimerNotificationText: String
+    val restTimerChannelName: String
+    val restTimerChannelDescription: String
+    val restTimerRestingSubtitle: String
+    val restTimerActionAdd30: String
+    val restTimerActionSkip: String
+
+    val recoveryWindow72h: String
+    val recoveryDialogSubtitle: String
+    fun recoveryStatusFormat(status: String, pct: Int): String
+    fun recoveryTrainedAgo(hours: Int, sets: Int): String
+    val recoveryNotTrainedIn72h: String
+
+    val editProfileContentDesc: String
+    val settingsContentDesc: String
+    val targetLabel: String
+    val hoursLabel: String
+    val minutesLabel: String
+    fun diagnosticLogEntriesCount(count: Int): String
+    fun prCountLabel(count: Int): String
+    val prBadge: String
 }

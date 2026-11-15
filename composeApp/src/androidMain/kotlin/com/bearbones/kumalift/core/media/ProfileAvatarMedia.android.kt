@@ -47,7 +47,7 @@ actual fun ProfileAvatarMedia(
             .allowHardware(true)
             .crossfade(true)
             .build(),
-        contentDescription = "Profile Avatar",
+        contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier.clip(CircleShape),
         loading = {

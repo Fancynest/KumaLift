@@ -74,22 +74,31 @@ fun WorkoutScheduleModal(
     }
     val selectedDays = remember { mutableStateListOf<Int>().apply { addAll(currentDays) } }
 
-    val daysOfWeek = listOf(
-        1 to "Senin",
-        2 to "Selasa",
-        3 to "Rabu",
-        4 to "Kamis",
-        5 to "Jumat",
-        6 to "Sabtu",
-        7 to "Minggu"
-    )
+    val daysOfWeek = (1..7).map { dayNum ->
+        dayNum to (s.dayNamesFull.getOrNull(dayNum - 1) ?: "")
+    }
 
     val presets = listOf(
-        SchedulePreset("3x Seminggu (Sen, Rab, Jum)", listOf(1, 3, 5)),
-        SchedulePreset("4x Seminggu (Sen, Sel, Kam, Jum)", listOf(1, 2, 4, 5)),
-        SchedulePreset("5x Seminggu (Senin–Jumat)", listOf(1, 2, 3, 4, 5)),
-        SchedulePreset("6x Seminggu (Senin–Sabtu)", listOf(1, 2, 3, 4, 5, 6)),
-        SchedulePreset("7x Seminggu (Setiap Hari)", listOf(1, 2, 3, 4, 5, 6, 7))
+        SchedulePreset(
+            "${s.scheduleDaysPerWeekSummary(3)} (${s.dayNamesShort.getOrElse(0) { "Mon" }}, ${s.dayNamesShort.getOrElse(2) { "Wed" }}, ${s.dayNamesShort.getOrElse(4) { "Fri" }})",
+            listOf(1, 3, 5)
+        ),
+        SchedulePreset(
+            "${s.scheduleDaysPerWeekSummary(4)} (${s.dayNamesShort.getOrElse(0) { "Mon" }}, ${s.dayNamesShort.getOrElse(1) { "Tue" }}, ${s.dayNamesShort.getOrElse(3) { "Thu" }}, ${s.dayNamesShort.getOrElse(4) { "Fri" }})",
+            listOf(1, 2, 4, 5)
+        ),
+        SchedulePreset(
+            "${s.scheduleDaysPerWeekSummary(5)} (${s.dayNamesShort.getOrElse(0) { "Mon" }}–${s.dayNamesShort.getOrElse(4) { "Fri" }})",
+            listOf(1, 2, 3, 4, 5)
+        ),
+        SchedulePreset(
+            "${s.scheduleDaysPerWeekSummary(6)} (${s.dayNamesShort.getOrElse(0) { "Mon" }}–${s.dayNamesShort.getOrElse(5) { "Sat" }})",
+            listOf(1, 2, 3, 4, 5, 6)
+        ),
+        SchedulePreset(
+            s.scheduleDaysPerWeekSummary(7),
+            listOf(1, 2, 3, 4, 5, 6, 7)
+        )
     )
 
     ModalBottomSheet(
@@ -129,7 +138,7 @@ fun WorkoutScheduleModal(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Tentukan frekuensi latihan mingguan secara bebas (1–7 hari). Sistem akan menyesuaikan target latihan mingguan secara otomatis.",
+                text = s.scheduleFrequencyDescription,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = colors.textSecondary,
                     fontSize = 13.sp
@@ -140,7 +149,7 @@ fun WorkoutScheduleModal(
 
             // Presets
             Text(
-                text = "PILIHAN POLA CEPAT",
+                text = s.scheduleQuickPatterns,
                 style = MaterialTheme.typography.labelSmall.copy(
                     color = colors.accentText,
                     fontWeight = FontWeight.Bold,
@@ -200,7 +209,7 @@ fun WorkoutScheduleModal(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "PILIH HARI LATIHAN (${selectedDays.size} HARI)",
+                    text = s.schedulePickDaysHeader(selectedDays.size),
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.accentText,
                         fontWeight = FontWeight.Bold,
@@ -274,7 +283,7 @@ fun WorkoutScheduleModal(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Ringkasan Jadwal:",
+                        text = s.scheduleSummaryHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontWeight = FontWeight.Bold
@@ -282,7 +291,7 @@ fun WorkoutScheduleModal(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${selectedDays.size} kali seminggu: " +
+                        text = "${s.scheduleDaysPerWeekSummary(selectedDays.size)} " +
                                 selectedDays.sorted().joinToString(", ") { day ->
                                     daysOfWeek.firstOrNull { it.first == day }?.second ?: ""
                                 },

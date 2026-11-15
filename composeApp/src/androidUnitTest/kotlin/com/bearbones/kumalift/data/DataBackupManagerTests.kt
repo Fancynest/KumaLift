@@ -257,4 +257,61 @@ class DataBackupManagerTests {
         assertTrue(mergeEn.message.startsWith("Successfully merged"))
         assertTrue(mergeId.message.startsWith("Berhasil menggabungkan"))
     }
+
+    @Test
+    fun testAutoBackupSettingsModelAndPersistence() {
+        val initial = repository.loadUserSettings() ?: UserSettings()
+        val customBackupSettings = initial.dataBackup.copy(
+            autoBackupEnabled = true,
+            autoBackupFrequency = com.bearbones.kumalift.domain.model.BackupFrequency.DAILY,
+            autoBackupFolderUri = "content://com.android.externalstorage.documents/tree/primary%3ABackups",
+            autoBackupFolderName = "Backups",
+            autoBackupKeepLast = 10,
+            lastBackupEpochMs = 1731553600000L,
+            lastBackupResultSuccess = true,
+            lastBackupResultError = null,
+            lastBackupFileName = "KumaLift-backup-20261114-1200.kumalift"
+        )
+        val updated = initial.copy(dataBackup = customBackupSettings)
+        repository.saveUserSettings(updated)
+
+        val loaded = repository.loadUserSettings()
+        assertNotNull(loaded)
+        assertTrue(loaded.dataBackup.autoBackupEnabled)
+        assertEquals(com.bearbones.kumalift.domain.model.BackupFrequency.DAILY, loaded.dataBackup.autoBackupFrequency)
+        assertEquals("content://com.android.externalstorage.documents/tree/primary%3ABackups", loaded.dataBackup.autoBackupFolderUri)
+        assertEquals("Backups", loaded.dataBackup.autoBackupFolderName)
+        assertEquals(10, loaded.dataBackup.autoBackupKeepLast)
+        assertEquals(1731553600000L, loaded.dataBackup.lastBackupEpochMs)
+        assertEquals(true, loaded.dataBackup.lastBackupResultSuccess)
+        assertEquals(null, loaded.dataBackup.lastBackupResultError)
+        assertEquals("KumaLift-backup-20261114-1200.kumalift", loaded.dataBackup.lastBackupFileName)
+    }
+
+    @Test
+    fun testAutoBackupPruningSimulation() {
+        val keepLast = 3
+        val mockFiles = listOf(
+            "KumaLift-backup-20261110-1000.kumalift",
+            "KumaLift-backup-20261111-1000.kumalift",
+            "KumaLift-backup-20261112-1000.kumalift",
+            "KumaLift-backup-20261113-1000.kumalift",
+            "KumaLift-backup-20261114-1000.kumalift"
+        )
+        val sorted = mockFiles
+            .filter { it.startsWith("KumaLift-backup-") && it.endsWith(".kumalift") }
+            .sortedDescending()
+
+        val retained = sorted.take(keepLast)
+        val pruned = sorted.drop(keepLast)
+
+        assertEquals(3, retained.size)
+        assertEquals("KumaLift-backup-20261114-1000.kumalift", retained[0])
+        assertEquals("KumaLift-backup-20261113-1000.kumalift", retained[1])
+        assertEquals("KumaLift-backup-20261112-1000.kumalift", retained[2])
+
+        assertEquals(2, pruned.size)
+        assertTrue(pruned.contains("KumaLift-backup-20261111-1000.kumalift"))
+        assertTrue(pruned.contains("KumaLift-backup-20261110-1000.kumalift"))
+    }
 }

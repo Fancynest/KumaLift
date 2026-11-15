@@ -14,3 +14,8 @@ expect fun rememberDataExportLauncher(
 expect fun rememberDataImportLauncher(
     onContentRead: (String?) -> Unit
 ): () -> Unit
+
+@Composable
+expect fun rememberFolderPickerLauncher(
+    onFolderPicked: (folderUri: String?, folderDisplayName: String?) -> Unit
+): () -> Unit

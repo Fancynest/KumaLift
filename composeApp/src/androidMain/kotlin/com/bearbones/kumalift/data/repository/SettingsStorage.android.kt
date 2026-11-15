@@ -3,6 +3,7 @@ package com.bearbones.kumalift.data.repository
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.bearbones.kumalift.core.backup.AutoBackupScheduler
 import com.bearbones.kumalift.data.local.DatabaseDriverFactory
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.data.local.SeedData
@@ -38,6 +39,7 @@ actual fun rememberSettingsRepository(databaseRepo: KumaDatabaseRepository): Set
             initialSettings = initial,
             onSave = { updated ->
                 databaseRepo.saveUserSettings(updated)
+                AutoBackupScheduler.scheduleOrUpdate(context, updated)
             }
         )
     }

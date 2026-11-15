@@ -587,6 +587,9 @@ interface AppStrings {
     val restoreBackupChooseLocation: String
     val restoreBackupChooseLocationSubtitle: String
     val autoBackupFrequencyLabel: String
+    val backupFrequencyDaily: String
+    val backupFrequencyWeekly: String
+    val backupFrequencyMonthly: String
     val autoBackupKeepLastLabel: String
     val autoBackupFolderLabel: String
     val autoBackupSelectFolder: String
@@ -597,6 +600,9 @@ interface AppStrings {
     val autoBackupFailureNotificationTitle: String
     val autoBackupFailureNotificationBody: String
     val autoBackupRunNow: String
+    val manualExportGoogleDriveNote: String
+    val autoBackupFolderInaccessible: String
+    val autoBackupFolderNotConfigured: String
     val encryptBackupsTitle: String
     val encryptBackupsSubtitle: String
     val setBackupPasswordTitle: String

@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.data
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.documentfile.provider.DocumentFile
 import com.bearbones.kumalift.core.localization.AppStrings
 
 @Composable
@@ -92,6 +94,40 @@ actual fun rememberDataImportLauncher(
                 openDocLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
             } catch (e: Exception) {
                 onContentRead(null)
+            }
+        }
+    }
+}
+
+@Composable
+actual fun rememberFolderPickerLauncher(
+    onFolderPicked: (folderUri: String?, folderDisplayName: String?) -> Unit
+): () -> Unit {
+    val context = LocalContext.current
+    val treeLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+                val doc = DocumentFile.fromTreeUri(context, uri)
+                val displayName = doc?.name ?: uri.lastPathSegment ?: uri.toString()
+                onFolderPicked(uri.toString(), displayName)
+            } catch (e: Exception) {
+                onFolderPicked(null, null)
+            }
+        } else {
+            onFolderPicked(null, null)
+        }
+    }
+
+    return remember(treeLauncher) {
+        {
+            try {
+                treeLauncher.launch(null)
+            } catch (e: Exception) {
+                onFolderPicked(null, null)
             }
         }
     }

@@ -20,15 +20,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import com.bearbones.kumalift.core.backup.AutoBackupService
 import com.bearbones.kumalift.core.data.rememberDataExportLauncher
 import com.bearbones.kumalift.core.data.rememberDataImportLauncher
+import com.bearbones.kumalift.core.data.rememberFolderPickerLauncher
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.util.currentEpochMillis
+import com.bearbones.kumalift.core.util.formatEpochToDateString
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.export.ImportMode
+import com.bearbones.kumalift.domain.model.BackupFrequency
 import com.bearbones.kumalift.features.routines.WorkoutScheduleModal
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -54,6 +62,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -70,7 +79,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -2419,6 +2430,32 @@ private fun ExportImportDataPage(
     var pendingImportContent by remember { mutableStateOf<String?>(null) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var isRunningBackupNow by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val folderPickerLauncher = rememberFolderPickerLauncher { uri, name ->
+        if (uri != null) {
+            settingsRepository.update { current ->
+                current.copy(
+                    dataBackup = current.dataBackup.copy(
+                        autoBackupEnabled = true,
+                        autoBackupFolderUri = uri,
+                        autoBackupFolderName = name ?: "Backup Folder",
+                        lastBackupResultError = null
+                    )
+                )
+            }
+            statusMessage = "Backup destination folder set"
+        } else {
+            if (settings.dataBackup.autoBackupFolderUri == null) {
+                settingsRepository.update { current ->
+                    current.copy(
+                        dataBackup = current.dataBackup.copy(autoBackupEnabled = false)
+                    )
+                }
+            }
+        }
+    }
 
     val exportLauncher = rememberDataExportLauncher(strings = s) { success, msg ->
         statusMessage = msg
@@ -2642,6 +2679,7 @@ private fun ExportImportDataPage(
                     Spacer(modifier = Modifier.height(8.dp))
                     KumaCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth()) {
+                            // 1. Master Toggle
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2674,15 +2712,28 @@ private fun ExportImportDataPage(
                                     }
                                 }
                                 Switch(
-                                    checked = settings.dataBackup.autoBackupToGoogleDrive,
+                                    checked = settings.dataBackup.autoBackupEnabled,
                                     onCheckedChange = { isChecked ->
-                                        settingsRepository.update { current ->
-                                            current.copy(
-                                                dataBackup = current.dataBackup.copy(
-                                                    autoBackupToGoogleDrive = isChecked,
-                                                    autoBackupEnabled = isChecked
+                                        if (isChecked) {
+                                            if (settings.dataBackup.autoBackupFolderUri.isNullOrBlank()) {
+                                                folderPickerLauncher()
+                                            } else {
+                                                settingsRepository.update { current ->
+                                                    current.copy(
+                                                        dataBackup = current.dataBackup.copy(
+                                                            autoBackupEnabled = true
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            settingsRepository.update { current ->
+                                                current.copy(
+                                                    dataBackup = current.dataBackup.copy(
+                                                        autoBackupEnabled = false
+                                                    )
                                                 )
-                                            )
+                                            }
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
@@ -2691,37 +2742,258 @@ private fun ExportImportDataPage(
                                     )
                                 )
                             }
+
                             SettingsDivider()
-                            SettingsNavigationRow(
-                                icon = Icons.Default.FileDownload,
-                                title = s.backupNowChooseLocation,
-                                subtitle = s.backupNowChooseLocationSubtitle,
-                                onClick = {
-                                    if (backupManager != null) {
-                                        val jsonPayload = backupManager.exportJson(settings)
-                                        val now = currentEpochMillis()
-                                        exportLauncher("KumaLift_Backup_$now.json", jsonPayload)
-                                        settingsRepository.update { current ->
-                                            current.copy(
-                                                dataBackup = current.dataBackup.copy(
-                                                    lastBackupEpochMs = now
-                                                )
+
+                            // 2. Destination Folder Selector Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { folderPickerLauncher() }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Folder,
+                                        contentDescription = null,
+                                        tint = colors.accentText
+                                    )
+                                    Column {
+                                        Text(
+                                            text = s.autoBackupFolderLabel,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.textPrimary
                                             )
+                                        )
+                                        Text(
+                                            text = settings.dataBackup.autoBackupFolderName
+                                                ?: s.autoBackupNoFolderSelected,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = if (settings.dataBackup.autoBackupFolderName != null)
+                                                    colors.textSecondary else colors.warning
+                                            )
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(colors.surfaceVariant)
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = s.autoBackupSelectFolder,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                            }
+
+                            // 3. Frequency & Retention Settings
+                            if (settings.dataBackup.autoBackupEnabled) {
+                                SettingsDivider()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = colors.accentText
+                                        )
+                                        Text(
+                                            text = s.autoBackupFrequencyLabel,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        listOf(
+                                            BackupFrequency.DAILY,
+                                            BackupFrequency.WEEKLY,
+                                            BackupFrequency.MONTHLY
+                                        ).forEach { freq ->
+                                            val label = freq.label(s)
+                                            val isSelected = settings.dataBackup.autoBackupFrequency == freq
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        if (isSelected) colors.accentFill else colors.surfaceVariant
+                                                    )
+                                                    .clickable {
+                                                        settingsRepository.update { current ->
+                                                            current.copy(
+                                                                dataBackup = current.dataBackup.copy(
+                                                                    autoBackupFrequency = freq
+                                                                )
+                                                            )
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        color = if (isSelected) colors.onAccentFill else colors.textPrimary,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                SettingsDivider()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FilterList,
+                                            contentDescription = null,
+                                            tint = colors.accentText
+                                        )
+                                        Text(
+                                            text = s.autoBackupKeepLastLabel,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        listOf(3, 5, 10).forEach { count ->
+                                            val isSelected = settings.dataBackup.autoBackupKeepLast == count
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        if (isSelected) colors.accentFill else colors.surfaceVariant
+                                                    )
+                                                    .clickable {
+                                                        settingsRepository.update { current ->
+                                                            current.copy(
+                                                                dataBackup = current.dataBackup.copy(
+                                                                    autoBackupKeepLast = count
+                                                                )
+                                                            )
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "$count",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        color = if (isSelected) colors.onAccentFill else colors.textPrimary,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            SettingsDivider()
+
+                            // 4. "Backup Now" Action Button
+                            SettingsNavigationRow(
+                                icon = Icons.Default.PlayArrow,
+                                title = if (isRunningBackupNow) s.autoBackupRunNow + "..." else s.autoBackupRunNow,
+                                subtitle = settings.dataBackup.autoBackupFolderUri?.let {
+                                    s.backupNowChooseLocationSubtitle
+                                } ?: s.autoBackupNoFolderSelected,
+                                onClick = {
+                                    if (databaseRepo != null) {
+                                        if (settings.dataBackup.autoBackupFolderUri.isNullOrBlank()) {
+                                            folderPickerLauncher()
+                                        } else {
+                                            coroutineScope.launch {
+                                                isRunningBackupNow = true
+                                                val result = AutoBackupService.runBackupNow(databaseRepo, settings)
+                                                isRunningBackupNow = false
+                                                if (result.success) {
+                                                    statusMessage = s.autoBackupStatusOk(result.fileName ?: "")
+                                                } else {
+                                                    statusMessage = s.autoBackupStatusFailed(result.errorMessage ?: s.autoBackupFolderInaccessible)
+                                                }
+                                            }
                                         }
                                     } else {
                                         statusMessage = s.databaseRepoUnavailable
                                     }
                                 }
                             )
+
                             SettingsDivider()
-                            SettingsNavigationRow(
-                                icon = Icons.Default.FileUpload,
-                                title = s.restoreBackupChooseLocation,
-                                subtitle = s.restoreBackupChooseLocationSubtitle,
-                                onClick = {
-                                    importLauncher()
-                                }
-                            )
+
+                            // 5. Status line: "Last backup: Today 03:00 (Success)" or "Failed: Folder not found" or "Never"
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val lastEpoch = settings.dataBackup.lastBackupEpochMs
+                                val lastSuccess = settings.dataBackup.lastBackupResultSuccess
+                                val lastError = settings.dataBackup.lastBackupResultError
+                                val lastFileName = settings.dataBackup.lastBackupFileName
+
+                                Text(
+                                    text = s.lastBackupTitle,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = colors.textSecondary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                )
+                                Text(
+                                    text = when {
+                                        lastEpoch == null -> s.never
+                                        lastSuccess == true -> s.autoBackupStatusOk(
+                                            formatEpochToDateString(lastEpoch) + (lastFileName?.let { " ($it)" } ?: "")
+                                        )
+                                        lastSuccess == false -> s.autoBackupStatusFailed(
+                                            lastError ?: s.autoBackupFolderInaccessible
+                                        )
+                                        else -> formatEpochToDateString(lastEpoch)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = when (lastSuccess) {
+                                            true -> colors.recoveryFresh
+                                            false -> colors.error
+                                            null -> colors.accentText
+                                        },
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -2736,7 +3008,14 @@ private fun ExportImportDataPage(
                             letterSpacing = 0.8.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = s.manualExportGoogleDriveNote,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = colors.textSecondary
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
                     KumaCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SettingsNavigationRow(

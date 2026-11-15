@@ -36,6 +36,8 @@ kotlin {
             implementation("io.coil-kt:coil-compose:2.7.0")
             implementation("io.coil-kt:coil-gif:2.7.0")
             implementation(libs.sqldelight.android)
+            implementation("androidx.work:work-runtime-ktx:2.9.1")
+            implementation("androidx.documentfile:documentfile:1.0.1")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

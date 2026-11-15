@@ -2,6 +2,7 @@ package com.bearbones.kumalift.core.localization
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import com.bearbones.kumalift.domain.model.BackupFrequency
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.ExperienceLevel
@@ -84,6 +85,17 @@ fun SetType.label(s: AppStrings): String = when (this) {
 }
 
 val SetType.label: String
+    @Composable
+    @ReadOnlyComposable
+    get() = label(LocalStrings.current)
+
+fun BackupFrequency.label(s: AppStrings): String = when (this) {
+    BackupFrequency.DAILY -> s.backupFrequencyDaily
+    BackupFrequency.WEEKLY -> s.backupFrequencyWeekly
+    BackupFrequency.MONTHLY -> s.backupFrequencyMonthly
+}
+
+val BackupFrequency.label: String
     @Composable
     @ReadOnlyComposable
     get() = label(LocalStrings.current)

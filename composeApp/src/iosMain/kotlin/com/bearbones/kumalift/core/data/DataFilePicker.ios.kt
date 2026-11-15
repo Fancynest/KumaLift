@@ -24,3 +24,12 @@ actual fun rememberDataImportLauncher(
         onContentRead(null)
     }
 }
+
+@Composable
+actual fun rememberFolderPickerLauncher(
+    onFolderPicked: (folderUri: String?, folderDisplayName: String?) -> Unit
+): () -> Unit {
+    return {
+        onFolderPicked(null, null)
+    }
+}

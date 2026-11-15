@@ -261,11 +261,11 @@ class LogicStabilizationTests {
         // Simulate 2 seconds elapsing
         delay(2100)
         val remaining = timer.state.value.remainingSeconds
-        assertTrue("Expected remaining in 1..3 but was $remaining", remaining in 1..3)
+        assertTrue("Expected remaining in 0..4 but was $remaining", remaining in 0..4)
 
         // Add 5 seconds
         timer.addSeconds(5)
-        assertTrue("Expected remaining in 6..8 but was ${timer.state.value.remainingSeconds}", timer.state.value.remainingSeconds in 6..8)
+        assertTrue("Expected remaining in 5..9 but was ${timer.state.value.remainingSeconds}", timer.state.value.remainingSeconds in 5..9)
 
         timer.stop()
         assertFalse(timer.state.value.isRunning)

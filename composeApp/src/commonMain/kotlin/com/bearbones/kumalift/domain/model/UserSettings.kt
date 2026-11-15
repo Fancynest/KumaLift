@@ -314,10 +314,14 @@ data class DataBackupSettings(
     val autoBackupToGoogleDrive: Boolean = false,
     val autoBackupFrequency: BackupFrequency = BackupFrequency.WEEKLY,
     val autoBackupFolderUri: String? = null,
+    val autoBackupFolderName: String? = null,
     val autoBackupKeepLast: Int = 5,
     val backupReminderDays: Int = 30,
     val lastBackupEpochMs: Long? = null,
-    val lastReminderDismissedEpochMs: Long? = null
+    val lastReminderDismissedEpochMs: Long? = null,
+    val lastBackupResultSuccess: Boolean? = null,
+    val lastBackupResultError: String? = null,
+    val lastBackupFileName: String? = null
 )
 
 @Serializable

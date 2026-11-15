@@ -56,8 +56,10 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -85,7 +87,6 @@ fun ExerciseLibraryScreen(
     var selectedExerciseForDetail by remember { mutableStateOf<Exercise?>(null) }
     var isCreatingExercise by remember { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
-    val isEnglish = resolveIsEnglish(settingsRepository?.settings?.collectAsState()?.value?.appearance?.language ?: AppLanguage.SYSTEM)
 
     // T10: Sub-navigation back handlers
     KumaBackHandler(enabled = selectedExerciseForDetail != null) {
@@ -110,7 +111,6 @@ fun ExerciseLibraryScreen(
                     val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
                     ExerciseDetailScreen(
                         exercise = liveExercise,
-                        isEnglish = isEnglish,
                         onNavigateBack = { selectedExerciseForDetail = null },
                         onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
                             {
@@ -146,7 +146,6 @@ fun ExerciseLibraryScreen(
                     workoutRepository = workoutRepository,
                     filterState = filterState,
                     listState = listState,
-                    isEnglish = isEnglish,
                     onOpenDetail = { selectedExerciseForDetail = it },
                     onOpenCreate = { isCreatingExercise = true },
                     onAddExercise = { exercise ->
@@ -165,7 +164,6 @@ private fun ExerciseCatalogList(
     workoutRepository: WorkoutRepository?,
     filterState: LibraryFilterState,
     listState: LazyListState,
-    isEnglish: Boolean = false,
     onOpenDetail: (Exercise) -> Unit,
     onOpenCreate: () -> Unit,
     onAddExercise: (Exercise) -> Unit
@@ -173,6 +171,7 @@ private fun ExerciseCatalogList(
     val allExercises by exerciseRepository.exercises.collectAsState()
     val activeWorkout = workoutRepository?.activeWorkout?.collectAsState()?.value
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     val filteredExercises = remember(
         allExercises,
@@ -205,7 +204,7 @@ private fun ExerciseCatalogList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isEnglish) "Exercises" else "Katalog Gerakan",
+                    text = s.exercisesTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = colors.textPrimary,
@@ -214,7 +213,7 @@ private fun ExerciseCatalogList(
                 )
 
                 Text(
-                    text = if (isEnglish) "Create" else "Buat Gerakan",
+                    text = s.createExerciseButton,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.accentText
@@ -243,7 +242,7 @@ private fun ExerciseCatalogList(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
+                        contentDescription = s.search,
                         tint = colors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -254,7 +253,7 @@ private fun ExerciseCatalogList(
                     ) {
                         if (filterState.searchQuery.isEmpty()) {
                             Text(
-                                text = if (isEnglish) "Search exercise..." else "Cari nama gerakan...",
+                                text = s.searchExerciseHint,
                                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                                 color = colors.textSecondary.copy(alpha = 0.6f)
                             )
@@ -274,7 +273,7 @@ private fun ExerciseCatalogList(
                     if (filterState.searchQuery.isNotEmpty()) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = s.close,
                             tint = colors.textSecondary,
                             modifier = Modifier
                                 .size(18.dp)
@@ -293,7 +292,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = if (isEnglish) "All Muscles" else "Semua Otot",
+                            label = s.allMusclesFilter,
                             isSelected = filterState.selectedMuscle == null,
                             onClick = { filterState.selectedMuscle = null }
                         )
@@ -301,7 +300,7 @@ private fun ExerciseCatalogList(
 
                     items(MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }) { muscle ->
                         FilterPill(
-                            label = muscle.localizedName(isEnglish),
+                            label = muscle.label,
                             isSelected = filterState.selectedMuscle == muscle,
                             onClick = {
                                 filterState.selectedMuscle = if (filterState.selectedMuscle == muscle) null else muscle
@@ -320,7 +319,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = if (isEnglish) "All Equipment" else "Semua Alat",
+                            label = s.allEquipmentFilter,
                             isSelected = filterState.selectedEquipment == null,
                             onClick = { filterState.selectedEquipment = null }
                         )
@@ -328,7 +327,7 @@ private fun ExerciseCatalogList(
 
                     items(Equipment.entries) { eq ->
                         FilterPill(
-                            label = eq.localizedName(isEnglish),
+                            label = eq.label,
                             isSelected = filterState.selectedEquipment == eq,
                             onClick = {
                                 filterState.selectedEquipment = if (filterState.selectedEquipment == eq) null else eq
@@ -347,7 +346,7 @@ private fun ExerciseCatalogList(
                 ) {
                     item {
                         FilterPill(
-                            label = if (isEnglish) "All Types" else "Semua Tipe",
+                            label = s.allTypesFilter,
                             isSelected = filterState.selectedMovementType == null,
                             onClick = { filterState.selectedMovementType = null }
                         )
@@ -355,7 +354,7 @@ private fun ExerciseCatalogList(
 
                     items(MovementType.entries) { mt ->
                         FilterPill(
-                            label = mt.localizedName(isEnglish),
+                            label = mt.label,
                             isSelected = filterState.selectedMovementType == mt,
                             onClick = {
                                 filterState.selectedMovementType = if (filterState.selectedMovementType == mt) null else mt
@@ -373,7 +372,7 @@ private fun ExerciseCatalogList(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isEnglish) "Exercises (${filteredExercises.size})" else "Daftar Gerakan (${filteredExercises.size})",
+                        text = s.exercisesCountHeader(filteredExercises.size),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary,
@@ -383,7 +382,7 @@ private fun ExerciseCatalogList(
 
                     if (filterState.isActive) {
                         Text(
-                            text = if (isEnglish) "Reset Filters" else "Atur Ulang",
+                            text = s.resetFilters,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -414,7 +413,6 @@ private fun ExerciseCatalogList(
                         ExerciseRowItem(
                             exercise = exercise,
                             hasActiveWorkout = activeWorkout != null,
-                            isEnglish = isEnglish,
                             onItemClick = { onOpenDetail(exercise) },
                             onAddClick = { onAddExercise(exercise) }
                         )
@@ -429,11 +427,11 @@ private fun ExerciseCatalogList(
 private fun ExerciseRowItem(
     exercise: Exercise,
     hasActiveWorkout: Boolean,
-    isEnglish: Boolean = false,
     onItemClick: () -> Unit,
     onAddClick: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -472,7 +470,7 @@ private fun ExerciseRowItem(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = exercise.localizedMuscleSubtitle(isEnglish),
+                text = exercise.localizedMuscleSubtitle,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = colors.textSecondary,
                     fontSize = 13.sp
@@ -494,7 +492,7 @@ private fun ExerciseRowItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isEnglish) "Add" else "Tambah",
+                    text = s.addExerciseToWorkout,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.onAccentFill

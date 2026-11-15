@@ -61,9 +61,11 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaSetCheckbox
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.timer.RestTimer
 import com.bearbones.kumalift.core.util.UnitConverters
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -89,7 +91,7 @@ fun ActiveWorkoutLoggerScreen(
 ) {
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings = settingsRepository?.settings?.collectAsState()?.value ?: UserSettings()
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
     val isLb = settings.units.weightUnit == WeightUnit.LB
     val scope = rememberCoroutineScope()
     val restTimer = remember { RestTimer(scope) }
@@ -157,7 +159,7 @@ fun ActiveWorkoutLoggerScreen(
         if (workout == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = if (isEnglish) "No active session. Start a workout from Home or Routines!" else "Belum ada sesi aktif. Yuk mulai latihan dari Beranda atau Latihan!",
+                    text = s.noActiveSessionMessage,
                     style = MaterialTheme.typography.bodyLarge,
                     color = KumaColors.TextMuted
                 )
@@ -187,13 +189,13 @@ fun ActiveWorkoutLoggerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = s.back,
                                 tint = KumaColors.OnSurface
                             )
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Text(
-                            text = if (isEnglish) "Workout Log" else "Catatan Latihan",
+                            text = s.workoutLogTitle,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = KumaColors.TextWhite
@@ -219,7 +221,7 @@ fun ActiveWorkoutLoggerScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isEnglish) "Finish" else "Selesai",
+                            text = s.finish,
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = KumaColors.OnElectricLime
@@ -263,7 +265,7 @@ fun ActiveWorkoutLoggerScreen(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = if (isEnglish) "ACTIVE WORKOUT" else "SEDANG LATIHAN",
+                                                text = s.activeWorkoutBadge,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = LocalKumaColors.current.accentText,
                                                     letterSpacing = 0.8.sp
@@ -324,12 +326,16 @@ fun ActiveWorkoutLoggerScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = if (isEnglish) "Completed Target" else "Target Selesai",
+                                        text = s.completedTargetLabel,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = KumaColors.TextSecondary
                                     )
                                     Text(
-                                        text = if (isEnglish) "${workout.totalCompletedSets} of ${workout.totalSets} sets (${(workout.progressFraction * 100).toInt()}%)" else "${workout.totalCompletedSets} dari ${workout.totalSets} set (${(workout.progressFraction * 100).toInt()}%)",
+                                        text = s.completedSetsProgress(
+                                            workout.totalCompletedSets,
+                                            workout.totalSets,
+                                            (workout.progressFraction * 100).toInt()
+                                        ),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = LocalKumaColors.current.accentText
@@ -355,7 +361,6 @@ fun ActiveWorkoutLoggerScreen(
                         ExerciseLoggingCard(
                             workoutExercise = we,
                             settings = settings,
-                            isEnglish = isEnglish,
                             onToggleSet = { setId ->
                                 workoutRepository.toggleSetCompletion(
                                     exerciseId = we.id,
@@ -410,7 +415,7 @@ fun ActiveWorkoutLoggerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Add Exercise" else "Tambah Gerakan",
+                                    text = s.addExerciseButton,
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         color = LocalKumaColors.current.textPrimary,
                                         fontWeight = FontWeight.Bold
@@ -434,7 +439,7 @@ fun ActiveWorkoutLoggerScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Finish Workout" else "Selesai Latihan",
+                                    text = s.finishWorkoutButton,
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         color = KumaColors.OnElectricLime,
                                         fontWeight = FontWeight.ExtraBold
@@ -458,7 +463,6 @@ fun ActiveWorkoutLoggerScreen(
         ) {
             FloatingRestTimerCard(
                 timerState = timerState,
-                isEnglish = isEnglish,
                 addStepSec = settings.logging.restTimerAddStepSec,
                 subtractStepSec = settings.logging.restTimerSubtractStepSec,
                 onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
@@ -476,16 +480,13 @@ fun ActiveWorkoutLoggerScreen(
                 onDismissRequest = { showConfirmFinishDialog = false },
                 title = {
                     Text(
-                        text = if (isEnglish) "Finish Workout?" else "Selesaikan Latihan?",
+                        text = s.finishWorkoutModalTitle,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 },
                 text = {
                     Text(
-                        text = if (isEnglish)
-                            "Are you sure you want to complete this workout session?"
-                        else
-                            "Apakah Anda yakin ingin menyelesaikan sesi latihan ini?",
+                        text = s.finishWorkoutModalMessage,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
@@ -497,7 +498,7 @@ fun ActiveWorkoutLoggerScreen(
                         }
                     ) {
                         Text(
-                            text = if (isEnglish) "Finish" else "Selesaikan",
+                            text = s.finish,
                             color = LocalKumaColors.current.accentText,
                             fontWeight = FontWeight.Bold
                         )
@@ -506,7 +507,7 @@ fun ActiveWorkoutLoggerScreen(
                 dismissButton = {
                     TextButton(onClick = { showConfirmFinishDialog = false }) {
                         Text(
-                            text = if (isEnglish) "Cancel" else "Batal",
+                            text = s.cancel,
                             color = KumaColors.TextMuted
                         )
                     }
@@ -522,16 +523,13 @@ fun ActiveWorkoutLoggerScreen(
                 onDismissRequest = { showLeaveLoggerDialog = false },
                 title = {
                     Text(
-                        text = if (isEnglish) "Minimize Workout?" else "Kembali ke Beranda?",
+                        text = s.minimizeWorkoutModalTitle,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 },
                 text = {
                     Text(
-                        text = if (isEnglish)
-                            "Your workout is still running. You can resume it anytime from the home screen."
-                        else
-                            "Latihan Anda masih berjalan di latar belakang. Anda dapat melanjutkannya kapan saja dari beranda.",
+                        text = s.minimizeWorkoutModalMessage,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
@@ -543,7 +541,7 @@ fun ActiveWorkoutLoggerScreen(
                         }
                     ) {
                         Text(
-                            text = if (isEnglish) "Minimize" else "Ya, Kembali",
+                            text = s.minimizeButton,
                             color = LocalKumaColors.current.accentText,
                             fontWeight = FontWeight.Bold
                         )
@@ -552,7 +550,7 @@ fun ActiveWorkoutLoggerScreen(
                 dismissButton = {
                     TextButton(onClick = { showLeaveLoggerDialog = false }) {
                         Text(
-                            text = if (isEnglish) "Stay" else "Tetap Latihan",
+                            text = s.stayButton,
                             color = KumaColors.TextMuted
                         )
                     }
@@ -593,7 +591,6 @@ private fun getWeightStep(
 fun ExerciseLoggingCard(
     workoutExercise: WorkoutExercise,
     settings: UserSettings,
-    isEnglish: Boolean = false,
     onToggleSet: (String) -> Unit,
     onUpdateSet: (String, Double, Int) -> Unit,
     onUpdateSetType: (String, SetType) -> Unit,
@@ -601,6 +598,7 @@ fun ExerciseLoggingCard(
     onAddSet: () -> Unit
 ) {
     val exercise = workoutExercise.exercise
+    val s = LocalStrings.current
 
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
@@ -619,7 +617,7 @@ fun ExerciseLoggingCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        KumaBadge(text = "${exercise.equipment.code} · ${exercise.primaryMuscle.localizedName(isEnglish)}")
+                        KumaBadge(text = "${exercise.equipment.label(s)} · ${exercise.primaryMuscle.label(s)}")
                         if (exercise.currentPrWeightKg != null) {
                             KumaBadge(
                                 text = "PR: ${UnitConverters.formatWeight(exercise.currentPrWeightKg, settings.units.weightUnit)}",
@@ -648,27 +646,27 @@ fun ExerciseLoggingCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "SET",
+                    text = s.setColumnHeader,
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.width(36.dp)
                 )
                 if (settings.logging.showPreviousColumn) {
                     Text(
-                        text = if (isEnglish) "PREV" else "LALU",
+                        text = s.prevColumnHeader,
                         style = MaterialTheme.typography.labelSmall,
                         color = KumaColors.TextMuted,
                         modifier = Modifier.weight(1.1f)
                     )
                 }
                 Text(
-                    text = if (settings.units.weightUnit == WeightUnit.LB) "LB" else "KG",
+                    text = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb.uppercase() else s.unitKg.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.weight(1.2f)
                 )
                 Text(
-                    text = "REPS",
+                    text = s.repsColumnHeader,
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.weight(1.0f)
@@ -682,7 +680,7 @@ fun ExerciseLoggingCard(
                     )
                 }
                 Text(
-                    text = if (isEnglish) "CHECK" else "CEK",
+                    text = s.checkColumnHeader,
                     style = MaterialTheme.typography.labelSmall,
                     color = KumaColors.TextMuted,
                     modifier = Modifier.width(48.dp)
@@ -719,7 +717,7 @@ fun ExerciseLoggingCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isEnglish) "Add Set" else "Tambah Set",
+                    text = s.addSetButton,
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = KumaColors.OnSurface,
                         fontWeight = FontWeight.SemiBold
@@ -944,7 +942,6 @@ fun SetRowItem(
 @Composable
 fun FloatingRestTimerCard(
     timerState: com.bearbones.kumalift.core.timer.RestTimerState,
-    isEnglish: Boolean = false,
     addStepSec: Int = 30,
     subtractStepSec: Int = 15,
     onAdd: () -> Unit,
@@ -952,6 +949,7 @@ fun FloatingRestTimerCard(
     onDismiss: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     Row(
         modifier = Modifier
             .clip(PillShape)
@@ -982,7 +980,7 @@ fun FloatingRestTimerCard(
 
         Column {
             Text(
-                text = if (isEnglish) "REST TIMER" else "WAKTU ISTIRAHAT",
+                text = s.restTimerHeader,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
                     color = colors.textSubtle,
@@ -1035,7 +1033,7 @@ fun FloatingRestTimerCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
+                    contentDescription = s.close,
                     tint = KumaColors.TextMuted,
                     modifier = Modifier.size(18.dp)
                 )

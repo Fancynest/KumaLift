@@ -7,6 +7,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.bearbones.kumalift.core.localization.EnStrings
+import com.bearbones.kumalift.core.localization.IdStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
@@ -48,11 +51,15 @@ class LibraryFilterState(
         val query = searchQuery.trim()
         val matchesQuery = query.isBlank() ||
             exercise.name.contains(query, ignoreCase = true) ||
-            exercise.primaryMuscle.displayName.contains(query, ignoreCase = true) ||
+            exercise.primaryMuscle.label(EnStrings).contains(query, ignoreCase = true) ||
+            exercise.primaryMuscle.label(IdStrings).contains(query, ignoreCase = true) ||
+            exercise.primaryMuscle.name.contains(query, ignoreCase = true) ||
             exercise.subMuscle.contains(query, ignoreCase = true) ||
-            exercise.equipment.displayName.contains(query, ignoreCase = true) ||
+            exercise.equipment.label(EnStrings).contains(query, ignoreCase = true) ||
+            exercise.equipment.label(IdStrings).contains(query, ignoreCase = true) ||
             exercise.equipment.code.contains(query, ignoreCase = true) ||
-            exercise.movementType.displayName.contains(query, ignoreCase = true)
+            exercise.movementType.label(EnStrings).contains(query, ignoreCase = true) ||
+            exercise.movementType.label(IdStrings).contains(query, ignoreCase = true)
 
         val matchesMuscle = selectedMuscle == null || exercise.primaryMuscle == selectedMuscle
         val matchesEquipment = selectedEquipment == null || exercise.equipment == selectedEquipment

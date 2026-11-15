@@ -1,7 +1,8 @@
 package com.bearbones.kumalift.data.export
 
+import com.bearbones.kumalift.core.localization.AppStrings
+import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.util.currentEpochMillis
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.local.ExerciseDataset
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.domain.model.Exercise
@@ -136,7 +137,7 @@ class DataBackupManager(
         jsonString: String,
         mode: ImportMode,
         currentSettings: UserSettings,
-        isEnglish: Boolean = resolveIsEnglish(currentSettings.appearance.language),
+        strings: AppStrings = resolveAppStrings(currentSettings.appearance.language),
         onSettingsRestored: (UserSettings) -> Unit = {}
     ): ImportResult {
         val backup = try {
@@ -144,17 +145,14 @@ class DataBackupManager(
         } catch (e: Exception) {
             return ImportResult(
                 success = false,
-                message = if (isEnglish) "Invalid or corrupted JSON format: ${e.message}" else "Format JSON tidak valid atau rusak: ${e.message}"
+                message = strings.backupInvalidJson(e.message ?: "")
             )
         }
 
         if (backup.schemaVersion > 1) {
             return ImportResult(
                 success = false,
-                message = if (isEnglish)
-                    "Backup from a newer app version (v${backup.schemaVersion}) is not supported."
-                else
-                    "Cadangan dari versi aplikasi yang lebih baru (v${backup.schemaVersion}) tidak didukung."
+                message = strings.backupNewerVersion(backup.schemaVersion)
             )
         }
 
@@ -185,10 +183,7 @@ class DataBackupManager(
                     prsCount = backup.personalRecords.size,
                     routinesCount = backup.customRoutines.size,
                     exercisesCount = backup.customExercises.size,
-                    message = if (isEnglish)
-                        "Successfully restored (Replace): ${backup.workouts.size} workouts, $totalSets sets, and ${backup.personalRecords.size} PRs."
-                    else
-                        "Berhasil memulihkan (Replace): ${backup.workouts.size} latihan, $totalSets set, dan ${backup.personalRecords.size} PR."
+                    message = strings.backupReplaceSuccess(backup.customExercises.size, backup.customRoutines.size, backup.personalRecords.size, backup.workouts.size)
                 )
             }
 
@@ -239,10 +234,7 @@ class DataBackupManager(
                     prsCount = addedPrs,
                     routinesCount = addedRoutines,
                     exercisesCount = addedExercises,
-                    message = if (isEnglish)
-                        "Successfully merged (Merge): $addedWorkouts new workouts, $addedSets sets, and $addedPrs personal records."
-                    else
-                        "Berhasil menggabungkan (Merge): $addedWorkouts latihan baru, $addedSets set, dan $addedPrs rekor PR."
+                    message = strings.backupMergeSuccess(addedExercises, addedRoutines, addedPrs, addedWorkouts)
                 )
             }
         }
@@ -250,15 +242,15 @@ class DataBackupManager(
 
     fun restoreSafetySnapshot(
         currentSettings: UserSettings,
-        isEnglish: Boolean = resolveIsEnglish(currentSettings.appearance.language),
+        strings: AppStrings = resolveAppStrings(currentSettings.appearance.language),
         onSettingsRestored: (UserSettings) -> Unit = {}
     ): ImportResult {
         val snapshotJson = databaseRepo.getLatestSafetySnapshot()
             ?: return ImportResult(
                 false,
-                message = if (isEnglish) "No safety snapshot available." else "Tidak ada snapshot keamanan yang tersedia."
+                message = strings.noSnapshotAvailable
             )
-        return importBackup(snapshotJson, ImportMode.REPLACE, currentSettings, isEnglish, onSettingsRestored)
+        return importBackup(snapshotJson, ImportMode.REPLACE, currentSettings, strings, onSettingsRestored)
     }
 
     fun getStorageUsage(currentSettings: UserSettings): StorageUsage {

@@ -61,6 +61,9 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.media.ExerciseThumbnailMedia
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.domain.model.Exercise
@@ -71,39 +74,34 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 @Composable
 fun CreateRoutineScreen(
     exerciseRepository: ExerciseRepository,
-    isEnglish: Boolean = false,
     onNavigateBack: () -> Unit,
     onSaveRoutine: (RoutineBlueprint) -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     var routineTitle by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("PPL Split") }
     var customCategory by remember { mutableStateOf("") }
     var selectedDurationMinutes by remember { mutableStateOf(60) }
-    var selectedRpeTier by remember { mutableStateOf("Berat, RPE 8–9") }
+    var selectedRpeTier by remember { mutableStateOf(s.rpeTiers.getOrElse(2) { "RPE 8–9" }) }
     val selectedExercises = remember { mutableStateListOf<Exercise>() }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
     var showExercisePicker by remember { mutableStateOf(false) }
 
-    val presetCategories = listOf("PPL Split", "Upper / Lower", "Full Body", "Custom")
+    val presetCategories = s.presetRoutineCategories
     val durationOptions = listOf(30, 45, 60, 75, 90)
-    val rpeOptions = listOf(
-        "Ringan, RPE 6–7",
-        "Sedang, RPE 7–8",
-        "Berat, RPE 8–9",
-        "Maksimal, RPE 9–10"
-    )
+    val rpeOptions = s.rpeTiers
 
-    val finalCategory = if (selectedCategory == "Custom") {
-        customCategory.trim().ifBlank { "Custom" }
+    val finalCategory = if (selectedCategory == s.presetRoutineCategories.last()) {
+        customCategory.trim().ifBlank { s.custom }
     } else {
         selectedCategory
     }
 
-    val autoMuscleFocus = remember(selectedExercises.toList(), isEnglish) {
-        val muscles = selectedExercises.map { it.primaryMuscle.localizedName(isEnglish) }.distinct()
-        if (muscles.isEmpty()) (if (isEnglish) "Full Body" else "Seluruh Tubuh") else muscles.joinToString(" · ")
+    val autoMuscleFocus = remember(selectedExercises.toList(), s) {
+        val muscles = selectedExercises.map { it.primaryMuscle.label(s) }.distinct()
+        if (muscles.isEmpty()) s.muscleFullBody else muscles.joinToString(" · ")
     }
 
     val isTitleValid = routineTitle.trim().isNotEmpty()
@@ -137,7 +135,7 @@ fun CreateRoutineScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Kembali",
+                            contentDescription = s.back,
                             tint = colors.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -146,7 +144,7 @@ fun CreateRoutineScreen(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Text(
-                        text = "Buat Pola Latihan",
+                        text = s.createRoutineTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -179,7 +177,7 @@ fun CreateRoutineScreen(
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Simpan",
+                        text = s.save,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -197,7 +195,7 @@ fun CreateRoutineScreen(
                 // Section 1: Routine Name
                 Column {
                     Text(
-                        text = "NAMA POLA LATIHAN *",
+                        text = s.routineNameLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -231,7 +229,7 @@ fun CreateRoutineScreen(
                             decorationBox = { innerTextField ->
                                 if (routineTitle.isEmpty()) {
                                     Text(
-                                        text = "misal: Push Day A, Kaki Fokus Quad",
+                                        text = s.routineNamePlaceholder,
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             color = colors.textSecondary.copy(alpha = 0.45f)
                                         )
@@ -245,7 +243,7 @@ fun CreateRoutineScreen(
                     if (hasAttemptedSubmit && !isTitleValid) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Nama pola latihan wajib diisi",
+                            text = s.routineNameRequiredError,
                             color = Color(0xFFFF453A),
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -255,7 +253,7 @@ fun CreateRoutineScreen(
                 // Section 2: Split Category
                 Column {
                     Text(
-                        text = "KATEGORI PROGRAM / SPLIT",
+                        text = s.routineCategoryLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -290,7 +288,7 @@ fun CreateRoutineScreen(
                         }
                     }
 
-                    if (selectedCategory == "Custom") {
+                    if (selectedCategory == presetCategories.last()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Box(
                             modifier = Modifier
@@ -310,7 +308,7 @@ fun CreateRoutineScreen(
                                 decorationBox = { innerTextField ->
                                     if (customCategory.isEmpty()) {
                                         Text(
-                                            text = "Nama kategori custom (misal: Bro Split, Calisthenics)",
+                                            text = s.customCategoryPlaceholder,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = colors.textSecondary.copy(alpha = 0.45f)
                                             )
@@ -326,7 +324,7 @@ fun CreateRoutineScreen(
                 // Section 3: Target Duration
                 Column {
                     Text(
-                        text = "ESTIMASI DURASI",
+                        text = s.estimatedDurationLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -352,7 +350,7 @@ fun CreateRoutineScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "$mins mnt",
+                                    text = "$mins ${s.minAbbrev}",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -366,7 +364,7 @@ fun CreateRoutineScreen(
                 // Section 4: Target Intensity (RPE)
                 Column {
                     Text(
-                        text = "TARGET INTENSITAS (RPE)",
+                        text = s.targetIntensityLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -410,7 +408,7 @@ fun CreateRoutineScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "FOKUS OTOT",
+                            text = s.muscleFocusLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold,
@@ -418,7 +416,7 @@ fun CreateRoutineScreen(
                             )
                         )
                         Text(
-                            text = "Otomatis",
+                            text = s.autoLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.textSecondary,
                                 fontSize = 11.sp
@@ -453,7 +451,7 @@ fun CreateRoutineScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "GERAKAN LATIHAN (${selectedExercises.size}) *",
+                            text = "${s.exercisesInRoutineHeader} (${selectedExercises.size}) *",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold,
@@ -462,7 +460,7 @@ fun CreateRoutineScreen(
                         )
 
                         Text(
-                            text = "Tambah",
+                            text = s.add,
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold
@@ -486,7 +484,7 @@ fun CreateRoutineScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = "Belum ada gerakan latihan",
+                                    text = s.noExercisesInRoutineYet,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary,
                                         fontWeight = FontWeight.Medium
@@ -501,7 +499,7 @@ fun CreateRoutineScreen(
                                         .padding(horizontal = 18.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        text = "Tambah Gerakan",
+                                        text = s.addExerciseToRoutineButton,
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             color = colors.onAccentFill,
                                             fontWeight = FontWeight.Bold
@@ -514,7 +512,7 @@ fun CreateRoutineScreen(
                         if (hasAttemptedSubmit && !isExercisesValid) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Minimal tambahkan 1 gerakan latihan ke pola ini",
+                                text = s.exercisesInRoutineRequiredError,
                                 color = Color(0xFFFF453A),
                                 style = MaterialTheme.typography.labelSmall
                             )
@@ -525,7 +523,6 @@ fun CreateRoutineScreen(
                                 SelectedExerciseRow(
                                     index = index + 1,
                                     exercise = exercise,
-                                    isEnglish = isEnglish,
                                     onRemove = { selectedExercises.removeAt(index) }
                                 )
                             }
@@ -543,7 +540,7 @@ fun CreateRoutineScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Add Another Exercise" else "Tambah Gerakan Lainnya",
+                                    text = s.addAnotherExerciseButton,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         color = colors.accentText,
                                         fontWeight = FontWeight.Bold
@@ -563,7 +560,6 @@ fun CreateRoutineScreen(
             ExercisePickerModal(
                 exerciseRepository = exerciseRepository,
                 selectedIds = selectedExercises.map { it.id }.toSet(),
-                isEnglish = isEnglish,
                 onAddExercise = { ex ->
                     if (!selectedExercises.any { it.id == ex.id }) {
                         selectedExercises.add(ex)
@@ -579,10 +575,10 @@ fun CreateRoutineScreen(
 private fun SelectedExerciseRow(
     index: Int,
     exercise: Exercise,
-    isEnglish: Boolean = false,
     onRemove: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = KumaColors.SurfaceContainerLow,
@@ -641,7 +637,7 @@ private fun SelectedExerciseRow(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "${exercise.primaryMuscle.localizedName(isEnglish)} · ${exercise.equipment.localizedName(isEnglish)}",
+                    text = exercise.localizedMuscleSubtitle(s),
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textSecondary
                     ),
@@ -659,7 +655,7 @@ private fun SelectedExerciseRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = if (isEnglish) "Remove" else "Hapus",
+                    contentDescription = s.remove,
                     tint = colors.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -673,11 +669,11 @@ private fun SelectedExerciseRow(
 private fun ExercisePickerModal(
     exerciseRepository: ExerciseRepository,
     selectedIds: Set<String>,
-    isEnglish: Boolean = false,
     onAddExercise: (Exercise) -> Unit,
     onDismiss: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val allExercises by exerciseRepository.exercises.collectAsState()
 
@@ -685,24 +681,25 @@ private fun ExercisePickerModal(
     var selectedMuscle by remember { mutableStateOf<MuscleGroup?>(null) }
 
     val muscleOptions = listOf(
-        null to (if (isEnglish) "All" else "Semua"),
-        MuscleGroup.CHEST to MuscleGroup.CHEST.localizedName(isEnglish),
-        MuscleGroup.BACK to MuscleGroup.BACK.localizedName(isEnglish),
-        MuscleGroup.LEGS to MuscleGroup.LEGS.localizedName(isEnglish),
-        MuscleGroup.SHOULDERS to MuscleGroup.SHOULDERS.localizedName(isEnglish),
-        MuscleGroup.ARMS to MuscleGroup.ARMS.localizedName(isEnglish),
-        MuscleGroup.CORE to MuscleGroup.CORE.localizedName(isEnglish),
-        MuscleGroup.CARDIO to MuscleGroup.CARDIO.localizedName(isEnglish)
+        null to s.all,
+        MuscleGroup.CHEST to MuscleGroup.CHEST.label(s),
+        MuscleGroup.BACK to MuscleGroup.BACK.label(s),
+        MuscleGroup.LEGS to MuscleGroup.LEGS.label(s),
+        MuscleGroup.SHOULDERS to MuscleGroup.SHOULDERS.label(s),
+        MuscleGroup.ARMS to MuscleGroup.ARMS.label(s),
+        MuscleGroup.CORE to MuscleGroup.CORE.label(s),
+        MuscleGroup.CARDIO to MuscleGroup.CARDIO.label(s)
     )
 
-    val filteredList = remember(searchQuery, selectedMuscle, allExercises) {
+    val filteredList = remember(searchQuery, selectedMuscle, allExercises, s) {
         if (searchQuery.isBlank() && selectedMuscle == null) {
             allExercises
         } else {
             allExercises.filter { ex ->
                 val matchQuery = searchQuery.isBlank() ||
                         ex.name.contains(searchQuery, ignoreCase = true) ||
-                        ex.equipment.displayName.contains(searchQuery, ignoreCase = true)
+                        ex.equipment.label(s).contains(searchQuery, ignoreCase = true) ||
+                        ex.primaryMuscle.label(s).contains(searchQuery, ignoreCase = true)
                 val matchMuscle = selectedMuscle == null || ex.primaryMuscle == selectedMuscle
                 matchQuery && matchMuscle
             }
@@ -727,7 +724,7 @@ private fun ExercisePickerModal(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Pilih Gerakan Latihan",
+                    text = s.exercisePickerTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -742,7 +739,7 @@ private fun ExercisePickerModal(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Selesai", fontWeight = FontWeight.Bold)
+                    Text(s.done, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -759,7 +756,7 @@ private fun ExercisePickerModal(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
+                        contentDescription = s.search,
                         tint = colors.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -773,7 +770,7 @@ private fun ExercisePickerModal(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Cari nama gerakan, alat, atau otot...",
+                                    text = s.exercisePickerSearchPlaceholder,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary.copy(alpha = 0.5f)
                                     )
@@ -785,7 +782,7 @@ private fun ExercisePickerModal(
                     if (searchQuery.isNotEmpty()) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = s.close,
                             tint = colors.textSecondary,
                             modifier = Modifier
                                 .size(18.dp)
@@ -825,7 +822,7 @@ private fun ExercisePickerModal(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "${filteredList.size} Gerakan ditemukan",
+                text = s.exercisesFoundCount(filteredList.size),
                 style = MaterialTheme.typography.labelSmall.copy(
                     color = colors.textSecondary,
                     fontWeight = FontWeight.Medium
@@ -882,7 +879,7 @@ private fun ExercisePickerModal(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "${ex.primaryMuscle.displayName} · ${ex.equipment.displayName}",
+                                    text = ex.localizedMuscleSubtitle(s),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = colors.textSecondary
                                     ),
@@ -905,12 +902,12 @@ private fun ExercisePickerModal(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Check,
-                                            contentDescription = "Added",
+                                            contentDescription = s.exercisePickerAddedBadge,
                                             tint = colors.accentText,
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Text(
-                                            text = "Ada",
+                                            text = s.exercisePickerAddedBadge,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = colors.accentText,
                                                 fontWeight = FontWeight.Bold
@@ -927,7 +924,7 @@ private fun ExercisePickerModal(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "Tambah",
+                                        text = s.add,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = colors.onAccentFill,
                                             fontWeight = FontWeight.Bold

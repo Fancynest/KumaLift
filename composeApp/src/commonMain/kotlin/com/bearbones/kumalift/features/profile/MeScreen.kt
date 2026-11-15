@@ -65,10 +65,10 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
 import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -99,20 +99,20 @@ fun MeScreen(
     val settings by settingsRepository.settings.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
 
     var selectedMetric by remember { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
 
-    val athleteName = settings.profile.name.ifBlank { if (isEnglish) "Athlete" else "Atlet" }
-    val athleteUsername = settings.profile.username.ifBlank { if (isEnglish) "athlete" else "atlet" }
+    val athleteName = settings.profile.name.ifBlank { s.athleteDefault }
+    val athleteUsername = settings.profile.username.ifBlank { s.athleteUsernameDefault }
     val workoutCount = completedWorkouts.size
     val allPrs by personalRecordRepository.personalRecords.collectAsState()
     val prCount = allPrs.size
     val isLb = settings.units.weightUnit == WeightUnit.LB
     val multiplier = if (isLb) 2.20462 else 1.0
-    val unitSuffix = if (isLb) "lb" else "kg"
+    val unitSuffix = if (isLb) s.unitLb else s.unitKg
     val totalVolumeKg = completedWorkouts.sumOf { it.totalVolumeKg }
     val totalVolumeDisplay = totalVolumeKg * multiplier
     val totalVolumeText = if (totalVolumeDisplay >= 1000.0) {
@@ -234,11 +234,11 @@ fun MeScreen(
                         ) {
                             StatCounter(
                                 value = "$workoutCount",
-                                label = if (isEnglish) "Workouts" else "Latihan"
+                                label = s.tabWorkouts
                             )
                             StatCounter(
                                 value = "$prCount",
-                                label = if (isEnglish) "PR Records" else "Rekor PR"
+                                label = s.prRecordsStatLabel
                             )
                             StatCounter(
                                 value = if (totalVolumeDisplay >= 1000.0) {
@@ -247,7 +247,7 @@ fun MeScreen(
                                 } else {
                                     "${totalVolumeDisplay.toInt()}"
                                 },
-                                label = if (isEnglish) "Volume ($unitSuffix)" else "Volume ($unitSuffix)"
+                                label = s.volumeStatLabel(unitSuffix)
                             )
                         }
                     }
@@ -288,17 +288,17 @@ fun MeScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         MetricPill(
-                            label = if (isEnglish) "Duration" else "Durasi",
+                            label = s.metricDurationLabel,
                             isSelected = selectedMetric == AnalyticsMetric.DURATION,
                             onClick = { selectedMetric = AnalyticsMetric.DURATION }
                         )
                         MetricPill(
-                            label = if (isEnglish) "Volume" else "Volume",
+                            label = s.metricVolumeLabel,
                             isSelected = selectedMetric == AnalyticsMetric.VOLUME,
                             onClick = { selectedMetric = AnalyticsMetric.VOLUME }
                         )
                         MetricPill(
-                            label = if (isEnglish) "Reps" else "Repetisi",
+                            label = s.metricRepsLabel,
                             isSelected = selectedMetric == AnalyticsMetric.REPS,
                             onClick = { selectedMetric = AnalyticsMetric.REPS }
                         )
@@ -322,9 +322,9 @@ fun MeScreen(
                             ) {
                                 Text(
                                     text = when (selectedMetric) {
-                                        AnalyticsMetric.DURATION -> if (isEnglish) "Workout Duration" else "Durasi Latihan"
-                                        AnalyticsMetric.VOLUME -> if (isEnglish) "Total Volume Lifted" else "Total Beban Diangkat"
-                                        AnalyticsMetric.REPS -> if (isEnglish) "Total Repetitions" else "Total Repetisi"
+                                        AnalyticsMetric.DURATION -> s.workoutDurationMetricLabel
+                                        AnalyticsMetric.VOLUME -> s.totalVolumeLiftedMetricLabel
+                                        AnalyticsMetric.REPS -> s.totalRepetitionsMetricLabel
                                     },
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
@@ -336,14 +336,14 @@ fun MeScreen(
                                     text = if (completedWorkouts.isEmpty()) "—" else when (selectedMetric) {
                                         AnalyticsMetric.DURATION -> {
                                             val avgMins = (completedWorkouts.map { it.durationSeconds }.average() / 60).toInt()
-                                            "$avgMins ${if (isEnglish) "min avg" else "mnt rata-rata"}"
+                                            s.avgMinutesLabel(avgMins)
                                         }
                                         AnalyticsMetric.VOLUME -> totalVolumeText
                                         AnalyticsMetric.REPS -> {
                                             val totalReps = completedWorkouts.sumOf { w ->
                                                 w.exercises.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.reps } }
                                             }
-                                            "$totalReps reps"
+                                            "$totalReps ${s.repsAbbrev}"
                                         }
                                     },
                                     style = MaterialTheme.typography.labelLarge.copy(
@@ -363,7 +363,7 @@ fun MeScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (isEnglish) "No workout data yet. Complete a workout to see your progress chart!" else "Belum ada riwayat latihan. Selesaikan latihan untuk melihat grafik perkembangan!",
+                                        text = s.noWorkoutDataChartMessage,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = colors.textSecondary,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -434,7 +434,7 @@ fun MeScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (isEnglish) "Dashboard" else "Dasbor",
+                        text = s.dashboardSection,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = colors.textPrimary
@@ -450,8 +450,8 @@ fun MeScreen(
                         DashboardCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.AutoMirrored.Filled.ShowChart,
-                            title = if (isEnglish) "Statistics" else "Statistik",
-                            subtitle = if (isEnglish) "1RM & Volume" else "1RM & Beban",
+                            title = s.statisticsCardTitle,
+                            subtitle = s.statisticsCardSubtitle,
                             onClick = onNavigateToProgress
                         )
 
@@ -459,8 +459,8 @@ fun MeScreen(
                         DashboardCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.FitnessCenter,
-                            title = if (isEnglish) "Exercises" else "Katalog",
-                            subtitle = if (isEnglish) "1,324 Movements" else "1.324 Gerakan",
+                            title = s.exercisesCardTitle,
+                            subtitle = s.exercisesCardSubtitle,
                             onClick = onNavigateToLibrary
                         )
                     }
@@ -477,7 +477,7 @@ fun MeScreen(
                         DashboardCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.AccessibilityNew,
-                            title = if (isEnglish) "Measures" else "Ukuran Tubuh",
+                            title = s.measuresCardTitle,
                             subtitle = "$bw kg · ${ht.toInt()} cm",
                             onClick = { showMeasuresDialog = true }
                         )
@@ -486,8 +486,8 @@ fun MeScreen(
                         DashboardCard(
                             modifier = Modifier.weight(1f),
                             icon = Icons.Default.CalendarToday,
-                            title = if (isEnglish) "Calendar" else "Kalender",
-                            subtitle = if (isEnglish) "${settings.profile.trainingDaysPerWeek}d / week" else "${settings.profile.trainingDaysPerWeek} hari/minggu",
+                            title = s.calendarCardTitle,
+                            subtitle = s.trainingDaysSubtitle(settings.profile.trainingDaysPerWeek),
                             onClick = onNavigateToRoutines
                         )
                     }
@@ -507,7 +507,7 @@ fun MeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isEnglish) "Workouts" else "Riwayat Latihan",
+                            text = s.allWorkoutsHeader,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textPrimary
@@ -515,7 +515,7 @@ fun MeScreen(
                         )
 
                         Text(
-                            text = if (isEnglish) "View All" else "Lihat Semua",
+                            text = s.viewAllButton,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText
@@ -546,7 +546,7 @@ fun MeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = if (isEnglish) "No workouts yet" else "Belum ada sesi latihan selesai",
+                                    text = s.noWorkoutsCompletedYet,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary
                                     )
@@ -567,7 +567,7 @@ fun MeScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = if (isEnglish) "Start Workout" else "Mulai Latihan",
+                                        text = s.startWorkoutButton,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -761,7 +761,7 @@ private fun WorkoutSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$exerciseCount Gerakan",
+                    text = LocalStrings.current.workoutSummaryMovements(exerciseCount),
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = colors.textSecondary
                     )
@@ -792,6 +792,7 @@ private fun EditProfileModal(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var nameInput by remember { mutableStateOf(settings.profile.name) }
@@ -836,7 +837,7 @@ private fun EditProfileModal(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Tutup",
+                    contentDescription = s.close,
                     tint = colors.textPrimary,
                     modifier = Modifier
                         .size(24.dp)
@@ -844,7 +845,7 @@ private fun EditProfileModal(
                 )
 
                 Text(
-                    text = "Edit Profile",
+                    text = s.editProfileTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -873,7 +874,7 @@ private fun EditProfileModal(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Done", fontWeight = FontWeight.Bold)
+                    Text(s.done, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -903,7 +904,7 @@ private fun EditProfileModal(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Change Picture",
+                    text = s.changePictureButton,
                     style = MaterialTheme.typography.labelMedium.copy(
                         color = colors.accentText,
                         fontWeight = FontWeight.SemiBold
@@ -916,7 +917,7 @@ private fun EditProfileModal(
 
             // Public profile data section
             Text(
-                text = "Public profile data",
+                text = s.publicProfileSection,
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -926,26 +927,26 @@ private fun EditProfileModal(
             Spacer(modifier = Modifier.height(12.dp))
 
             ProfileField(
-                label = "Name",
+                label = s.profileNameInputLabel,
                 value = nameInput,
                 onValueChange = { nameInput = it },
-                placeholder = "Nama Lengkap"
+                placeholder = s.profileNamePlaceholder
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             ProfileField(
-                label = "Bio",
+                label = s.profileBioFieldPlaceholder,
                 value = bioInput,
                 onValueChange = { bioInput = it },
-                placeholder = "Deskripsikan diri Anda"
+                placeholder = s.profileBioPlaceholder
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Private data section
             Text(
-                text = "Private data",
+                text = s.privateProfileSection,
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -961,7 +962,7 @@ private fun EditProfileModal(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Sex",
+                    text = s.sexFieldLabel,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = colors.textPrimary
                     )
@@ -969,8 +970,8 @@ private fun EditProfileModal(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
-                        AthleteSex.MALE to "Male",
-                        AthleteSex.FEMALE to "Female"
+                        AthleteSex.MALE to s.sexMale,
+                        AthleteSex.FEMALE to s.sexFemale
                     ).forEach { (sex, label) ->
                         val isSelected = selectedSex == sex
                         Box(
@@ -997,10 +998,10 @@ private fun EditProfileModal(
             Spacer(modifier = Modifier.height(14.dp))
 
             ProfileField(
-                label = "Birthday",
+                label = s.birthdayFieldLabel,
                 value = birthdayInput,
                 onValueChange = { birthdayInput = it },
-                placeholder = "misal: 15 Januari 2000"
+                placeholder = s.birthdayFieldPlaceholder
             )
         }
     }
@@ -1062,6 +1063,7 @@ private fun MeasuresModal(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var weightInput by remember {
@@ -1083,7 +1085,7 @@ private fun MeasuresModal(
                 .padding(bottom = 36.dp)
         ) {
             Text(
-                text = "Ukuran Tubuh (Measures)",
+                text = s.bodyMeasuresTitle,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -1092,8 +1094,9 @@ private fun MeasuresModal(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val weightUnitStr = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
             ProfileField(
-                label = "Berat Badan (${if (settings.units.weightUnit == WeightUnit.LB) "lbs" else "kg"})",
+                label = "${s.bodyWeightMeasureLabel} ($weightUnitStr)",
                 value = weightInput,
                 onValueChange = { weightInput = it },
                 placeholder = "75.0"
@@ -1102,7 +1105,7 @@ private fun MeasuresModal(
             Spacer(modifier = Modifier.height(12.dp))
 
             ProfileField(
-                label = "Tinggi Badan (cm)",
+                label = "${s.bodyHeightMeasureLabel} (cm)",
                 value = heightInput,
                 onValueChange = { heightInput = it },
                 placeholder = "175.0"
@@ -1131,7 +1134,7 @@ private fun MeasuresModal(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Simpan Ukuran Tubuh", fontWeight = FontWeight.Bold)
+                Text(s.saveMeasuresButton, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -44,8 +44,8 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.PersonalRecord
@@ -58,10 +58,10 @@ fun ProgressAnalyticsScreen(
     listState: LazyListState = rememberLazyListState()
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
-    val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
+    val s = LocalStrings.current
     val isLb = settings?.units?.weightUnit == com.bearbones.kumalift.domain.model.WeightUnit.LB
     val mult = if (isLb) 2.20462 else 1.0
-    val unitStr = if (isLb) "lb" else "kg"
+    val unitStr = if (isLb) s.unitLb else s.unitKg
     val prs by personalRecordRepository.personalRecords.collectAsState()
     val completedWorkouts by (workoutRepository?.completedWorkouts ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     var selectedTimeframe by rememberSaveable { mutableStateOf("3M") }
@@ -83,7 +83,7 @@ fun ProgressAnalyticsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isEnglish) "Progress & Analytics" else "Perkembangan Latihan",
+                    text = s.progressAndAnalyticsTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -151,7 +151,7 @@ fun ProgressAnalyticsScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = if (isEnglish) "ESTIMATED ONE REP MAX (1RM)" else "ESTIMASI BEBAN MAKSIMAL (1RM)",
+                                    text = s.estimatedOneRepMaxHeader,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = LocalKumaColors.current.accentText,
                                         letterSpacing = 0.8.sp
@@ -159,8 +159,7 @@ fun ProgressAnalyticsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = if (isEnglish) "No PR records logged yet.\nComplete workouts to unlock 1RM estimates and progress charts."
-                                    else "Belum ada rekor PR tercatat.\nSelesaikan latihan untuk melihat estimasi 1RM dan grafik perkembangan.",
+                                    text = s.noPrsLoggedYet,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextMuted,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -185,7 +184,7 @@ fun ProgressAnalyticsScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = if (isEnglish) "ESTIMATED ONE REP MAX (1RM)" else "ESTIMASI BEBAN MAKSIMAL (1RM)",
+                                            text = s.estimatedOneRepMaxHeader,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = LocalKumaColors.current.accentText,
                                                 letterSpacing = 0.8.sp
@@ -284,13 +283,12 @@ fun ProgressAnalyticsScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Weekly Volume & Tonnage" else "Total Beban per Minggu",
+                                    text = s.weeklyVolumeTonnageHeader,
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = if (isEnglish) "No workout volume history yet.\nLog your first session to track your weekly tonnage."
-                                    else "Belum ada riwayat beban latihan.\nCatat sesi pertamamu untuk melacak tonase mingguan.",
+                                    text = s.noVolumeHistoryYet,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextMuted,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -315,13 +313,13 @@ fun ProgressAnalyticsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (isEnglish) "Weekly Volume & Tonnage" else "Total Beban per Minggu",
+                                        text = s.weeklyVolumeTonnageHeader,
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         )
                                     )
                                     Text(
-                                        text = "${if (isEnglish) "Avg" else "Rata-rata"} $avgVol $unitStr",
+                                        text = "${s.avgPrefix} $avgVol $unitStr",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = LocalKumaColors.current.accentText,
                                             fontWeight = FontWeight.Bold
@@ -356,7 +354,7 @@ fun ProgressAnalyticsScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = if (isEnglish) "Personal Records (PR)" else "Rekor Angkatan Terbaik (PR)",
+                            text = s.personalRecordsHeader,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
                             )
@@ -375,7 +373,7 @@ fun ProgressAnalyticsScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (isEnglish) "No personal records recorded yet." else "Belum ada rekor angkatan terbaik (PR) yang tercatat.",
+                                        text = s.noPersonalRecordsYet,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = KumaColors.TextMuted,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center

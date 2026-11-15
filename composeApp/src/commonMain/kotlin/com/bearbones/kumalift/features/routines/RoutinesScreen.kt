@@ -50,7 +50,7 @@ import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
-import com.bearbones.kumalift.core.util.resolveIsEnglish
+import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
@@ -67,12 +67,12 @@ fun RoutinesScreen(
     listState: LazyListState = rememberLazyListState(),
     onStartRoutine: () -> Unit
 ) {
+    val s = LocalStrings.current
     val settings = settingsRepository?.settings?.collectAsState()?.value
-    val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
     val routines by routineRepository.routines.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
-    val allCategoryLabel = if (isEnglish) "All Programs" else "Semua Program"
-    var selectedCategory by rememberSaveable(isEnglish) { mutableStateOf(allCategoryLabel) }
+    val allCategoryLabel = s.allProgramsCategory
+    var selectedCategory by rememberSaveable(s.allProgramsCategory) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by remember { mutableStateOf(false) }
 
     // T10: Handle back when create routine modal is open
@@ -89,12 +89,12 @@ fun RoutinesScreen(
     val adherenceFrac = if (targetDays > 0) (workoutsThisWeek.toFloat() / targetDays).coerceIn(0f, 1f) else 0f
     val adherencePct = (adherenceFrac * 100).toInt()
     val goalName = when (settings?.profile?.goal) {
-        com.bearbones.kumalift.domain.model.TrainingGoal.HYPERTROPHY -> if (isEnglish) "Hypertrophy Program" else "Program Hipertrofi"
-        com.bearbones.kumalift.domain.model.TrainingGoal.STRENGTH -> if (isEnglish) "Strength Program" else "Program Kekuatan"
-        com.bearbones.kumalift.domain.model.TrainingGoal.GENERAL, null -> if (isEnglish) "General Fitness Program" else "Program Kebugaran Umum"
+        com.bearbones.kumalift.domain.model.TrainingGoal.HYPERTROPHY -> s.programHypertrophy
+        com.bearbones.kumalift.domain.model.TrainingGoal.STRENGTH -> s.programStrength
+        com.bearbones.kumalift.domain.model.TrainingGoal.GENERAL, null -> s.programGeneral
     }
 
-    val categories = remember(routines, isEnglish) {
+    val categories = remember(routines, allCategoryLabel) {
         listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
     }
 
@@ -123,7 +123,7 @@ fun RoutinesScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isEnglish) "Workout Routines" else "Program & Pola Latihan",
+                    text = s.workoutRoutinesTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -140,7 +140,7 @@ fun RoutinesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isEnglish) "Create Routine" else "Buat Pola",
+                        text = s.createRoutineButton,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = LocalKumaColors.current.onAccentFill
@@ -171,7 +171,7 @@ fun RoutinesScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isEnglish) "TRAINING PROGRAM" else "PROGRAM LATIHAN",
+                                    text = s.trainingProgramHeader,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = LocalKumaColors.current.accentText,
                                         letterSpacing = 0.8.sp
@@ -184,7 +184,7 @@ fun RoutinesScreen(
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "$workoutsThisWeek / $targetDays ${if (isEnglish) "this week" else "minggu ini"}",
+                                        text = s.adherenceProgress(workoutsThisWeek, targetDays),
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.TextWhite,
                                             fontWeight = FontWeight.Bold
@@ -211,7 +211,7 @@ fun RoutinesScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Weekly Adherence" else "Disiplin Mingguan",
+                                    text = s.weeklyAdherenceLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -274,7 +274,6 @@ fun RoutinesScreen(
                 items(filteredRoutines, key = { it.id }) { routine ->
                     RoutineCardItem(
                         routine = routine,
-                        isEnglish = isEnglish,
                         onStart = {
                             workoutRepository.startWorkoutFromRoutine(routine)
                             onStartRoutine()
@@ -294,7 +293,6 @@ fun RoutinesScreen(
         if (showCreateRoutineScreen) {
             CreateRoutineScreen(
                 exerciseRepository = exerciseRepository,
-                isEnglish = isEnglish,
                 onNavigateBack = { showCreateRoutineScreen = false },
                 onSaveRoutine = { newRoutine ->
                     routineRepository.addRoutine(newRoutine)
@@ -308,10 +306,10 @@ fun RoutinesScreen(
 @Composable
 fun RoutineCardItem(
     routine: RoutineBlueprint,
-    isEnglish: Boolean = false,
     onStart: () -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
+    val s = LocalStrings.current
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = KumaColors.SurfaceContainerLow,
@@ -329,14 +327,14 @@ fun RoutineCardItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = routine.lastPerformedDaysAgo?.let { if (isEnglish) "Last: $it d ago" else "$it hari lalu" } ?: (if (isEnglish) "New" else "Baru"),
+                        text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
                         style = MaterialTheme.typography.labelSmall,
                         color = KumaColors.TextMuted
                     )
                     if (onDelete != null) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = if (isEnglish) "Delete Routine" else "Hapus Pola",
+                            contentDescription = s.deleteRoutineContentDesc,
                             tint = KumaColors.TextMuted,
                             modifier = Modifier
                                 .size(18.dp)
@@ -359,7 +357,7 @@ fun RoutineCardItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} ${if (isEnglish) "min" else "mnt"} · ${routine.targetRpeTier}",
+                text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} ${s.minAbbrev} · ${routine.targetRpeTier}",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = KumaColors.TextSecondary,
                     fontSize = 13.sp
@@ -391,7 +389,7 @@ fun RoutineCardItem(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isEnglish) "Start Routine" else "Mulai Latihan Ini",
+                    text = s.startRoutineButton,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.OnElectricLime

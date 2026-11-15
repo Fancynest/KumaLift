@@ -232,29 +232,29 @@ class DataBackupManagerTests {
     @Test
     fun testImportMessagesFollowActiveLanguage() {
         // 1. Missing safety snapshot message (on fresh DB)
-        val snapEn = backupManager.restoreSafetySnapshot(UserSettings(), isEnglish = true)
-        val snapId = backupManager.restoreSafetySnapshot(UserSettings(), isEnglish = false)
-        assertEquals("No safety snapshot available.", snapEn.message)
-        assertEquals("Tidak ada snapshot keamanan yang tersedia.", snapId.message)
+        val snapEn = backupManager.restoreSafetySnapshot(UserSettings(), strings = com.bearbones.kumalift.core.localization.EnStrings)
+        val snapId = backupManager.restoreSafetySnapshot(UserSettings(), strings = com.bearbones.kumalift.core.localization.IdStrings)
+        assertEquals(com.bearbones.kumalift.core.localization.EnStrings.noSnapshotAvailable, snapEn.message)
+        assertEquals(com.bearbones.kumalift.core.localization.IdStrings.noSnapshotAvailable, snapId.message)
 
         // 2. Invalid JSON messages
-        val errEn = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), isEnglish = true)
-        val errId = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), isEnglish = false)
+        val errEn = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), strings = com.bearbones.kumalift.core.localization.EnStrings)
+        val errId = backupManager.importBackup("not-json", ImportMode.MERGE, UserSettings(), strings = com.bearbones.kumalift.core.localization.IdStrings)
         assertTrue(errEn.message.startsWith("Invalid or corrupted JSON format"))
         assertTrue(errId.message.startsWith("Format JSON tidak valid atau rusak"))
 
         // 3. Successful REPLACE messages
         val payload = backupManager.createBackupPayload(UserSettings())
         val jsonStr = kotlinx.serialization.json.Json.encodeToString(com.bearbones.kumalift.data.export.KumaBackupData.serializer(), payload)
-        val resEn = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), isEnglish = true)
-        val resId = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), isEnglish = false)
-        assertTrue(resEn.message.startsWith("Successfully restored (Replace)"))
-        assertTrue(resId.message.startsWith("Berhasil memulihkan (Replace)"))
+        val resEn = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), strings = com.bearbones.kumalift.core.localization.EnStrings)
+        val resId = backupManager.importBackup(jsonStr, ImportMode.REPLACE, UserSettings(), strings = com.bearbones.kumalift.core.localization.IdStrings)
+        assertTrue(resEn.message.startsWith("Successfully replaced"))
+        assertTrue(resId.message.startsWith("Berhasil memulihkan (Timpa)"))
 
         // 4. Successful MERGE messages
-        val mergeEn = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), isEnglish = true)
-        val mergeId = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), isEnglish = false)
-        assertTrue(mergeEn.message.startsWith("Successfully merged (Merge)"))
-        assertTrue(mergeId.message.startsWith("Berhasil menggabungkan (Merge)"))
+        val mergeEn = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), strings = com.bearbones.kumalift.core.localization.EnStrings)
+        val mergeId = backupManager.importBackup(jsonStr, ImportMode.MERGE, UserSettings(), strings = com.bearbones.kumalift.core.localization.IdStrings)
+        assertTrue(mergeEn.message.startsWith("Successfully merged"))
+        assertTrue(mergeId.message.startsWith("Berhasil menggabungkan"))
     }
 }

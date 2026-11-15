@@ -1,10 +1,11 @@
 package com.bearbones.kumalift.core.notification
 
 import androidx.compose.runtime.Composable
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.NotificationSettings
 
 expect class WorkoutReminderManager {
-    fun syncSettings(settings: NotificationSettings)
+    fun syncSettings(settings: NotificationSettings, language: AppLanguage = AppLanguage.SYSTEM)
     fun hasNotificationPermission(): Boolean
     fun openNotificationSettings()
 }

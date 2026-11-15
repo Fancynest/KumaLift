@@ -85,7 +85,7 @@ import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.core.notification.rememberNotificationPermissionLauncher
 import com.bearbones.kumalift.core.notification.rememberWorkoutReminderManager
-import com.bearbones.kumalift.core.util.resolveIsEnglish
+import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
@@ -199,8 +199,7 @@ fun SettingsScreen(
             }
             SettingsDestination.ABOUT -> {
                 AboutSettingsPage(
-                    onNavigateBack = popDestination,
-                    isEnglish = resolveIsEnglish(settingsRepository.settings.value.appearance.language)
+                    onNavigateBack = popDestination
                 )
             }
         }
@@ -218,7 +217,7 @@ private fun SettingsMainMenu(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -245,14 +244,14 @@ private fun SettingsMainMenu(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = if (isEnglish) "Settings" else "Pengaturan",
+                    text = s.settingsTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -270,22 +269,22 @@ private fun SettingsMainMenu(
 
                 // Section: Account
                 item {
-                    SettingsGroupSection(title = if (isEnglish) "Account" else "Akun") {
+                    SettingsGroupSection(title = s.accountGroupTitle) {
                         SettingsNavigationRow(
                             icon = Icons.Default.Person,
-                            title = if (isEnglish) "Profile" else "Profil",
+                            title = s.profileSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.PROFILE) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Lock,
-                            title = if (isEnglish) "Account" else "Akun",
+                            title = s.accountSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.ACCOUNT_USERNAME) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Notifications,
-                            title = if (isEnglish) "Notifications" else "Notifikasi",
+                            title = s.notificationsSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.NOTIFICATIONS) }
                         )
                     }
@@ -293,40 +292,40 @@ private fun SettingsMainMenu(
 
                 // Section: Preferences
                 item {
-                    SettingsGroupSection(title = if (isEnglish) "Preferences" else "Preferensi") {
+                    SettingsGroupSection(title = s.preferencesGroupTitle) {
                         SettingsNavigationRow(
                             icon = Icons.Default.FitnessCenter,
-                            title = if (isEnglish) "Workouts" else "Latihan",
+                            title = s.workoutsSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.WORKOUTS) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Scale,
-                            title = if (isEnglish) "Units" else "Satuan",
+                            title = s.unitsSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.UNITS) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Language,
-                            title = if (isEnglish) "Language" else "Bahasa",
+                            title = s.languageSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.LANGUAGE) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Palette,
-                            title = if (isEnglish) "Theme" else "Tema",
+                            title = s.themeSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.THEME) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.AutoMirrored.Filled.Send,
-                            title = if (isEnglish) "Export & Import Data" else "Ekspor & Impor Data",
+                            title = s.exportImportSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.EXPORT_IMPORT) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
                             icon = Icons.Default.Info,
-                            title = if (isEnglish) "About & Licenses" else "Tentang & Lisensi",
+                            title = s.aboutLicensesSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.ABOUT) }
                         )
                     }
@@ -436,6 +435,7 @@ private fun ProfileSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     var nameInput by remember { mutableStateOf(settings.profile.name) }
     var bioInput by remember { mutableStateOf(settings.profile.bio) }
@@ -487,14 +487,14 @@ private fun ProfileSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Text(
-                    text = "Edit Profile",
+                    text = s.editProfileTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -524,7 +524,7 @@ private fun ProfileSettingsPage(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Done", fontWeight = FontWeight.Bold)
+                    Text(s.done, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -561,7 +561,7 @@ private fun ProfileSettingsPage(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "Change Picture",
+                            text = s.changePictureButton,
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.SemiBold
@@ -574,7 +574,7 @@ private fun ProfileSettingsPage(
                 // Public profile data
                 item {
                     Text(
-                        text = "Public profile data",
+                        text = s.publicProfileSection,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -585,10 +585,10 @@ private fun ProfileSettingsPage(
 
                 item {
                     KumaInputField(
-                        label = "Name",
+                        label = s.profileNameInputLabel,
                         value = nameInput,
                         onValueChange = { nameInput = it },
-                        placeholder = "Nama Lengkap"
+                        placeholder = s.profileNamePlaceholder
                     )
                 }
 
@@ -597,14 +597,14 @@ private fun ProfileSettingsPage(
                         label = "Bio",
                         value = bioInput,
                         onValueChange = { bioInput = it },
-                        placeholder = "Deskripsikan diri Anda"
+                        placeholder = s.profileBioPlaceholder
                     )
                 }
 
                 // Private data
                 item {
                     Text(
-                        text = "Private data",
+                        text = s.privateProfileSection,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -620,7 +620,7 @@ private fun ProfileSettingsPage(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Sex",
+                            text = s.sexFieldLabel,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = colors.textPrimary
                             )
@@ -628,8 +628,8 @@ private fun ProfileSettingsPage(
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf(
-                                AthleteSex.MALE to "Male",
-                                AthleteSex.FEMALE to "Female"
+                                AthleteSex.MALE to s.sexMale,
+                                AthleteSex.FEMALE to s.sexFemale
                             ).forEach { (sex, label) ->
                                 val isSelected = selectedSex == sex
                                 Box(
@@ -640,6 +640,11 @@ private fun ProfileSettingsPage(
                                         )
                                         .clickable { selectedSex = sex }
                                         .padding(horizontal = 14.dp, vertical = 6.dp)
+                                        .border(
+                                            1.dp,
+                                            if (isSelected) colors.accentFill else colors.border,
+                                            RoundedCornerShape(8.dp)
+                                        )
                                 ) {
                                     Text(
                                         text = label,
@@ -656,10 +661,10 @@ private fun ProfileSettingsPage(
 
                 item {
                     KumaInputField(
-                        label = "Birthday",
+                        label = s.birthdayFieldLabel,
                         value = birthdayInput,
                         onValueChange = { birthdayInput = it },
-                        placeholder = "misal: 15 Januari 2000"
+                        placeholder = s.birthdayFieldPlaceholder
                     )
                 }
 
@@ -670,7 +675,7 @@ private fun ProfileSettingsPage(
                     ) {
                         Box(modifier = Modifier.weight(1f)) {
                             KumaInputField(
-                                label = "Berat Badan (kg)",
+                                label = "${s.bodyWeightMeasureLabel} (${s.unitKg})",
                                 value = bwInput,
                                 onValueChange = { bwInput = it },
                                 placeholder = "75.0"
@@ -678,7 +683,7 @@ private fun ProfileSettingsPage(
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             KumaInputField(
-                                label = "Tinggi Badan (cm)",
+                                label = "${s.bodyHeightMeasureLabel} (cm)",
                                 value = htInput,
                                 onValueChange = { htInput = it },
                                 placeholder = "175.0"
@@ -703,6 +708,7 @@ private fun ChangeUsernamePage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     var usernameInput by remember { mutableStateOf(settings.profile.username) }
 
     Box(
@@ -730,14 +736,14 @@ private fun ChangeUsernamePage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Change Username",
+                    text = s.accountSettingsRow,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -751,7 +757,7 @@ private fun ChangeUsernamePage(
                     .padding(20.dp)
             ) {
                 Text(
-                    text = "Username",
+                    text = s.usernameInputLabel,
                     style = MaterialTheme.typography.labelMedium.copy(
                         color = colors.textSecondary,
                         fontWeight = FontWeight.SemiBold
@@ -796,7 +802,7 @@ private fun ChangeUsernamePage(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Update", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(s.updateButton, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
@@ -813,7 +819,7 @@ private fun NotificationSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
     val workoutReminderManager = rememberWorkoutReminderManager()
     var showCustomTimeDialog by remember { mutableStateOf(false) }
     var hasPostNotificationPermission by remember {
@@ -826,7 +832,7 @@ private fun NotificationSettingsPage(
             settingsRepository.update {
                 it.copy(notifications = it.notifications.copy(workoutReminders = true))
             }
-            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = true))
+            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = true), settings.appearance.language)
         }
     }
 
@@ -855,14 +861,14 @@ private fun NotificationSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Push Notifications",
+                    text = s.notificationsSettingsRow,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -881,7 +887,7 @@ private fun NotificationSettingsPage(
                 // General section matching notifcation.jpg (omitting 'Follows' per red X)
                 item {
                     Text(
-                        text = "General",
+                        text = s.generalSectionTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -899,7 +905,7 @@ private fun NotificationSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Rest Timer",
+                                    text = s.restTimerHeader,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -931,14 +937,14 @@ private fun NotificationSettingsPage(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Monthly Report",
+                                        text = s.monthlyReportTitle,
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.Medium
                                         )
                                     )
                                     Text(
-                                        text = "Get a notification when your monthly report is ready.",
+                                        text = s.monthlyReportSubtitle,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary
                                         )
@@ -964,7 +970,7 @@ private fun NotificationSettingsPage(
                 // Workout Reminders & Battery Optimization
                 item {
                     Text(
-                        text = if (isEnglish) "Workout Reminders" else "Pengingat Latihan",
+                        text = s.dailyWorkoutReminderTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -985,14 +991,14 @@ private fun NotificationSettingsPage(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = if (isEnglish) "Daily Workout Reminder" else "Pengingat Latihan Rutin",
+                                        text = s.dailyWorkoutReminderTitle,
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     )
                                     Text(
-                                        text = if (isEnglish) "Alarm rings even in Doze / sleep mode" else "Berdering tepat waktu walau HP tidur / doze mode",
+                                        text = s.dailyWorkoutReminderSubtitle,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary
                                         )
@@ -1007,7 +1013,7 @@ private fun NotificationSettingsPage(
                                             settingsRepository.update {
                                                 it.copy(notifications = it.notifications.copy(workoutReminders = enabled))
                                             }
-                                            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = enabled))
+                                            workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = enabled), settings.appearance.language)
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
@@ -1029,14 +1035,14 @@ private fun NotificationSettingsPage(
                                 ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text(
-                                            text = if (isEnglish) "Notification permission is required" else "Izin notifikasi belum diaktifkan",
+                                            text = s.notificationPermissionRequiredTitle,
                                             style = MaterialTheme.typography.labelMedium.copy(
                                                 color = KumaColors.ErrorRed,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )
                                         Text(
-                                            text = if (isEnglish) "Allow notifications in system settings so workout alarms will pop up on time." else "Aktifkan izin notifikasi agar pengingat latihan dapat muncul tepat waktu.",
+                                            text = s.notificationPermissionRequiredBody,
                                             style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                                         )
                                         Box(
@@ -1047,7 +1053,7 @@ private fun NotificationSettingsPage(
                                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                         ) {
                                             Text(
-                                                text = if (isEnglish) "Open Notification Settings" else "Buka Pengaturan Izin Notifikasi",
+                                                text = s.openNotificationSettingsButton,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = colors.onAccentFill,
                                                     fontWeight = FontWeight.Bold
@@ -1063,7 +1069,7 @@ private fun NotificationSettingsPage(
 
                                 // Time selector presets + Custom
                                 Text(
-                                    text = if (isEnglish) "Reminder Time" else "Waktu Pengingat",
+                                    text = s.reminderTimeLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
                                 )
                                 val presets = listOf("06:00", "07:00", "17:00", "18:30", "20:00")
@@ -1085,7 +1091,7 @@ private fun NotificationSettingsPage(
                                                     settingsRepository.update {
                                                         it.copy(notifications = it.notifications.copy(reminderTime = timeStr))
                                                     }
-                                                    workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = timeStr))
+                                                    workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = timeStr), settings.appearance.language)
                                                 }
                                                 .padding(horizontal = 8.dp, vertical = 6.dp)
                                         ) {
@@ -1111,7 +1117,7 @@ private fun NotificationSettingsPage(
                                             .padding(horizontal = 8.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = if (isCustomTime) "${settings.notifications.reminderTime} (Custom)" else (if (isEnglish) "Custom..." else "Kustom..."),
+                                            text = if (isCustomTime) "${settings.notifications.reminderTime} (${s.custom})" else "${s.custom}...",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isCustomTime) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isCustomTime) colors.onAccentFill else colors.textSecondary,
@@ -1123,14 +1129,16 @@ private fun NotificationSettingsPage(
 
                                 // Days selector
                                 Text(
-                                    text = if (isEnglish) "Active Days" else "Hari Pengingat",
+                                    text = s.activeDaysLabel,
                                     style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    val daysLabels = listOf(1 to "S", 2 to "S", 3 to "R", 4 to "K", 5 to "J", 6 to "S", 7 to "M")
+                                    val daysLabels = s.daysMondayStart.mapIndexed { idx, dayName ->
+                                        (idx + 1) to dayName.take(1)
+                                    }
                                     daysLabels.forEach { (dayInt, label) ->
                                         val isDayActive = settings.notifications.reminderDays.contains(dayInt)
                                         Box(
@@ -1149,7 +1157,7 @@ private fun NotificationSettingsPage(
                                                     settingsRepository.update {
                                                         it.copy(notifications = it.notifications.copy(reminderDays = newDays))
                                                     }
-                                                    workoutReminderManager.syncSettings(settings.notifications.copy(reminderDays = newDays))
+                                                    workoutReminderManager.syncSettings(settings.notifications.copy(reminderDays = newDays), settings.appearance.language)
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -1185,7 +1193,7 @@ private fun NotificationSettingsPage(
             containerColor = KumaColors.SurfaceContainerLow,
             title = {
                 Text(
-                    text = if (isEnglish) "Select Custom Reminder Time" else "Pilih Jam Pengingat Kustom",
+                    text = s.selectCustomReminderTimeTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -1303,7 +1311,7 @@ private fun NotificationSettingsPage(
                         settingsRepository.update {
                             it.copy(notifications = it.notifications.copy(reminderTime = formatted))
                         }
-                        workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = formatted))
+                        workoutReminderManager.syncSettings(settings.notifications.copy(reminderTime = formatted), settings.appearance.language)
                         showCustomTimeDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -1312,12 +1320,12 @@ private fun NotificationSettingsPage(
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(text = if (isEnglish) "Save" else "Simpan", fontWeight = FontWeight.Bold)
+                    Text(text = s.save, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCustomTimeDialog = false }) {
-                    Text(text = if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                    Text(text = s.cancel, color = colors.textSecondary)
                 }
             }
         )
@@ -1335,6 +1343,7 @@ private fun WorkoutSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -1361,14 +1370,14 @@ private fun WorkoutSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Workout Settings",
+                    text = s.workoutsSettingsRow,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -1394,7 +1403,7 @@ private fun WorkoutSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Sounds",
+                                    text = s.soundVibrationTitle,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -1425,14 +1434,14 @@ private fun WorkoutSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Default Rest Timer",
+                                    text = s.defaultRestTimeLabel,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
                                     )
                                 )
                                 Text(
-                                    text = "${settings.logging.restTimerDefaultSec / 60}min ${settings.logging.restTimerDefaultSec % 60}s",
+                                    text = "${settings.logging.restTimerDefaultSec / 60}${s.minAbbrev} ${settings.logging.restTimerDefaultSec % 60}s",
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.accentText,
                                         fontWeight = FontWeight.Bold
@@ -1444,7 +1453,7 @@ private fun WorkoutSettingsPage(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf(60 to "60s", 90 to "90s", 120 to "120s", 180 to "3m").forEach { (sec, label) ->
+                                listOf(60 to "60s", 90 to "90s", 120 to "120s", 180 to "3${s.minAbbrev}").forEach { (sec, label) ->
                                     val isSelected = settings.logging.restTimerDefaultSec == sec
                                     Box(
                                         modifier = Modifier
@@ -1481,14 +1490,14 @@ private fun WorkoutSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "First day of the week",
+                                    text = s.firstDayOfWeekTitle,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
                                     )
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    listOf(FirstDayOfWeek.MONDAY to "Monday", FirstDayOfWeek.SUNDAY to "Sunday").forEach { (day, label) ->
+                                    listOf(FirstDayOfWeek.MONDAY to s.daysMondayStart[0], FirstDayOfWeek.SUNDAY to s.daysSundayStart[0]).forEach { (day, label) ->
                                         val isSel = settings.units.firstDayOfWeek == day
                                         Box(
                                             modifier = Modifier
@@ -1522,8 +1531,8 @@ private fun WorkoutSettingsPage(
                         Column(modifier = Modifier.padding(16.dp)) {
                             // Keep Awake During Workout
                             WorkoutSettingToggle(
-                                title = "Keep Awake During Workout",
-                                description = "Enable this if you don't want your phone to sleep while you're in a workout",
+                                title = s.keepAwakeTitle,
+                                description = s.keepAwakeSubtitle,
                                 isChecked = settings.logging.keepScreenOn,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1538,8 +1547,8 @@ private fun WorkoutSettingsPage(
 
                             // Plate Calculator
                             WorkoutSettingToggle(
-                                title = "Plate Calculator",
-                                description = "A plate calculator calculates the plates needed on a bar to achieve a specific weight.",
+                                title = s.plateCalculatorTitle,
+                                description = s.plateCalculatorSubtitle,
                                 isChecked = settings.logging.plateCalculatorEnabled,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1554,8 +1563,8 @@ private fun WorkoutSettingsPage(
 
                             // RPE Tracking
                             WorkoutSettingToggle(
-                                title = "RPE Tracking",
-                                description = "RPE (Rated Perceived Exertion) is a measure of intensity. Enabling allows you to log it for each set.",
+                                title = s.rpeOptionTitle,
+                                description = s.rpeOptionSubtitle,
                                 isChecked = settings.logging.trackIntensity,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1570,8 +1579,8 @@ private fun WorkoutSettingsPage(
 
                             // Smart Superset Scrolling
                             WorkoutSettingToggle(
-                                title = "Smart Superset Scrolling",
-                                description = "When you complete a set, it'll automatically scroll to the next exercise in the superset.",
+                                title = s.smartSupersetTitle,
+                                description = s.smartSupersetSubtitle,
                                 isChecked = settings.logging.smartSupersetScrolling,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1586,8 +1595,8 @@ private fun WorkoutSettingsPage(
 
                             // Inline Timer
                             WorkoutSettingToggle(
-                                title = "Inline Timer",
-                                description = "Duration exercises have a built-in stopwatch for tracking time for each set",
+                                title = s.inlineTimerTitle,
+                                description = s.inlineTimerSubtitle,
                                 isChecked = settings.logging.inlineTimer,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1602,8 +1611,8 @@ private fun WorkoutSettingsPage(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             WorkoutSettingToggle(
-                                title = "Auto-start Rest Timer",
-                                description = "Automatically start countdown rest timer whenever a set is checked as completed",
+                                title = s.autoRestTimerTitle,
+                                description = s.autoRestTimerSubtitle,
                                 isChecked = settings.logging.restTimerAutoStart,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1618,8 +1627,8 @@ private fun WorkoutSettingsPage(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             WorkoutSettingToggle(
-                                title = "Confirm Before Finish",
-                                description = "Show a confirmation prompt before finalizing and closing workout session",
+                                title = s.confirmFinishTitle,
+                                description = s.confirmFinishSubtitle,
                                 isChecked = settings.logging.confirmFinish,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1636,7 +1645,7 @@ private fun WorkoutSettingsPage(
                     KumaCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "Calculations & 1RM Analytics",
+                                text = s.calculationsHeader,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textPrimary
@@ -1645,7 +1654,7 @@ private fun WorkoutSettingsPage(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Estimated 1RM Formula",
+                                text = s.estimated1RmFormulaTitle,
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = colors.textPrimary
@@ -1700,7 +1709,7 @@ private fun WorkoutSettingsPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Max reps for 1RM estimate",
+                                    text = s.maxRepsFor1RmTitle,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -1739,8 +1748,8 @@ private fun WorkoutSettingsPage(
 
                             // Count warm-up sets in volume
                             WorkoutSettingToggle(
-                                title = "Count Warm-up in Volume",
-                                description = "Include warm-up sets when calculating total session and weekly tonnage",
+                                title = s.countWarmupInVolumeTitle,
+                                description = s.countWarmupInVolumeSubtitle,
                                 isChecked = settings.calculations.includeWarmupInVolume,
                                 onCheckedChange = { chk ->
                                     settingsRepository.update {
@@ -1810,6 +1819,7 @@ private fun UnitsSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -1836,14 +1846,14 @@ private fun UnitsSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Select Units",
+                    text = s.selectUnitsTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -1859,8 +1869,8 @@ private fun UnitsSettingsPage(
             ) {
                 // Weight (kg / lbs)
                 UnitOptionGroup(
-                    title = "Weight",
-                    options = listOf(WeightUnit.KG to "kg", WeightUnit.LB to "lbs"),
+                    title = s.weightUnitTitle,
+                    options = listOf(WeightUnit.KG to s.unitKg, WeightUnit.LB to s.unitLb),
                     selected = settings.units.weightUnit,
                     onSelect = { unit ->
                         settingsRepository.update {
@@ -1871,8 +1881,8 @@ private fun UnitsSettingsPage(
 
                 // Distance (kilometers / miles)
                 UnitOptionGroup(
-                    title = "Distance",
-                    options = listOf(DistanceUnit.KILOMETERS to "kilometers", DistanceUnit.MILES to "miles"),
+                    title = s.distanceUnitTitle,
+                    options = listOf(DistanceUnit.KILOMETERS to s.distanceUnitKm, DistanceUnit.MILES to s.distanceUnitMiles),
                     selected = settings.units.distanceUnit,
                     onSelect = { unit ->
                         settingsRepository.update {
@@ -1883,8 +1893,8 @@ private fun UnitsSettingsPage(
 
                 // Body Measurements (cm / in)
                 UnitOptionGroup(
-                    title = "Body Measurements",
-                    options = listOf(BodyMeasurementUnit.CM to "cm", BodyMeasurementUnit.IN to "in"),
+                    title = s.sizeUnitTitle,
+                    options = listOf(BodyMeasurementUnit.CM to s.sizeUnitCm, BodyMeasurementUnit.IN to s.sizeUnitIn),
                     selected = settings.units.bodyMeasurementUnit,
                     onSelect = { unit ->
                         settingsRepository.update {
@@ -1958,6 +1968,7 @@ private fun LanguageSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -1984,14 +1995,14 @@ private fun LanguageSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Select Language",
+                    text = s.languageSettingsRow,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -2006,9 +2017,9 @@ private fun LanguageSettingsPage(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 listOf(
-                    Triple(AppLanguage.SYSTEM, "Ikuti Pengaturan HP", "Gunakan bahasa bawaan sistem perangkat"),
-                    Triple(AppLanguage.ID, "Bahasa Indonesia", "Tampilan antarmuka berbahasa Indonesia"),
-                    Triple(AppLanguage.EN, "English", "User interface in English")
+                    Triple(AppLanguage.SYSTEM, s.systemLanguageTitle, s.systemLanguageSubtitle),
+                    Triple(AppLanguage.ID, s.indonesianLanguage, s.indonesianLanguageSubtitle),
+                    Triple(AppLanguage.EN, s.englishLanguage, s.englishLanguageSubtitle)
                 ).forEach { (lang, title, desc) ->
                     val isSelected = settings.appearance.language == lang
                     KumaCard(
@@ -2068,6 +2079,7 @@ private fun ThemeSettingsPage(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -2094,14 +2106,14 @@ private fun ThemeSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Select Theme",
+                    text = s.selectThemeTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -2115,11 +2127,10 @@ private fun ThemeSettingsPage(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val isEnglish = resolveIsEnglish(settings.appearance.language)
                 listOf(
-                    Pair(AppTheme.SYSTEM, if (isEnglish) "Use OS Setting" else "Ikuti Pengaturan Sistem"),
-                    Pair(AppTheme.DARK, if (isEnglish) "Dark" else "Mode Gelap"),
-                    Pair(AppTheme.LIGHT, if (isEnglish) "Light" else "Mode Terang")
+                    Pair(AppTheme.SYSTEM, s.themeSystem),
+                    Pair(AppTheme.DARK, s.themeDark),
+                    Pair(AppTheme.LIGHT, s.themeLight)
                 ).forEach { (theme, label) ->
                     val isSelected = settings.appearance.theme == theme
                     KumaCard(
@@ -2174,7 +2185,7 @@ private fun ExportImportDataPage(
 ) {
     val colors = LocalKumaColors.current
     val settings by settingsRepository.settings.collectAsState()
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
     val backupManager = remember(databaseRepo) {
         databaseRepo?.let { DataBackupManager(it) }
     }
@@ -2184,7 +2195,7 @@ private fun ExportImportDataPage(
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
 
-    val exportLauncher = rememberDataExportLauncher(isEnglish = isEnglish) { success, msg ->
+    val exportLauncher = rememberDataExportLauncher(strings = s) { success, msg ->
         statusMessage = msg
         if (success) {
             settingsRepository.update {
@@ -2197,7 +2208,7 @@ private fun ExportImportDataPage(
         if (content != null) {
             pendingImportContent = content
         } else {
-            statusMessage = if (isEnglish) "Import cancelled or no file selected." else "Impor dibatalkan atau tidak ada file dipilih."
+            statusMessage = s.importCancelledOrNoFile
         }
     }
 
@@ -2211,16 +2222,13 @@ private fun ExportImportDataPage(
             onDismissRequest = { pendingImportContent = null },
             title = {
                 Text(
-                    text = if (isEnglish) "Restore Data" else "Pulihkan Cadangan Data",
+                    text = s.restoreDataDialogTitle,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             },
             text = {
                 Text(
-                    text = if (isEnglish)
-                        "Choose restore mode:\n\n• MERGE: Combines with current data. Preserves existing workouts and updates records.\n\n• REPLACE: Wipes current data and restores this backup completely. An automatic safety snapshot will be created before wiping."
-                    else
-                        "Pilih metode pemulihan data:\n\n• MERGE (GABUNGKAN): Menggabungkan dengan data saat ini tanpa menghapus sesi yang sudah ada.\n\n• REPLACE (TIMPA): Menghapus seluruh data saat ini dan menggantinya dengan cadangan ini. Snapshot keselamatan akan otomatis dibuat terlebih dahulu."
+                    text = s.restoreDataDialogBody
                 )
             },
             confirmButton = {
@@ -2232,15 +2240,15 @@ private fun ExportImportDataPage(
                             jsonString = content,
                             mode = ImportMode.REPLACE,
                             currentSettings = settings,
-                            isEnglish = isEnglish,
+                            strings = s,
                             onSettingsRestored = { settingsRepository.save(it) }
                         )
-                        statusMessage = result?.message ?: if (isEnglish) "Failed to restore backup." else "Gagal memulihkan cadangan."
+                        statusMessage = result?.message ?: s.failedToRestoreBackup
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
                 ) {
                     Text(
-                        text = if (isEnglish) "REPLACE (Full)" else "TIMPA (Replace)",
+                        text = s.replaceFullButton,
                         color = colors.onAccentFill,
                         fontWeight = FontWeight.Bold
                     )
@@ -2249,7 +2257,7 @@ private fun ExportImportDataPage(
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { pendingImportContent = null }) {
-                        Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                        Text(s.cancel, color = colors.textSecondary)
                     }
                     Button(
                         onClick = {
@@ -2259,15 +2267,15 @@ private fun ExportImportDataPage(
                                 jsonString = content,
                                 mode = ImportMode.MERGE,
                                 currentSettings = settings,
-                                isEnglish = isEnglish,
+                                strings = s,
                                 onSettingsRestored = { settingsRepository.save(it) }
                             )
-                            statusMessage = result?.message ?: if (isEnglish) "Failed to merge backup." else "Gagal menggabungkan cadangan."
+                            statusMessage = result?.message ?: s.failedToMergeBackup
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = KumaColors.SurfaceContainerHigh)
                     ) {
                         Text(
-                            text = if (isEnglish) "MERGE" else "GABUNGKAN",
+                            text = s.mergeButton,
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold
                         )
@@ -2283,17 +2291,14 @@ private fun ExportImportDataPage(
             onDismissRequest = { showClearHistoryDialog = false },
             title = {
                 Text(
-                    text = if (isEnglish) "Clear Workout History?" else "Hapus Riwayat Latihan?",
+                    text = s.clearHistoryConfirmTitle,
                     fontWeight = FontWeight.Bold,
                     color = KumaColors.ErrorRed
                 )
             },
             text = {
                 Text(
-                    text = if (isEnglish)
-                        "All completed workouts and set logs will be permanently deleted. Custom exercises, routines, and settings will be preserved."
-                    else
-                        "Seluruh riwayat sesi latihan dan log set akan dihapus secara permanen. Gerakan kustom, program latihan, dan preferensi pengaturan akan tetap dipertahankan."
+                    text = s.clearHistoryDialogBody
                 )
             },
             confirmButton = {
@@ -2301,16 +2306,16 @@ private fun ExportImportDataPage(
                     onClick = {
                         showClearHistoryDialog = false
                         databaseRepo?.clearWorkoutHistoryOnly()
-                        statusMessage = if (isEnglish) "Workout history cleared successfully." else "Riwayat latihan berhasil dibersihkan."
+                        statusMessage = s.workoutHistoryClearedSuccess
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
                 ) {
-                    Text(if (isEnglish) "DELETE HISTORY" else "HAPUS RIWAYAT", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(s.deleteHistoryButton, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearHistoryDialog = false }) {
-                    Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                    Text(s.cancel, color = colors.textSecondary)
                 }
             }
         )
@@ -2322,17 +2327,14 @@ private fun ExportImportDataPage(
             onDismissRequest = { showDeleteAllDialog = false },
             title = {
                 Text(
-                    text = if (isEnglish) "Delete All Data?" else "Hapus Seluruh Data Aplikasi?",
+                    text = s.deleteAllDataConfirmTitle,
                     fontWeight = FontWeight.Bold,
                     color = KumaColors.ErrorRed
                 )
             },
             text = {
                 Text(
-                    text = if (isEnglish)
-                        "This will permanently delete all workouts, PR records, custom exercises, routines, and settings. This cannot be undone."
-                    else
-                        "Tindakan ini akan menghapus permanen seluruh riwayat, rekor PR, gerakan kustom, program latihan, dan semua pengaturan. Tindakan ini tidak dapat dibatalkan."
+                    text = s.deleteAllDataDialogBody
                 )
             },
             confirmButton = {
@@ -2341,16 +2343,16 @@ private fun ExportImportDataPage(
                         showDeleteAllDialog = false
                         databaseRepo?.wipeAllUserData()
                         settingsRepository.save(UserSettings())
-                        statusMessage = if (isEnglish) "All data deleted. App restored to fresh install." else "Semua data telah dihapus. Aplikasi kembali ke kondisi awal."
+                        statusMessage = s.allDataDeletedSuccess
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
                 ) {
-                    Text(if (isEnglish) "DELETE EVERYTHING" else "HAPUS SEMUA", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(s.deleteEverythingButton, color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text(if (isEnglish) "Cancel" else "Batal", color = colors.textSecondary)
+                    Text(s.cancel, color = colors.textSecondary)
                 }
             }
         )
@@ -2381,14 +2383,14 @@ private fun ExportImportDataPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = if (isEnglish) "Export & Import Data" else "Cadangan & Pemulihan Data",
+                    text = s.exportImportSettingsRow,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -2405,7 +2407,7 @@ private fun ExportImportDataPage(
                 // Section 1: Backup & Restore Actions
                 item {
                     Text(
-                        text = if (isEnglish) "BACKUP & RESTORE (LOCAL ONLY)" else "CADANGAN & PEMULIHAN (LOKAL)",
+                        text = s.backupRestoreLocalHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.accentText,
                             fontWeight = FontWeight.Bold,
@@ -2417,23 +2419,23 @@ private fun ExportImportDataPage(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SettingsNavigationRow(
                                 icon = Icons.Default.FileDownload,
-                                title = if (isEnglish) "Export Backup (JSON)" else "Ekspor Cadangan Lengkap (JSON)",
-                                subtitle = if (isEnglish) "Full-fidelity backup with schema v1" else "Cadangkan seluruh riwayat, PR, program, dan pengaturan",
+                                title = s.exportBackupJsonTitle,
+                                subtitle = s.exportBackupJsonSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
                                         val jsonPayload = backupManager.exportJson(settings)
                                         val now = currentEpochMillis()
                                         exportLauncher("kumalift_backup_$now.json", jsonPayload)
                                     } else {
-                                        statusMessage = if (isEnglish) "Database repository unavailable." else "Database repository tidak tersedia."
+                                        statusMessage = s.databaseRepoUnavailable
                                     }
                                 }
                             )
                             SettingsDivider()
                             SettingsNavigationRow(
                                 icon = Icons.Default.FileUpload,
-                                title = if (isEnglish) "Restore from Backup" else "Pulihkan dari Cadangan",
-                                subtitle = if (isEnglish) "Restore with Merge or Replace options" else "Pilih file cadangan JSON dan opsi Gabungkan atau Timpa",
+                                title = s.restoreFromBackupTitle,
+                                subtitle = s.restoreFromBackupSubtitle,
                                 onClick = {
                                     importLauncher()
                                 }
@@ -2441,13 +2443,13 @@ private fun ExportImportDataPage(
                             SettingsDivider()
                             SettingsNavigationRow(
                                 icon = Icons.Default.Restore,
-                                title = if (isEnglish) "Restore Safety Snapshot" else "Pulihkan Snapshot Keselamatan",
-                                subtitle = if (isEnglish) "Revert to automatic pre-replace snapshot" else "Kembalikan data sebelum penimpaan terakhir dilakukan",
+                                title = s.restoreSafetySnapshotTitle,
+                                subtitle = s.restoreSafetySnapshotSub,
                                 onClick = {
                                     if (backupManager != null) {
                                         val result = backupManager.restoreSafetySnapshot(
                                             currentSettings = settings,
-                                            isEnglish = isEnglish
+                                            strings = s
                                         ) {
                                             settingsRepository.save(it)
                                         }
@@ -2462,7 +2464,7 @@ private fun ExportImportDataPage(
                 // Section 2: CSV Data Export
                 item {
                     Text(
-                        text = if (isEnglish) "CSV EXPORT" else "EKSPOR FORMAT CSV",
+                        text = s.csvExportHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontWeight = FontWeight.Bold,
@@ -2474,8 +2476,8 @@ private fun ExportImportDataPage(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SettingsNavigationRow(
                                 icon = Icons.Default.FileDownload,
-                                title = if (isEnglish) "Export Workouts CSV" else "Ekspor Riwayat Latihan (CSV)",
-                                subtitle = if (isEnglish) "Spreadsheet compatible workout log" else "Format CSV yang dapat dibuka di Excel atau Google Sheets",
+                                title = s.exportWorkoutsCsvTitle,
+                                subtitle = s.exportWorkoutsCsvSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
                                         val csvFiles = backupManager.exportCsvFiles(settings)
@@ -2492,7 +2494,7 @@ private fun ExportImportDataPage(
                 // Section 3: Read-only Data Metrics
                 item {
                     Text(
-                        text = if (isEnglish) "STORAGE & STATUS" else "STATUS PENYIMPANAN",
+                        text = s.storageStatusHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontWeight = FontWeight.Bold,
@@ -2510,12 +2512,12 @@ private fun ExportImportDataPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Storage Used" else "Penyimpanan Terpakai",
+                                    text = s.storageUsedTitle,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
                                     text = storageUsage?.let {
-                                        "${it.workoutsCount} ${if (isEnglish) "workouts" else "sesi"} · ${it.setsCount} set"
+                                        s.storageUsedSubtitle(it.workoutsCount, it.setsCount)
                                     } ?: "—",
                                     style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                                 )
@@ -2529,13 +2531,13 @@ private fun ExportImportDataPage(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isEnglish) "Last Backup" else "Cadangan Terakhir",
+                                    text = s.lastBackupTitle,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
                                     text = settings.dataBackup.lastBackupEpochMs?.let {
-                                        if (isEnglish) "Recorded" else "Tersimpan"
-                                    } ?: if (isEnglish) "Never" else "Belum pernah",
+                                        s.recorded
+                                    } ?: s.never,
                                     style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
                                 )
                             }
@@ -2566,7 +2568,7 @@ private fun ExportImportDataPage(
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = if (isEnglish) "DANGER ZONE" else "ZONA BERBAHAYA",
+                        text = s.dangerZoneGroupTitle,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = KumaColors.ErrorRed,
                             fontWeight = FontWeight.Bold,
@@ -2581,15 +2583,15 @@ private fun ExportImportDataPage(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SettingsNavigationRow(
                                 icon = Icons.Default.History,
-                                title = if (isEnglish) "Clear Workout History" else "Hapus Riwayat Latihan",
-                                subtitle = if (isEnglish) "Delete all workouts and sets (keeps routines & settings)" else "Hapus semua sesi dan set (program dan pengaturan tetap aman)",
+                                title = s.clearWorkoutHistoryTitle,
+                                subtitle = s.clearWorkoutHistorySubtitle,
                                 onClick = { showClearHistoryDialog = true }
                             )
                             SettingsDivider()
                             SettingsNavigationRow(
                                 icon = Icons.Default.DeleteForever,
-                                title = if (isEnglish) "Delete All Data" else "Hapus Semua Data Aplikasi",
-                                subtitle = if (isEnglish) "Factory reset: delete all local data and preferences" else "Hapus permanen seluruh data dan kembalikan ke kondisi baru",
+                                title = s.deleteAllDataActionTitle,
+                                subtitle = s.deleteAllDataActionSubtitle,
                                 onClick = { showDeleteAllDialog = true }
                             )
                         }
@@ -2651,10 +2653,10 @@ private fun KumaInputField(
 
 @Composable
 private fun AboutSettingsPage(
-    onNavigateBack: () -> Unit,
-    isEnglish: Boolean
+    onNavigateBack: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     Box(
         modifier = Modifier
@@ -2681,14 +2683,14 @@ private fun AboutSettingsPage(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = if (isEnglish) "Back" else "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = if (isEnglish) "About & Licenses" else "Tentang & Lisensi",
+                    text = s.aboutTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -2721,7 +2723,7 @@ private fun AboutSettingsPage(
 
                 item {
                     Text(
-                        text = if (isEnglish) "MEDIA & ASSET ATTRIBUTION" else "ATRIBUSI MEDIA & ASET",
+                        text = s.mediaAttributionHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontWeight = FontWeight.Bold,
@@ -2735,17 +2737,14 @@ private fun AboutSettingsPage(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Exercise media © Gym visual",
+                                text = s.exerciseMediaAttributionTitle,
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textPrimary
                                 )
                             )
                             Text(
-                                text = if (isEnglish)
-                                    "Exercise demonstrations, GIFs, and thumbnails are copyrighted by Gym visual (https://gymvisual.com) and used with attribution."
-                                else
-                                    "Animasi demonstrasi gerakan, gambar GIF, dan thumbnail merupakan hak cipta Gym visual (https://gymvisual.com) dan ditampilkan dengan atribusi resmi.",
+                                text = s.exerciseMediaAttributionBody,
                                 style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                             )
                         }
@@ -2754,7 +2753,7 @@ private fun AboutSettingsPage(
 
                 item {
                     Text(
-                        text = if (isEnglish) "OPEN-SOURCE LICENSES" else "LISENSI SUMBER TERBUKA",
+                        text = s.openSourceLicensesHeader,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontWeight = FontWeight.Bold,

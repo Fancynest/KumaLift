@@ -48,6 +48,8 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
@@ -64,6 +66,7 @@ fun CreateExerciseScreen(
     onSaveExercise: (name: String, primaryMuscle: MuscleGroup, equipment: Equipment, secondaryMuscles: List<MuscleGroup>, movementType: MovementType) -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     var nameInput by remember { mutableStateOf("") }
     var selectedEquipment by remember { mutableStateOf(Equipment.BARBELL) }
@@ -99,7 +102,7 @@ fun CreateExerciseScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Batal",
+                        contentDescription = s.cancel,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -108,7 +111,7 @@ fun CreateExerciseScreen(
                 Spacer(modifier = Modifier.width(14.dp))
 
                 Text(
-                    text = "Create Exercise",
+                    text = s.createExerciseTitle,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
@@ -138,7 +141,7 @@ fun CreateExerciseScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Save",
+                        text = s.save,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
@@ -157,7 +160,7 @@ fun CreateExerciseScreen(
                 KumaCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "EXERCISE NAME",
+                            text = s.exerciseNameLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -183,7 +186,7 @@ fun CreateExerciseScreen(
                         ) {
                             if (nameInput.isEmpty()) {
                                 Text(
-                                    text = "misal: Incline Dumbbell Press",
+                                    text = s.exerciseNamePlaceholder,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
                                     color = colors.textSecondary.copy(alpha = 0.6f)
                                 )
@@ -205,7 +208,7 @@ fun CreateExerciseScreen(
                         if (hasAttemptedSubmit && !isNameValid) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Nama latihan wajib diisi",
+                                text = s.exerciseNameRequiredError,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = Color(0xFFFF5252),
                                     fontSize = 11.sp
@@ -219,7 +222,7 @@ fun CreateExerciseScreen(
                 KumaCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "EQUIPMENT",
+                            text = s.equipmentLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -228,7 +231,7 @@ fun CreateExerciseScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Pilih alat yang digunakan untuk gerakan ini",
+                            text = s.equipmentSub,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.textSecondary,
                                 fontSize = 12.sp
@@ -257,7 +260,7 @@ fun CreateExerciseScreen(
                                         .padding(horizontal = 14.dp, vertical = 7.dp)
                                 ) {
                                     Text(
-                                        text = eq.displayName,
+                                        text = eq.label,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             color = if (isSelected) colors.onAccentFill else colors.textPrimary
@@ -273,7 +276,7 @@ fun CreateExerciseScreen(
                 KumaCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "PRIMARY MUSCLE GROUP",
+                            text = s.primaryMuscleLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -282,7 +285,7 @@ fun CreateExerciseScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Kelompok otot primer yang menjadi fokus latihan",
+                            text = s.primaryMuscleSub,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.textSecondary,
                                 fontSize = 12.sp
@@ -328,7 +331,7 @@ fun CreateExerciseScreen(
                                                 .background(if (isSelected) colors.onAccentFill else muscleColor)
                                         )
                                         Text(
-                                            text = muscle.displayName,
+                                            text = muscle.label,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isSelected) colors.onAccentFill else colors.textPrimary
@@ -345,7 +348,7 @@ fun CreateExerciseScreen(
                 KumaCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "OTHER MUSCLES (OPTIONAL)",
+                            text = s.secondaryMusclesLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -354,7 +357,7 @@ fun CreateExerciseScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Pilih otot bantuan yang ikut bekerja saat latihan",
+                            text = s.secondaryMusclesSub,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.textSecondary,
                                 fontSize = 12.sp
@@ -405,7 +408,7 @@ fun CreateExerciseScreen(
                                             )
                                         }
                                         Text(
-                                            text = muscle.displayName,
+                                            text = muscle.label,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isSelected) colors.accentText else colors.textPrimary
@@ -422,7 +425,7 @@ fun CreateExerciseScreen(
                 KumaCard(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "EXERCISE TYPE",
+                            text = s.movementTypeLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -431,7 +434,7 @@ fun CreateExerciseScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Karakteristik sendi dan pergerakan biomekanik",
+                            text = s.movementTypeSub,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.textSecondary,
                                 fontSize = 12.sp
@@ -445,8 +448,8 @@ fun CreateExerciseScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             listOf(
-                                MovementType.COMPOUND to "Multi-sendi (e.g. Press, Squat, Row)",
-                                MovementType.ISOLATION to "Sendi tunggal (e.g. Curl, Fly, Extension)"
+                                MovementType.COMPOUND to s.movementCompoundDesc,
+                                MovementType.ISOLATION to s.movementIsolationDesc
                             ).forEach { (type, description) ->
                                 val isSelected = selectedMovementType == type
                                 Box(
@@ -464,7 +467,7 @@ fun CreateExerciseScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = type.displayName,
+                                            text = type.label,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isSelected) colors.onAccentFill else colors.textPrimary

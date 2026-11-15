@@ -67,6 +67,9 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.domain.model.Exercise
 
 enum class ExerciseDetailTab {
@@ -84,11 +87,11 @@ enum class MetricSwitcherType {
 @Composable
 fun ExerciseDetailScreen(
     exercise: Exercise,
-    isEnglish: Boolean = false,
     onNavigateBack: () -> Unit,
     onAddExercise: (() -> Unit)? = null,
     onSaveNote: ((String) -> Unit)? = null
 ) {
+    val s = LocalStrings.current
     var selectedTab by remember { mutableStateOf(ExerciseDetailTab.SUMMARY) }
     var selectedMetric by remember { mutableStateOf(MetricSwitcherType.HEAVIEST_WEIGHT) }
     var showNoteDialog by remember { mutableStateOf(false) }
@@ -127,7 +130,7 @@ fun ExerciseDetailScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Kembali",
+                        contentDescription = s.back,
                         tint = colors.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -159,7 +162,7 @@ fun ExerciseDetailScreen(
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text(if (isEnglish) "Add" else "Tambah", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(s.add, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
@@ -190,7 +193,7 @@ fun ExerciseDetailScreen(
                     onClick = { selectedTab = ExerciseDetailTab.SUMMARY },
                     text = {
                         Text(
-                            text = if (isEnglish) "Summary" else "Ringkasan",
+                            text = s.summaryTab,
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = if (selectedTab == ExerciseDetailTab.SUMMARY) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == ExerciseDetailTab.SUMMARY) colors.accentText else colors.textSecondary
@@ -203,7 +206,7 @@ fun ExerciseDetailScreen(
                     onClick = { selectedTab = ExerciseDetailTab.HOW_TO },
                     text = {
                         Text(
-                            text = if (isEnglish) "How to" else "Panduan",
+                            text = s.howToTab,
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontWeight = if (selectedTab == ExerciseDetailTab.HOW_TO) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == ExerciseDetailTab.HOW_TO) colors.accentText else colors.textSecondary
@@ -247,23 +250,21 @@ fun ExerciseDetailScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
-                                    text = if (isEnglish) "Target: ${exercise.localizedMuscleSubtitle(true)}" else "Otot Utama: ${exercise.localizedMuscleSubtitle(false)}",
+                                    text = s.targetMuscleLabel(exercise.localizedMuscleSubtitle(s)),
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary,
                                         fontWeight = FontWeight.Medium
                                     )
                                 )
 
-                                val secondaryStr = if (exercise.secondaryMuscleDetails.isNotBlank()) {
-                                    exercise.secondaryMuscleDetails
-                                } else if (exercise.secondaryMuscles.isNotEmpty()) {
-                                    exercise.secondaryMuscles.joinToString(", ") { it.localizedName(isEnglish) }
+                                val secondaryStr = if (exercise.secondaryMuscles.isNotEmpty()) {
+                                    exercise.secondaryMuscles.joinToString(", ") { it.label(s) }
                                 } else {
-                                    if (isEnglish) "Stabilizer muscles" else "Otot stabilisator pendukung"
+                                    s.stabilizerMusclesDefault
                                 }
 
                                 Text(
-                                    text = if (isEnglish) "Secondary: $secondaryStr" else "Otot Pendukung: $secondaryStr",
+                                    text = s.secondaryMusclesLabel(secondaryStr),
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.textSecondary
                                     )
@@ -293,7 +294,7 @@ fun ExerciseDetailScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
-                                        text = if (isEnglish) "How to log ${exercise.equipment.localizedName(true).lowercase()} exercises" else "Cara mencatat gerakan ${exercise.equipment.localizedName(false).lowercase()}",
+                                        text = s.howToLogEquipmentTitle(exercise.equipment.label.lowercase()),
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.Medium
@@ -328,7 +329,7 @@ fun ExerciseDetailScreen(
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         Text(
-                                            text = if (isEnglish) "No workout logs yet" else "Belum ada riwayat beban",
+                                            text = s.noWorkoutLogsYet,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = colors.textSecondary
                                             )
@@ -344,9 +345,9 @@ fun ExerciseDetailScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     listOf(
-                                        MetricSwitcherType.HEAVIEST_WEIGHT to (if (isEnglish) "Heaviest Weight" else "Beban Terberat"),
-                                        MetricSwitcherType.ONE_REP_MAX to (if (isEnglish) "One Rep Max" else "Beban 1RM"),
-                                        MetricSwitcherType.BEST_SET_VOLUME to (if (isEnglish) "Best Set Vol" else "Volume Terbaik")
+                                        MetricSwitcherType.HEAVIEST_WEIGHT to s.heaviestWeightTab,
+                                        MetricSwitcherType.ONE_REP_MAX to s.oneRepMaxTab,
+                                        MetricSwitcherType.BEST_SET_VOLUME to s.bestSetVolumeTab
                                     ).forEach { (metric, label) ->
                                         val isSelected = selectedMetric == metric
                                         Box(
@@ -392,7 +393,7 @@ fun ExerciseDetailScreen(
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Text(
-                                            text = "Personal Records",
+                                            text = s.personalRecordsSection,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = colors.textPrimary
@@ -402,12 +403,12 @@ fun ExerciseDetailScreen(
 
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                        contentDescription = "Bantuan Rekor",
+                                        contentDescription = s.prHelpContentDesc,
                                         tint = colors.textSecondary,
                                         modifier = Modifier
                                             .size(18.dp)
                                             .clickable {
-                                                showHelpDialog = "Rekor Pribadi mencatat angkatan tertinggi, estimasi 1RM, volume set terbaik, dan total volume sesi untuk gerakan ini."
+                                                showHelpDialog = s.prHelpDialog
                                             }
                                     )
                                 }
@@ -418,11 +419,11 @@ fun ExerciseDetailScreen(
                                 val pr1rm = exercise.currentPrWeightKg?.let { "${(it * 1.1).toInt()}.0 kg" } ?: "—"
                                 val bestSetVol = exercise.currentPrWeightKg?.let { "${it * (exercise.currentPrReps ?: 1)} kg" } ?: "—"
 
-                                PrMetricRow(label = if (isEnglish) "Heaviest Weight" else "Beban Terberat", value = prWeight)
+                                PrMetricRow(label = s.heaviestWeightTab, value = prWeight)
                                 Spacer(modifier = Modifier.height(10.dp))
-                                PrMetricRow(label = if (isEnglish) "Best 1RM" else "Estimasi 1RM Terbaik", value = pr1rm)
+                                PrMetricRow(label = s.oneRepMaxTab, value = pr1rm)
                                 Spacer(modifier = Modifier.height(10.dp))
-                                PrMetricRow(label = if (isEnglish) "Best Set Volume" else "Volume Set Terbaik", value = bestSetVol)
+                                PrMetricRow(label = s.bestSetVolumeTab, value = bestSetVol)
                             }
                         }
 
@@ -439,7 +440,7 @@ fun ExerciseDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Strength Level",
+                                        text = s.strengthLevelTitle,
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -448,12 +449,12 @@ fun ExerciseDetailScreen(
 
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                        contentDescription = "Bantuan Tingkat Kekuatan",
+                                        contentDescription = s.strengthLevelHelpContentDesc,
                                         tint = colors.textSecondary,
                                         modifier = Modifier
                                             .size(18.dp)
                                             .clickable {
-                                                showHelpDialog = "Standar kekuatan dihitung dari perbandingan 1RM dengan berat badan dan jenis kelamin atlet."
+                                                showHelpDialog = s.strengthLevelHelpDialog
                                             }
                                     )
                                 }
@@ -488,7 +489,7 @@ fun ExerciseDetailScreen(
 
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "Add your sex, age and weight so that we can show you your strength level",
+                                                text = s.strengthLevelHint,
                                                 style = MaterialTheme.typography.bodyMedium.copy(
                                                     color = colors.textPrimary,
                                                     fontWeight = FontWeight.Medium
@@ -525,7 +526,7 @@ fun ExerciseDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Step-by-step instructions (exercises-dataset)",
+                                    text = s.stepByStepHeader,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = colors.textSecondary
                                     )
@@ -576,7 +577,7 @@ fun ExerciseDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "Pinned exercise notes",
+                                        text = s.pinnedNoteSection,
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -584,7 +585,7 @@ fun ExerciseDetailScreen(
                                     )
 
                                     Text(
-                                        text = if (currentNote.isNotBlank()) "Edit Note" else "Add Note",
+                                        text = if (currentNote.isNotBlank()) s.edit else s.add,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.accentText
@@ -620,7 +621,7 @@ fun ExerciseDetailScreen(
                                             text = if (currentNote.isNotBlank()) {
                                                 currentNote
                                             } else {
-                                                "Add a note here to see it every time you log this exercise."
+                                                s.pinnedNotePlaceholder
                                             },
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = if (currentNote.isNotBlank()) colors.textPrimary else colors.textSecondary,
@@ -644,12 +645,12 @@ fun ExerciseDetailScreen(
         AlertDialog(
             onDismissRequest = { showNoteDialog = false },
             title = {
-                Text(text = "Catatan Gerakan (Pinned Note)", fontWeight = FontWeight.Bold)
+                Text(text = s.pinnedNoteSection, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Catatan ini akan otomatis muncul setiap kali Anda melakukan ${exercise.name}:",
+                        text = s.pinnedNoteAutoHint(exercise.name),
                         style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -669,7 +670,7 @@ fun ExerciseDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             decorationBox = { inner ->
                                 if (noteInput.isBlank()) {
-                                    Text("Tuliskan cue teknis, posisi grip, atau beban awal...", color = colors.textSecondary.copy(alpha = 0.5f))
+                                    Text(s.pinnedNoteInputPlaceholder, color = colors.textSecondary.copy(alpha = 0.5f))
                                 }
                                 inner()
                             }
@@ -690,12 +691,12 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text("Simpan", fontWeight = FontWeight.Bold)
+                    Text(s.saveNoteButton, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNoteDialog = false }) {
-                    Text("Batal", color = colors.textSecondary)
+                    Text(s.cancel, color = colors.textSecondary)
                 }
             }
         )
@@ -705,7 +706,7 @@ fun ExerciseDetailScreen(
     if (showHelpDialog != null) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = null },
-            title = { Text("Informasi", fontWeight = FontWeight.Bold) },
+            title = { Text(s.infoTitle, fontWeight = FontWeight.Bold) },
             text = { Text(showHelpDialog!!) },
             confirmButton = {
                 Button(
@@ -715,7 +716,7 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text("OK", fontWeight = FontWeight.Bold)
+                    Text(s.done, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -725,11 +726,9 @@ fun ExerciseDetailScreen(
     if (showTipDialog) {
         AlertDialog(
             onDismissRequest = { showTipDialog = false },
-            title = { Text("Cara Mencatat Beban ${exercise.equipment.displayName}", fontWeight = FontWeight.Bold) },
+            title = { Text(s.howToLogDialogTitle(exercise.equipment.label), fontWeight = FontWeight.Bold) },
             text = {
-                Text(
-                    "Pada latihan ${exercise.equipment.displayName}, catat total beban kumulatif termasuk berat barbell standar (20 kg) ditambah total piringan beban pada kedua sisi."
-                )
+                Text(s.howToLogDialogBody(exercise.equipment.label))
             },
             confirmButton = {
                 Button(
@@ -739,7 +738,7 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text("Mengerti", fontWeight = FontWeight.Bold)
+                    Text(s.understandButton, fontWeight = FontWeight.Bold)
                 }
             }
         )

@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.bearbones.kumalift.MainActivity
+import com.bearbones.kumalift.core.localization.resolveAppStrings
+import com.bearbones.kumalift.domain.model.AppLanguage
 
 class WorkoutReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -19,10 +21,21 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
             return
         }
 
+        val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+        val langStr = prefs.getString("language_code", null)
+        val appLanguage = try {
+            if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
+        } catch (_: Exception) {
+            AppLanguage.SYSTEM
+        }
+        val strings = resolveAppStrings(appLanguage)
+
         showReminderNotification(
             context = context,
-            title = "Waktunya Latihan! 🏋️‍♂️",
-            message = "Jaga konsistensi & penuhi target mingguanmu. Buka KumaLift sekarang!"
+            title = strings.notifReminderTitle,
+            message = strings.notifReminderBody,
+            channelName = strings.notifChannelName,
+            channelDesc = strings.notifChannelDescription
         )
         // Automatically schedule the next reminder
         AndroidWorkoutReminderScheduler.scheduleNext(context)
@@ -32,16 +45,22 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
         const val CHANNEL_ID = "workout_reminders"
         const val NOTIFICATION_ID = 1001
 
-        fun showReminderNotification(context: Context, title: String, message: String) {
+        fun showReminderNotification(
+            context: Context,
+            title: String,
+            message: String,
+            channelName: String = "Workout Reminders",
+            channelDesc: String = "KumaLift workout session reminder notifications"
+        ) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
-                    "Pengingat Latihan",
+                    channelName,
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
-                    description = "Notifikasi pengingat sesi latihan KumaLift"
+                    description = channelDesc
                     enableVibration(true)
                     enableLights(true)
                 }

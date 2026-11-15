@@ -41,8 +41,9 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.data.repository.SettingsRepository
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Workout
@@ -55,11 +56,11 @@ fun WorkoutSummaryScreen(
     onSaveAndClose: () -> Unit
 ) {
     val settings = settingsRepository?.settings?.collectAsState()?.value
-    val isEnglish = resolveIsEnglish(settings?.appearance?.language ?: AppLanguage.SYSTEM)
+    val s = LocalStrings.current
     val colors = LocalKumaColors.current
     val isLb = settings?.units?.weightUnit == com.bearbones.kumalift.domain.model.WeightUnit.LB
     val mult = if (isLb) 2.20462 else 1.0
-    val unitStr = if (isLb) "lb" else "kg"
+    val unitStr = if (isLb) s.unitLb else s.unitKg
 
     val durationSec = workout?.durationSeconds ?: 0
     val durMins = durationSec / 60
@@ -72,10 +73,10 @@ fun WorkoutSummaryScreen(
     val completedSets = workout?.totalCompletedSets ?: 0
     val totalSets = workout?.totalSets ?: 0
     val setsFormatted = "$completedSets / $totalSets"
-    val setsSubtext = if (totalSets > 0) "${(completedSets * 100) / totalSets}% ${if (isEnglish) "completed" else "tuntas"}" else "—"
+    val setsSubtext = if (totalSets > 0) s.completedPercent((completedSets * 100) / totalSets) else "—"
 
     val restSec = settings?.logging?.restTimerDefaultSec ?: 90
-    val restFormatted = "$restSec ${if (isEnglish) "sec" else "dtk"}"
+    val restFormatted = s.secondsShort(restSec)
 
     val prSets = workout?.exercises?.flatMap { ex -> ex.sets.filter { it.isPr }.map { ex to it } } ?: emptyList()
     Box(
@@ -94,7 +95,7 @@ fun WorkoutSummaryScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isEnglish) "Workout Summary" else "Rangkuman Latihan",
+                    text = s.workoutSummaryHeader,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -129,7 +130,7 @@ fun WorkoutSummaryScreen(
                                         .padding(horizontal = 12.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = if (isEnglish) "WORKOUT COMPLETED" else "LATIHAN TUNTAS",
+                                        text = s.workoutCompletedTitle,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             color = KumaColors.OnElectricLime,
                                             fontWeight = FontWeight.Bold
@@ -146,7 +147,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(14.dp))
 
                             Text(
-                                text = workout?.title ?: (if (isEnglish) "Workout Complete" else "Latihan Selesai"),
+                                text = workout?.title ?: s.workoutCompletedTitle,
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -155,7 +156,7 @@ fun WorkoutSummaryScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = if (isEnglish) "Today · 11:30 – 12:17" else "Hari ini · 11:30 – 12:17",
+                                text = "${s.todaySummaryPrefix} · 11:30 – 12:17",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextMuted
                             )
@@ -172,16 +173,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "DURATION" else "DURASI",
+                                label = s.workoutDurationStat,
                                 value = durationFormatted,
-                                subtext = if (isEnglish) "Active session" else "Sesi aktif",
+                                subtext = s.activeSessionSubtext,
                                 icon = Icons.Default.Timer
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
+                                label = s.totalVolumeStat,
                                 value = volFormatted,
-                                subtext = if (isEnglish) "Total tonnage" else "Total tonase",
+                                subtext = s.totalTonnageSubtext,
                                 icon = Icons.Default.FitnessCenter,
                                 isAccent = true
                             )
@@ -193,16 +194,16 @@ fun WorkoutSummaryScreen(
                         ) {
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "COMPLETED SETS" else "SET TUNTAS",
+                                label = s.totalSetsStat,
                                 value = setsFormatted,
                                 subtext = setsSubtext,
                                 icon = Icons.Default.CheckCircle
                             )
                             SummaryMetricCard(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "TARGET REST" else "TARGET REHAT",
+                                label = s.targetRestStat,
                                 value = restFormatted,
-                                subtext = if (isEnglish) "Per set interval" else "Interval antar set",
+                                subtext = s.perSetIntervalSubtext,
                                 icon = Icons.Default.Speed
                             )
                         }
@@ -233,7 +234,7 @@ fun WorkoutSummaryScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = if (isEnglish) "NEW RECORD (PR)" else "REKOR BARU (PR)",
+                                                text = s.newRecordPrBadge,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = LocalKumaColors.current.accentText,
                                                     fontWeight = FontWeight.Bold,
@@ -254,7 +255,7 @@ fun WorkoutSummaryScreen(
                                         )
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
-                                            text = "${set.reps} reps",
+                                            text = "${set.reps} ${s.repsAbbrev}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = KumaColors.TextMuted
                                         )
@@ -267,13 +268,13 @@ fun WorkoutSummaryScreen(
 
                 // Volume Distribution by Muscle Group
                 item {
-                    val muscleMap = remember(workout, isEnglish) {
+                    val muscleMap = remember(workout, s) {
                         val totalVol = workout?.exercises?.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.weightKg * it.reps } } ?: 0.0
                         if (totalVol > 0.0) {
                             val grouped = mutableMapOf<String, Double>()
                             workout?.exercises?.forEach { we ->
                                 val v = we.sets.filter { it.isCompleted }.sumOf { it.weightKg * it.reps }
-                                val name = we.exercise.primaryMuscle.localizedName(isEnglish)
+                                val name = we.exercise.primaryMuscle.label(s)
                                 grouped[name] = (grouped[name] ?: 0.0) + v
                             }
                             grouped.entries
@@ -290,7 +291,7 @@ fun WorkoutSummaryScreen(
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = if (isEnglish) "Trained Muscle Focus" else "Fokus Otot yang Dilatih",
+                                text = s.trainedMuscleFocusHeader,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -339,7 +340,7 @@ fun WorkoutSummaryScreen(
                                 }
                             } else {
                                 Text(
-                                    text = if (isEnglish) "No completed volume recorded" else "Belum ada volume beban tercatat",
+                                    text = s.noCompletedVolumeRecord,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextMuted
                                 )
@@ -352,7 +353,7 @@ fun WorkoutSummaryScreen(
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
                     KumaPrimaryButton(
-                        text = if (isEnglish) "SAVE & FINISH SESSION" else "SIMPAN & AKHIRI SESI",
+                        text = s.saveAndFinishSessionButton,
                         onClick = onSaveAndClose
                     )
                     Spacer(modifier = Modifier.height(100.dp))

@@ -269,9 +269,9 @@ class KumaDatabaseRepository(
                 name = row.name,
                 primaryMuscle = pm,
                 secondaryMuscles = secMuscles,
-                secondaryMuscleDetails = secMuscles.joinToString(", ") { it.displayName },
+                secondaryMuscleDetails = "",
                 equipment = eq,
-                equipmentDetail = eq.displayName,
+                equipmentDetail = "",
                 movementType = mt,
                 defaultIncrementKg = row.defaultIncrementKg,
                 pinnedNote = row.pinnedNote ?: ""

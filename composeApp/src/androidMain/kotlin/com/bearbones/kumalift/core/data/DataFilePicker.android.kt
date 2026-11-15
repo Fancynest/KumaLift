@@ -9,10 +9,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.bearbones.kumalift.core.localization.AppStrings
 
 @Composable
 actual fun rememberDataExportLauncher(
-    isEnglish: Boolean,
+    strings: AppStrings,
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, content: String) -> Unit {
     val context = LocalContext.current
@@ -29,12 +30,12 @@ actual fun rememberDataExportLauncher(
                 }
                 onExportResult(
                     true,
-                    if (isEnglish) "Backup file saved successfully." else "File cadangan berhasil disimpan."
+                    strings.backupFileSavedSuccess
                 )
             } catch (e: Exception) {
                 onExportResult(
                     false,
-                    if (isEnglish) "Failed to write file: ${e.message}" else "Gagal menulis file: ${e.message}"
+                    strings.failedToWriteBackupFile(e.message ?: "")
                 )
             } finally {
                 pendingContent = null
@@ -43,12 +44,12 @@ actual fun rememberDataExportLauncher(
             pendingContent = null
             onExportResult(
                 false,
-                if (isEnglish) "File saving cancelled." else "Penyimpanan file dibatalkan."
+                strings.backupFileSavingCancelled
             )
         }
     }
 
-    return remember(context, isEnglish) {
+    return remember(context, strings) {
         { fileName: String, content: String ->
             pendingContent = content
             try {
@@ -57,7 +58,7 @@ actual fun rememberDataExportLauncher(
                 pendingContent = null
                 onExportResult(
                     false,
-                    if (isEnglish) "Failed to open file manager: ${e.message}" else "Gagal membuka pengelola file: ${e.message}"
+                    strings.failedToOpenFilePicker(e.message ?: "")
                 )
             }
         }

@@ -1,10 +1,12 @@
 package com.bearbones.kumalift.core.data
 
 import androidx.compose.runtime.Composable
+import com.bearbones.kumalift.core.localization.AppStrings
+import com.bearbones.kumalift.core.localization.LocalStrings
 
 @Composable
 expect fun rememberDataExportLauncher(
-    isEnglish: Boolean = false,
+    strings: AppStrings = LocalStrings.current,
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, content: String) -> Unit
 

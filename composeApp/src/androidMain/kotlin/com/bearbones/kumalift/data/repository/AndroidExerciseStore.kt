@@ -45,9 +45,9 @@ class AndroidExerciseStore(private val context: Context) {
                         name = name,
                         primaryMuscle = primaryMuscle,
                         secondaryMuscles = secMuscles,
-                        secondaryMuscleDetails = secMuscles.joinToString(", ") { it.displayName },
+                        secondaryMuscleDetails = "",
                         equipment = equipment,
-                        equipmentDetail = equipment.displayName,
+                        equipmentDetail = "",
                         movementType = movementType,
                         defaultIncrementKg = 2.5
                     )

@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
+import com.bearbones.kumalift.core.localization.LocalStrings
 
 @Composable
 fun ProfilePhotoCropDialog(
@@ -49,13 +50,14 @@ fun ProfilePhotoCropDialog(
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
 
     AlertDialog(
         onDismissRequest = onCancel,
         containerColor = KumaColors.SurfaceContainerLow,
         title = {
             Text(
-                text = "Sesuaikan Foto Profil",
+                text = s.adjustPhotoTitle,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -68,7 +70,7 @@ fun ProfilePhotoCropDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Geser atau perbesar foto agar pas di dalam lingkaran profil.",
+                    text = s.adjustPhotoDescription,
                     style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                 )
 
@@ -116,7 +118,7 @@ fun ProfilePhotoCropDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Zoom",
+                        text = s.zoomLabel,
                         style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -150,12 +152,12 @@ fun ProfilePhotoCropDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(text = "Simpan", fontWeight = FontWeight.Bold)
+                Text(text = s.save, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text(text = "Batal", color = colors.textSecondary)
+                Text(text = s.cancel, color = colors.textSecondary)
             }
         }
     )

@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -41,11 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
-import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
@@ -102,7 +104,7 @@ fun App() {
 
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val appStrings = resolveAppStrings(settings.appearance.language)
 
     // Root back handler: Screen-specific sub-navigation handlers (e.g. ExerciseDetail,
     // CreateExercise, Settings sub-menus) register their own KumaBackHandler inside their
@@ -111,20 +113,22 @@ fun App() {
         navigator.back()
     }
 
-    KumaLiftTheme(
-        theme = settings.appearance.theme,
-        highContrast = settings.appearance.highContrast
+    CompositionLocalProvider(
+        LocalStrings provides appStrings
     ) {
-        Scaffold(
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            bottomBar = {
-                // Bottom navigation bar is visible ONLY when no fullscreen overlay is active
-                if (navigator.currentOverlay == null) {
-                    KumaBottomNavigation(
-                        selectedTab = navigator.selectedTab,
-                        hasActiveWorkout = activeWorkout != null,
-                        isEnglish = isEnglish,
-                        onTabSelected = { targetTab ->
+        KumaLiftTheme(
+            theme = settings.appearance.theme,
+            highContrast = settings.appearance.highContrast
+        ) {
+            Scaffold(
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                bottomBar = {
+                    // Bottom navigation bar is visible ONLY when no fullscreen overlay is active
+                    if (navigator.currentOverlay == null) {
+                        KumaBottomNavigation(
+                            selectedTab = navigator.selectedTab,
+                            hasActiveWorkout = activeWorkout != null,
+                            onTabSelected = { targetTab ->
                             if (navigator.selectedTab == targetTab) {
                                 // Tapping current tab again: scroll its list to top (never resets filters)
                                 when (targetTab) {
@@ -241,15 +245,16 @@ fun App() {
         }
     }
 }
+}
 
 @Composable
 fun KumaBottomNavigation(
     selectedTab: Tab,
     hasActiveWorkout: Boolean,
-    isEnglish: Boolean = false,
     onTabSelected: (Tab) -> Unit,
     onActiveLoggerClick: () -> Unit
 ) {
+    val s = LocalStrings.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -276,7 +281,7 @@ fun KumaBottomNavigation(
                             .background(KumaColors.OnElectricLime)
                     )
                     Text(
-                        text = if (isEnglish) "  WORKOUT IN PROGRESS" else "  SESI LATIHAN BERJALAN",
+                        text = "  ${s.workoutInProgress}",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime,
@@ -286,7 +291,7 @@ fun KumaBottomNavigation(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (isEnglish) "RESUME" else "LANJUT",
+                        text = s.resume,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime
@@ -313,31 +318,31 @@ fun KumaBottomNavigation(
         ) {
             NavItem(
                 icon = Icons.Default.Home,
-                label = if (isEnglish) "Home" else "Beranda",
+                label = s.tabHome,
                 isSelected = selectedTab == Tab.HOME,
                 onClick = { onTabSelected(Tab.HOME) }
             )
             NavItem(
                 icon = Icons.Default.FitnessCenter,
-                label = if (isEnglish) "Workouts" else "Latihan",
+                label = s.tabWorkouts,
                 isSelected = selectedTab == Tab.ROUTINES,
                 onClick = { onTabSelected(Tab.ROUTINES) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.MenuBook,
-                label = if (isEnglish) "Exercises" else "Gerakan",
+                label = s.tabExercises,
                 isSelected = selectedTab == Tab.LIBRARY,
                 onClick = { onTabSelected(Tab.LIBRARY) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.ShowChart,
-                label = if (isEnglish) "Progress" else "Progres",
+                label = s.tabProgress,
                 isSelected = selectedTab == Tab.PROGRESS,
                 onClick = { onTabSelected(Tab.PROGRESS) }
             )
             NavItem(
                 icon = Icons.Default.Person,
-                label = if (isEnglish) "Profile" else "Profil",
+                label = s.tabProfile,
                 isSelected = selectedTab == Tab.ME,
                 onClick = { onTabSelected(Tab.ME) }
             )

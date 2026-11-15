@@ -13,11 +13,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.NotificationSettings
 
 actual class WorkoutReminderManager(private val context: Context) {
-    actual fun syncSettings(settings: NotificationSettings) {
-        AndroidWorkoutReminderScheduler.saveAndSchedule(context, settings)
+    actual fun syncSettings(settings: NotificationSettings, language: AppLanguage) {
+        AndroidWorkoutReminderScheduler.saveAndSchedule(context, settings, language)
     }
 
     actual fun hasNotificationPermission(): Boolean {

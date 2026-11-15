@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.NotificationSettings
 import java.util.Calendar
 
@@ -13,15 +14,17 @@ object AndroidWorkoutReminderScheduler {
     private const val KEY_ENABLED = "reminders_enabled"
     private const val KEY_TIME = "reminder_time"
     private const val KEY_DAYS = "reminder_days"
+    private const val KEY_LANG = "language_code"
     const val ACTION_WORKOUT_REMINDER = "com.bearbones.kumalift.ACTION_WORKOUT_REMINDER"
     const val REQUEST_CODE = 4001
 
-    fun saveAndSchedule(context: Context, settings: NotificationSettings) {
+    fun saveAndSchedule(context: Context, settings: NotificationSettings, language: AppLanguage = AppLanguage.SYSTEM) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
             .putBoolean(KEY_ENABLED, settings.workoutReminders)
             .putString(KEY_TIME, settings.reminderTime)
             .putString(KEY_DAYS, settings.reminderDays.joinToString(","))
+            .putString(KEY_LANG, language.name)
             .apply()
 
         if (settings.workoutReminders) {

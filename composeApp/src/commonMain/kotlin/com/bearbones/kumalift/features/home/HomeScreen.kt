@@ -54,7 +54,7 @@ import com.bearbones.kumalift.core.designsystem.KumaLogoMark
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
-import com.bearbones.kumalift.core.util.resolveIsEnglish
+import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -88,18 +88,17 @@ fun HomeScreen(
             12
         }
     }
-    val isEnglish = resolveIsEnglish(settings.appearance.language)
+    val s = LocalStrings.current
     val timeGreeting = when (currentHour) {
-        in 4..10 -> if (isEnglish) "Good morning" else "Selamat pagi"
-        in 11..14 -> if (isEnglish) "Good afternoon" else "Selamat siang"
-        in 15..18 -> if (isEnglish) "Good afternoon" else "Selamat sore"
-        else -> if (isEnglish) "Good evening" else "Selamat malam"
+        in 4..10 -> s.greetingMorning
+        in 11..17 -> s.greetingAfternoon
+        else -> s.greetingEvening
     }
-    val athleteGreeting = settings.profile.username.ifBlank { settings.profile.name.ifBlank { if (isEnglish) "Athlete" else "Atlet" } }
+    val athleteGreeting = settings.profile.username.ifBlank { settings.profile.name.ifBlank { s.athleteDefault } }
     val phaseText = when (settings.profile.goal) {
-        TrainingGoal.HYPERTROPHY -> if (isEnglish) "HYPERTROPHY PHASE" else "FASE TAMBAH OTOT"
-        TrainingGoal.STRENGTH -> if (isEnglish) "STRENGTH PHASE" else "FASE KEKUATAN"
-        TrainingGoal.GENERAL -> if (isEnglish) "GENERAL FITNESS" else "KEBUGARAN UMUM"
+        TrainingGoal.HYPERTROPHY -> s.phaseHypertrophy
+        TrainingGoal.STRENGTH -> s.phaseStrength
+        TrainingGoal.GENERAL -> s.phaseGeneral
     }
 
     // Real dynamic stats calculated from stored database data
@@ -116,7 +115,7 @@ fun HomeScreen(
     }
 
     val isLb = settings.units.weightUnit == WeightUnit.LB
-    val unitSuffix = if (isLb) "lb" else "kg"
+    val unitSuffix = if (isLb) s.unitLb else s.unitKg
     val multiplier = if (isLb) 2.20462 else 1.0
 
     val weekVolDisplay = thisWeekVolumeKg * multiplier
@@ -139,9 +138,9 @@ fun HomeScreen(
     val weekWorkoutsCount = thisWeekWorkouts.size
     val targetPct = if (targetGoalWorkouts > 0) minOf(100, (weekWorkoutsCount * 100) / targetGoalWorkouts) else 0
 
-    val volumeBadge = if (isEnglish) "$weekVolFormatted This Week" else "$weekVolFormatted Minggu Ini"
-    val targetBadge = if (isEnglish) "Goal: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)" else "Target: $targetPct% ($weekWorkoutsCount/$targetGoalWorkouts)"
-    val prBadge = if (isEnglish) "${prList.size} PR Records" else "${prList.size} Rekor PR"
+    val volumeBadge = s.volumeThisWeek(weekVolFormatted)
+    val targetBadge = s.goalProgress(targetPct, weekWorkoutsCount, targetGoalWorkouts)
+    val prBadge = s.prRecordsCount(prList.size)
 
     var backupBannerDismissed by remember { mutableStateOf(false) }
     val backupReminderDays = settings.dataBackup.backupReminderDays
@@ -225,7 +224,7 @@ fun HomeScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = if (isEnglish) "Backup Reminder" else "Pengingat Cadangan Data",
+                                        text = s.backupReminderTitle,
                                         style = MaterialTheme.typography.titleSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFFF59E0B)
@@ -233,7 +232,7 @@ fun HomeScreen(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = if (isEnglish) "All data is stored 100% locally. Back up your workouts now to stay safe." else "Data disimpan 100% lokal. Cadangkan sekarang agar riwayat latihanmu tetap aman.",
+                                        text = s.backupReminderBody,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = KumaColors.TextMuted
                                     )
@@ -248,7 +247,7 @@ fun HomeScreen(
                                             .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = if (isEnglish) "Backup" else "Cadangkan",
+                                            text = s.backupButton,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = LocalKumaColors.current.accentText
@@ -297,7 +296,7 @@ fun HomeScreen(
                                             modifier = Modifier.size(18.dp)
                                         )
                                         Text(
-                                            text = if (isEnglish) "This Week" else "Minggu Ini",
+                                            text = s.thisWeekLabel,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -315,7 +314,7 @@ fun HomeScreen(
                                             .padding(horizontal = 12.dp, vertical = 3.dp)
                                     ) {
                                         Text(
-                                            text = "$weekWorkoutsCount/${settings.profile.trainingDaysPerWeek} ${if (isEnglish) "Workouts" else "Sesi Latihan"}",
+                                            text = s.workoutsTargetCount(weekWorkoutsCount, settings.profile.trainingDaysPerWeek),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = KumaColors.OnElectricLime,
                                                 fontWeight = FontWeight.Bold
@@ -338,9 +337,9 @@ fun HomeScreen(
                                     FirstDayOfWeek.SATURDAY -> listOf(6, 7, 1, 2, 3, 4, 5)
                                 }
                                 val dayLabels = when (firstDay) {
-                                    FirstDayOfWeek.MONDAY -> if (isEnglish) listOf("M", "T", "W", "T", "F", "S", "S") else listOf("S", "S", "R", "K", "J", "S", "M")
-                                    FirstDayOfWeek.SUNDAY -> if (isEnglish) listOf("S", "M", "T", "W", "T", "F", "S") else listOf("M", "S", "S", "R", "K", "J", "S")
-                                    FirstDayOfWeek.SATURDAY -> if (isEnglish) listOf("S", "S", "M", "T", "W", "T", "F") else listOf("S", "M", "S", "S", "R", "K", "J")
+                                    FirstDayOfWeek.MONDAY -> s.daysMondayStart
+                                    FirstDayOfWeek.SUNDAY -> s.daysSundayStart
+                                    FirstDayOfWeek.SATURDAY -> s.daysSaturdayStart
                                 }
 
                                 val daysDone = dayIndices.map { dayNum ->
@@ -384,9 +383,9 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                KumaBadge(text = if (isEnglish) "TODAY'S SCHEDULE" else "JADWAL HARI INI")
+                                KumaBadge(text = s.todaysSchedule)
                                 Text(
-                                    text = scheduledRoutine?.targetRpeTier ?: if (isEnglish) "Ready to Train" else "Siap Latihan",
+                                    text = scheduledRoutine?.targetRpeTier ?: s.readyToTrain,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -395,7 +394,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = scheduledRoutine?.title ?: if (isEnglish) "Custom Routine" else "Rutinitas Latihan",
+                                text = scheduledRoutine?.title ?: s.customRoutine,
                                 style = MaterialTheme.typography.headlineLarge.copy(
                                     fontSize = 28.sp
                                 )
@@ -405,9 +404,8 @@ fun HomeScreen(
 
                             Text(
                                 text = scheduledRoutine?.let {
-                                    if (isEnglish) "${it.exerciseTemplates.size} exercises · ~${it.estimatedDurationMinutes} min"
-                                    else "${it.exerciseTemplates.size} gerakan · ~${it.estimatedDurationMinutes} mnt"
-                                } ?: if (isEnglish) "Start an empty workout or pick from library" else "Mulai sesi bebas atau pilih gerakan dari katalog",
+                                    s.routineSubtitle(it.exerciseTemplates.size, it.estimatedDurationMinutes)
+                                } ?: s.startEmptyOrPickHint,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextSecondary
                             )
@@ -429,12 +427,12 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(20.dp))
 
                             KumaPrimaryButton(
-                                text = if (isEnglish) "START WORKOUT" else "MULAI LATIHAN",
+                                text = s.startWorkoutButton,
                                 onClick = {
                                     if (scheduledRoutine != null) {
                                         workoutRepository.startWorkoutFromRoutine(scheduledRoutine)
                                     } else {
-                                        workoutRepository.startEmptyWorkout(if (isEnglish) "Freestyle Workout" else "Latihan Bebas")
+                                        workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
                                     }
                                     onStartWorkout()
                                 }
@@ -452,21 +450,21 @@ fun HomeScreen(
                         ) {
                             MetricTile(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "TOTAL SESSIONS" else "TOTAL SESI",
+                                label = s.totalSessionsLabel,
                                 value = "${completedWorkouts.size}",
-                                subtext = if (isEnglish) "Lifetime sessions" else "Total sesi tercatat"
+                                subtext = s.totalSessionsSubtext
                             )
                             MetricTile(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "TOTAL VOLUME" else "TOTAL BEBAN",
+                                label = s.totalVolumeLabel,
                                 value = totalVolFormatted,
-                                subtext = if (isEnglish) "Lifetime tonnage" else "Total tonase"
+                                subtext = s.totalVolumeSubtext
                             )
                             MetricTile(
                                 modifier = Modifier.weight(1f),
-                                label = if (isEnglish) "RECORDS (PR)" else "REKOR (PR)",
+                                label = s.recordsPrLabel,
                                 value = "${prList.size}",
-                                subtext = if (isEnglish) "New records" else "Total rekor PR",
+                                subtext = s.recordsPrSubtext,
                                 isAccent = true
                             )
                         }
@@ -478,7 +476,7 @@ fun HomeScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(
-                                text = if (isEnglish) "Recent Workouts" else "Riwayat Latihan",
+                                text = s.recentWorkoutsLabel,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -497,7 +495,7 @@ fun HomeScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = if (isEnglish) "No completed workouts yet. Start your journey today!" else "Belum ada riwayat latihan. Mulai latihan pertamamu sekarang!",
+                                            text = s.noRecentWorkouts,
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = KumaColors.TextMuted,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -507,7 +505,7 @@ fun HomeScreen(
                             } else {
                                 completedWorkouts.take(settings.appearance.recentWorkoutsCount).forEach { workout ->
                                 val durationMin = workout.durationSeconds / 60
-                                val durationText = "${durationMin} ${if (isEnglish) "min" else "mnt"}"
+                                val durationText = "${durationMin} ${s.minAbbrev}"
                                 val volDisplay = if (isLb) (workout.totalVolumeKg * 2.20462).toInt() else workout.totalVolumeKg.toInt()
                                 val volText = "$volDisplay $unitSuffix"
                                 val prCountInWorkout = workout.exercises.sumOf { ex -> ex.sets.count { it.isPr } }
@@ -558,13 +556,13 @@ fun HomeScreen(
                                 .background(KumaColors.SurfaceContainer)
                                 .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(14.dp))
                                 .clickable {
-                                    workoutRepository.startEmptyWorkout(if (isEnglish) "Freestyle Workout" else "Latihan Bebas")
+                                    workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
                                     onStartFreestyle()
                                 },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (isEnglish) "Freestyle Workout" else "Latihan Bebas",
+                                text = s.freestyleWorkoutCardTitle,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     color = LocalKumaColors.current.textPrimary,
                                     fontWeight = FontWeight.Bold

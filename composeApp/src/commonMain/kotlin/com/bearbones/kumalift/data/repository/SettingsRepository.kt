@@ -30,6 +30,10 @@ class SettingsRepository(
         onSave?.invoke(_settings.value)
     }
 
+    fun updateProfile(transform: (ProfileSettings) -> ProfileSettings) {
+        update { it.copy(profile = transform(it.profile)) }
+    }
+
     fun save(settings: UserSettings) {
         update { settings }
     }

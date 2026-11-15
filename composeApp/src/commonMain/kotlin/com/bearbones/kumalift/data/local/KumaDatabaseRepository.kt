@@ -12,6 +12,8 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
+import com.bearbones.kumalift.domain.model.TrainingGoal
+import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
@@ -324,6 +326,40 @@ class KumaDatabaseRepository(
 
             RoutineBlueprint(
                 id = rRow.id,
+                programId = rRow.programId,
+                title = rRow.title,
+                splitCategory = rRow.splitCategory,
+                muscleFocus = rRow.muscleFocus,
+                estimatedDurationMinutes = rRow.estimatedDurationMinutes.toInt(),
+                targetRpeTier = rRow.targetRpeTier,
+                exerciseTemplates = exercises,
+                exerciseConfigs = configs,
+                plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt()
+            )
+        }
+    }
+
+    fun getRoutinesForProgram(programId: String, exerciseLookup: (String) -> Exercise?): List<RoutineBlueprint> {
+        val routineRows = queries.selectRoutinesByProgram(programId).executeAsList()
+        return routineRows.map { rRow ->
+            val reRows = queries.selectRoutineExercises(rRow.id).executeAsList()
+            val configs = reRows.mapNotNull { reRow ->
+                val ex = exerciseLookup(reRow.exerciseId) ?: return@mapNotNull null
+                val ssId = if (reRow.id.contains("__SS_")) reRow.id.substringAfter("__SS_") else null
+                RoutineExerciseConfig(
+                    exercise = ex,
+                    targetSets = reRow.targetSets.toInt(),
+                    targetReps = reRow.targetReps.toInt(),
+                    targetWeightKg = reRow.targetWeightKg,
+                    restTimerSeconds = 90,
+                    supersetGroupId = ssId
+                )
+            }
+            val exercises = configs.map { it.exercise }
+
+            RoutineBlueprint(
+                id = rRow.id,
+                programId = rRow.programId,
                 title = rRow.title,
                 splitCategory = rRow.splitCategory,
                 muscleFocus = rRow.muscleFocus,
@@ -340,6 +376,7 @@ class KumaDatabaseRepository(
         database.transaction {
             queries.insertRoutine(
                 id = routine.id,
+                programId = routine.programId,
                 title = routine.title,
                 splitCategory = routine.splitCategory,
                 muscleFocus = routine.muscleFocus,
@@ -393,6 +430,81 @@ class KumaDatabaseRepository(
         }
     }
 
+    fun deleteCustomRoutinesForProgram(programId: String) {
+        database.transaction {
+            val routinesInProgram = queries.selectRoutinesByProgram(programId).executeAsList()
+            routinesInProgram.forEach { r ->
+                queries.deleteRoutineExercises(r.id)
+            }
+            queries.deleteRoutinesByProgram(programId)
+        }
+    }
+
+    // ==========================================
+    // TRAINING PROGRAMS
+    // ==========================================
+
+    fun getAllTrainingPrograms(): List<TrainingProgram> {
+        val rows = queries.selectAllTrainingPrograms().executeAsList()
+        return rows.map { row ->
+            val goal = try {
+                TrainingGoal.valueOf(row.category)
+            } catch (_: Exception) {
+                TrainingGoal.HYPERTROPHY
+            }
+            TrainingProgram(
+                id = row.id,
+                name = row.name,
+                description = row.description,
+                category = goal,
+                targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
+                isDefault = row.isDefault == 1L,
+                createdAtEpochMs = row.createdAtEpochMs
+            )
+        }
+    }
+
+    fun getTrainingProgramById(id: String): TrainingProgram? {
+        val row = queries.selectTrainingProgramById(id).executeAsOneOrNull() ?: return null
+        val goal = try {
+            TrainingGoal.valueOf(row.category)
+        } catch (_: Exception) {
+            TrainingGoal.HYPERTROPHY
+        }
+        return TrainingProgram(
+            id = row.id,
+            name = row.name,
+            description = row.description,
+            category = goal,
+            targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
+            isDefault = row.isDefault == 1L,
+            createdAtEpochMs = row.createdAtEpochMs
+        )
+    }
+
+    fun saveTrainingProgram(program: TrainingProgram) {
+        queries.insertTrainingProgram(
+            id = program.id,
+            name = program.name,
+            description = program.description,
+            category = program.category.name,
+            targetDaysPerWeek = program.targetDaysPerWeek.toLong(),
+            isDefault = if (program.isDefault) 1L else 0L,
+            createdAtEpochMs = if (program.createdAtEpochMs > 0L) program.createdAtEpochMs else currentEpochMillis()
+        )
+    }
+
+    fun deleteTrainingProgram(id: String) {
+        database.transaction {
+            deleteCustomRoutinesForProgram(id)
+            queries.deleteTrainingProgram(id)
+        }
+    }
+
+    fun clearAllTrainingPrograms() {
+        queries.clearAllTrainingPrograms()
+    }
+
     // ==========================================
     // USER SETTINGS
     // ==========================================
@@ -435,7 +547,9 @@ class KumaDatabaseRepository(
             queries.clearAllCustomExercises()
             queries.clearAllBodyweightLog()
             queries.clearActiveWorkout()
+            queries.clearAllTrainingPrograms()
         }
+        saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
     }
 
     fun clearWorkoutHistoryOnly() {

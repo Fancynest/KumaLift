@@ -206,6 +206,32 @@ object EnStrings : AppStrings {
     )
     override val presetRoutineCategories = listOf("PPL Split", "Upper / Lower", "Full Body", "Custom")
 
+    // Multi Training Programs
+    override val trainingProgramsTitle = "Training Programs"
+    override val newProgramButton = "+ New Program"
+    override val createProgramTitle = "New Training Program"
+    override val editProgramTitle = "Edit Training Program"
+    override val programNameLabel = "Program Name"
+    override val programNamePlaceholder = "e.g., Fat Loss Program"
+    override val programNameRequiredError = "Program name cannot be empty"
+    override val programDescriptionLabel = "Description (Optional)"
+    override val programDescriptionPlaceholder = "Notes, focus, or training goals..."
+    override val programCategoryLabel = "Program Focus / Category"
+    override val programTargetDaysLabel = "Target Workouts per Week"
+    override val daysPerWeek = "days / week"
+    override val activeBadge = "ACTIVE"
+    override val useProgramButton = "Use Program"
+    override val switchProgramHint = "Tap to switch or manage programs"
+    override val switchProgramButton = "Switch"
+    override val activeProgramCardSubtitle = "Active Training Program"
+    override val deleteProgramTitle = "Delete Training Program?"
+    override fun deleteProgramMessage(name: String, routineCount: Int) =
+        "All $routineCount routine(s) in '$name' will be permanently deleted. This action cannot be undone."
+    override val cannotDeleteOnlyProgram = "Cannot delete the only remaining training program."
+    override fun routinesInProgramCount(count: Int) = if (count == 1) "1 routine" else "$count routines"
+    override val noRoutinesInProgramYet = "No routines in this program yet"
+    override fun createRoutineForProgramHint(name: String) = "Create a routine to start building $name"
+
     // Active Workout Logger
     override val workoutLogTitle = "Workout Log"
     override val finishWorkoutButton = "Finish"

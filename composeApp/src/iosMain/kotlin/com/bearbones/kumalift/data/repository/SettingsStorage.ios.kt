@@ -52,3 +52,26 @@ actual fun rememberRoutineRepository(
         )
     }
 }
+
+@Composable
+actual fun rememberTrainingProgramRepository(
+    databaseRepo: KumaDatabaseRepository,
+    settingsRepository: SettingsRepository
+): TrainingProgramRepository {
+    return remember(databaseRepo, settingsRepository) {
+        var dbPrograms = databaseRepo.getAllTrainingPrograms()
+        if (dbPrograms.isEmpty()) {
+            databaseRepo.saveTrainingProgram(com.bearbones.kumalift.domain.model.TrainingProgram.DEFAULT_HYPERTROPHY)
+            dbPrograms = databaseRepo.getAllTrainingPrograms()
+        }
+        val activeId = settingsRepository.settings.value.profile.activeProgramId
+        TrainingProgramRepository(
+            initialPrograms = dbPrograms,
+            initialActiveProgramId = activeId,
+            databaseRepo = databaseRepo,
+            onActiveProgramChanged = { newId ->
+                settingsRepository.updateProfile { it.copy(activeProgramId = newId) }
+            }
+        )
+    }
+}

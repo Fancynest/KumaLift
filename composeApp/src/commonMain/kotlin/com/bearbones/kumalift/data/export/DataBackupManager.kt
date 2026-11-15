@@ -12,6 +12,7 @@ import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import kotlinx.serialization.Serializable
@@ -27,7 +28,8 @@ data class KumaBackupData(
     val workouts: List<Workout> = emptyList(),
     val personalRecords: List<PersonalRecord> = emptyList(),
     val customRoutines: List<RoutineBlueprint> = emptyList(),
-    val customExercises: List<Exercise> = emptyList()
+    val customExercises: List<Exercise> = emptyList(),
+    val trainingPrograms: List<TrainingProgram> = emptyList()
 )
 
 enum class ImportMode {
@@ -69,6 +71,7 @@ class DataBackupManager(
         val customRoutines = databaseRepo.getAllCustomRoutines { id ->
             customExercises.find { it.id == id } ?: ExerciseDataset.allExercises.find { it.id == id }
         }
+        val trainingPrograms = databaseRepo.getAllTrainingPrograms()
         return KumaBackupData(
             schemaVersion = 1,
             exportedAtEpochMs = currentEpochMillis(),
@@ -77,7 +80,8 @@ class DataBackupManager(
             workouts = workouts,
             personalRecords = prs,
             customRoutines = customRoutines,
-            customExercises = customExercises
+            customExercises = customExercises,
+            trainingPrograms = trainingPrograms
         )
     }
 
@@ -240,6 +244,7 @@ class DataBackupManager(
                 databaseRepo.wipeAllUserData()
 
                 // Step 3: Insert backup data
+                backup.trainingPrograms.forEach { databaseRepo.saveTrainingProgram(it) }
                 backup.customExercises.forEach { databaseRepo.saveCustomExercise(it) }
                 backup.customRoutines.forEach { databaseRepo.saveCustomRoutine(it) }
                 backup.personalRecords.forEach { databaseRepo.savePersonalRecord(it) }
@@ -298,6 +303,13 @@ class DataBackupManager(
                     if (r.id !in existingRoutines) {
                         databaseRepo.saveCustomRoutine(r)
                         addedRoutines++
+                    }
+                }
+
+                val existingPrograms = databaseRepo.getAllTrainingPrograms().map { it.id }.toSet()
+                backup.trainingPrograms.forEach { prog ->
+                    if (prog.id !in existingPrograms) {
+                        databaseRepo.saveTrainingProgram(prog)
                     }
                 }
 

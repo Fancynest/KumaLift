@@ -78,8 +78,19 @@ CREATE TABLE custom_exercises (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE training_programs (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL,
+    targetDaysPerWeek INTEGER NOT NULL DEFAULT 4,
+    isDefault INTEGER NOT NULL DEFAULT 0,
+    createdAtEpochMs INTEGER NOT NULL
+);
+
 CREATE TABLE routines (
     id TEXT NOT NULL PRIMARY KEY,
+    programId TEXT NOT NULL DEFAULT 'program_hypertrophy_default',
     title TEXT NOT NULL,
     splitCategory TEXT NOT NULL,
     muscleFocus TEXT NOT NULL,
@@ -217,20 +228,44 @@ INSERT OR REPLACE INTO custom_exercises (
 deleteCustomExercise:
 DELETE FROM custom_exercises WHERE id = ?;
 
+-- Queries for Training Programs
+selectAllTrainingPrograms:
+SELECT * FROM training_programs ORDER BY isDefault DESC, createdAtEpochMs ASC;
+
+selectTrainingProgramById:
+SELECT * FROM training_programs WHERE id = ?;
+
+insertTrainingProgram:
+INSERT OR REPLACE INTO training_programs (
+    id, name, description, category, targetDaysPerWeek, isDefault, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteTrainingProgram:
+DELETE FROM training_programs WHERE id = ?;
+
+clearAllTrainingPrograms:
+DELETE FROM training_programs;
+
 -- Queries for Routines
 selectAllRoutines:
 SELECT * FROM routines ORDER BY createdAtEpochMs DESC;
+
+selectRoutinesByProgram:
+SELECT * FROM routines WHERE programId = ? ORDER BY createdAtEpochMs DESC;
 
 selectRoutineById:
 SELECT * FROM routines WHERE id = ?;
 
 insertRoutine:
 INSERT OR REPLACE INTO routines (
-    id, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, programId, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteRoutine:
 DELETE FROM routines WHERE id = ?;
+
+deleteRoutinesByProgram:
+DELETE FROM routines WHERE programId = ?;
 
 -- Queries for Routine Exercises
 selectRoutineExercises:

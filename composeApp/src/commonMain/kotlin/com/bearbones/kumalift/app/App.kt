@@ -60,6 +60,7 @@ import com.bearbones.kumalift.data.repository.rememberDatabaseRepository
 import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
 import com.bearbones.kumalift.data.repository.rememberSettingsRepository
+import com.bearbones.kumalift.data.repository.rememberTrainingProgramRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
@@ -77,6 +78,7 @@ fun App() {
     val settingsRepository = rememberSettingsRepository(databaseRepo)
     val exerciseRepository = rememberExerciseRepository(databaseRepo)
     val routineRepository = rememberRoutineRepository(exerciseRepository, databaseRepo)
+    val trainingProgramRepository = rememberTrainingProgramRepository(databaseRepo, settingsRepository)
     val personalRecordRepository = remember(databaseRepo) {
         PersonalRecordRepository(
             initialPrs = databaseRepo.getAllPersonalRecords(),
@@ -184,6 +186,7 @@ fun App() {
                         Tab.ROUTINES -> RoutinesScreen(
                             routineRepository = routineRepository,
                             workoutRepository = workoutRepository,
+                            trainingProgramRepository = trainingProgramRepository,
                             exerciseRepository = exerciseRepository,
                             settingsRepository = settingsRepository,
                             listState = routinesListState,

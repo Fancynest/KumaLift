@@ -186,7 +186,8 @@ data class ProfileSettings(
     val goal: TrainingGoal = TrainingGoal.HYPERTROPHY,
     val trainingDaysPerWeek: Int = 4,
     val selectedTrainingDays: List<Int> = listOf(1, 3, 5, 6),
-    val hasCompletedOnboarding: Boolean = false
+    val hasCompletedOnboarding: Boolean = false,
+    val activeProgramId: String = DEFAULT_PROGRAM_ID
 )
 
 @Serializable

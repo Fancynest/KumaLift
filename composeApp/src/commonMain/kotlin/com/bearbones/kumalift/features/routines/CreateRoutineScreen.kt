@@ -90,6 +90,7 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 fun CreateRoutineScreen(
     exerciseRepository: ExerciseRepository,
     routineToEdit: RoutineBlueprint? = null,
+    currentProgramId: String = com.bearbones.kumalift.domain.model.DEFAULT_PROGRAM_ID,
     onNavigateBack: () -> Unit,
     onSaveRoutine: (RoutineBlueprint) -> Unit
 ) {
@@ -186,6 +187,7 @@ fun CreateRoutineScreen(
                             val routineId = routineToEdit?.id ?: com.bearbones.kumalift.core.util.IdGenerator.routineId(routineTitle.trim())
                             val newRoutine = RoutineBlueprint(
                                 id = routineId,
+                                programId = routineToEdit?.programId ?: currentProgramId,
                                 title = routineTitle.trim(),
                                 splitCategory = finalCategory,
                                 muscleFocus = autoMuscleFocus,

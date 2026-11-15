@@ -138,6 +138,18 @@ class RoutineRepository(
         databaseRepo?.deleteCustomRoutine(routineId)
         onSave?.invoke(_routines.value)
     }
+
+    fun deleteRoutinesForProgram(programId: String) {
+        _routines.update { current ->
+            current.filterNot { it.programId == programId }
+        }
+        databaseRepo?.deleteCustomRoutinesForProgram(programId)
+        onSave?.invoke(_routines.value)
+    }
+
+    fun getRoutinesForProgram(programId: String): List<RoutineBlueprint> {
+        return _routines.value.filter { it.programId == programId }
+    }
 }
 
 class PersonalRecordRepository(

@@ -29,3 +29,12 @@ expect fun rememberRoutineRepository(
     exerciseRepository: ExerciseRepository,
     databaseRepo: KumaDatabaseRepository
 ): RoutineRepository
+
+/**
+ * Returns a TrainingProgramRepository populated with training programs from local SQLite database.
+ */
+@Composable
+expect fun rememberTrainingProgramRepository(
+    databaseRepo: KumaDatabaseRepository,
+    settingsRepository: SettingsRepository
+): TrainingProgramRepository

@@ -38,10 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import com.bearbones.kumalift.core.designsystem.KumaBadge
@@ -53,51 +53,110 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
+import com.bearbones.kumalift.data.repository.TrainingProgramRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
-import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.TrainingGoal
+import com.bearbones.kumalift.domain.model.TrainingProgram
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 @Composable
 fun RoutinesScreen(
     routineRepository: RoutineRepository,
     workoutRepository: WorkoutRepository,
+    trainingProgramRepository: TrainingProgramRepository,
     exerciseRepository: ExerciseRepository = remember { ExerciseRepository() },
     settingsRepository: SettingsRepository? = null,
     listState: LazyListState = rememberLazyListState(),
     onStartRoutine: () -> Unit
 ) {
     val s = LocalStrings.current
-    val settings = settingsRepository?.settings?.collectAsState()?.value
+    val colors = LocalKumaColors.current
     val routines by routineRepository.routines.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
+    val programs by trainingProgramRepository.programs.collectAsState()
+    val activeProgramId by trainingProgramRepository.activeProgramId.collectAsState()
+
+    val activeProgram = remember(programs, activeProgramId) {
+        programs.find { it.id == activeProgramId } ?: programs.firstOrNull() ?: TrainingProgram.DEFAULT_HYPERTROPHY
+    }
+
+    // Routines belonging strictly to the active program
+    val programRoutines = remember(routines, activeProgram.id) {
+        routines.filter { it.programId == activeProgram.id }
+    }
+
+    // Mapping routines count per program for selector modal
+    val routinesCountByProgram = remember(routines, programs) {
+        programs.associate { p ->
+            p.id to routines.count { it.programId == p.id }
+        }
+    }
+
+    // Weekly adherence computation
+    val oneWeekAgoMs = remember { currentEpochMillis() - 7L * 24 * 3600_000L }
+    val thisWeekWorkouts = remember(completedWorkouts, oneWeekAgoMs) {
+        completedWorkouts.filter { it.startTimeEpochMs >= oneWeekAgoMs }
+    }
+    val completedDaysCount = remember(thisWeekWorkouts) {
+        thisWeekWorkouts.map { w ->
+            Instant.fromEpochMilliseconds(w.startTimeEpochMs)
+                .toLocalDateTime(TimeZone.currentSystemDefault()).date
+        }.distinct().size
+    }
+    val targetDays = activeProgram.targetDaysPerWeek.coerceAtLeast(1)
+    val adherencePct = minOf(100, (completedDaysCount * 100) / targetDays)
+    val progressFraction = (completedDaysCount.toFloat() / targetDays.toFloat()).coerceIn(0f, 1f)
+
     val allCategoryLabel = s.allProgramsCategory
-    var selectedCategory by rememberSaveable(s.allProgramsCategory) { mutableStateOf(allCategoryLabel) }
+    var selectedCategory by rememberSaveable(s.allProgramsCategory, activeProgram.id) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by rememberSaveable { mutableStateOf(false) }
     var selectedRoutineForDetail by remember { mutableStateOf<RoutineBlueprint?>(null) }
     var routineBeingEdited by remember { mutableStateOf<RoutineBlueprint?>(null) }
 
-    // T10: Handle back when detail or create routine modal is open
-    KumaBackHandler(enabled = showCreateRoutineScreen || selectedRoutineForDetail != null) {
-        if (showCreateRoutineScreen) {
-            showCreateRoutineScreen = false
-            routineBeingEdited = null
-        } else if (selectedRoutineForDetail != null) {
-            selectedRoutineForDetail = null
+    // Training Programs Modal states
+    var showProgramSelectorModal by remember { mutableStateOf(false) }
+    var showCreateProgramModal by remember { mutableStateOf(false) }
+    var programBeingEdited by remember { mutableStateOf<TrainingProgram?>(null) }
+    var programToDelete by remember { mutableStateOf<TrainingProgram?>(null) }
+
+    // Back handling
+    KumaBackHandler(
+        enabled = showCreateRoutineScreen ||
+            selectedRoutineForDetail != null ||
+            showProgramSelectorModal ||
+            showCreateProgramModal ||
+            programBeingEdited != null ||
+            programToDelete != null
+    ) {
+        when {
+            programToDelete != null -> programToDelete = null
+            programBeingEdited != null -> programBeingEdited = null
+            showCreateProgramModal -> showCreateProgramModal = false
+            showProgramSelectorModal -> showProgramSelectorModal = false
+            showCreateRoutineScreen -> {
+                showCreateRoutineScreen = false
+                routineBeingEdited = null
+            }
+            selectedRoutineForDetail != null -> selectedRoutineForDetail = null
         }
     }
 
-    val categories = remember(routines, allCategoryLabel) {
-        listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
+    val categories = remember(programRoutines, allCategoryLabel) {
+        listOf(allCategoryLabel) + programRoutines.map { it.splitCategory }.distinct()
     }
 
-    val filteredRoutines = remember(selectedCategory, routines, allCategoryLabel) {
+    val filteredRoutines = remember(selectedCategory, programRoutines, allCategoryLabel) {
         if (selectedCategory == allCategoryLabel) {
-            routines
+            programRoutines
         } else {
-            routines.filter { it.splitCategory == selectedCategory }
+            programRoutines.filter { it.splitCategory == selectedCategory }
         }
     }
 
@@ -125,11 +184,11 @@ fun RoutinesScreen(
                     )
                 )
 
-                // Button "Buat Pola"
+                // Button "Buat Routine"
                 Box(
                     modifier = Modifier
                         .clip(PillShape)
-                        .background(LocalKumaColors.current.accentFill)
+                        .background(colors.accentFill)
                         .clickable { showCreateRoutineScreen = true }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
@@ -138,67 +197,152 @@ fun RoutinesScreen(
                         text = s.createRoutineButton,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = LocalKumaColors.current.onAccentFill
+                            color = colors.onAccentFill
                         )
                     )
                 }
             }
 
-            if (routines.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 72.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                // 1. Dynamic Training Program Card
+                item {
+                    KumaCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showProgramSelectorModal = true },
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            tint = KumaColors.TextMuted,
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Text(
-                            text = s.noRoutinesMessage,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = LocalKumaColors.current.textPrimary
-                            ),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = s.createFirstRoutineHint,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = KumaColors.TextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        KumaPrimaryButton(
-                            text = s.createRoutineButton,
-                            onClick = { showCreateRoutineScreen = true },
-                            modifier = Modifier.fillMaxWidth(0.7f)
-                        )
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            // Subheader row: Label & target count
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = s.trainingProgramHeader,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = colors.accentFill,
+                                        letterSpacing = 1.sp
+                                    )
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(KumaColors.SurfaceContainer)
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = s.adherenceProgress(completedDaysCount, targetDays),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = KumaColors.TextSecondary
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Program Name & Switch pill
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = activeProgram.name,
+                                        style = MaterialTheme.typography.headlineSmall.copy(
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = KumaColors.TextWhite
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${formatGoalName(activeProgram.category)} · ${activeProgram.targetDaysPerWeek} ${s.daysPerWeek}",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = KumaColors.TextSecondary
+                                        )
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(KumaColors.SurfaceContainer)
+                                        .border(1.dp, KumaColors.BorderDefault, PillShape)
+                                        .clickable { showProgramSelectorModal = true }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = s.switchProgramButton,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.accentFill
+                                        )
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Weekly Adherence Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = s.weeklyAdherenceLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.TextSecondary
+                                    )
+                                )
+                                Text(
+                                    text = "$adherencePct%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (adherencePct > 0) colors.accentFill else KumaColors.TextMuted
+                                    )
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            LinearProgressIndicator(
+                                progress = { progressFraction },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(PillShape),
+                                color = colors.accentFill,
+                                trackColor = KumaColors.SurfaceContainer
+                            )
+                        }
                     }
                 }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(22.dp)
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
 
-                    // Category Filter Pills
+                // 2. Category Filter Pills (only if program has routines)
+                if (programRoutines.isNotEmpty()) {
                     item {
                         LazyRow(
                             modifier = Modifier.isolateHorizontalScroll(),
@@ -210,10 +354,10 @@ fun RoutinesScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
-                                        .background(if (isSelected) LocalKumaColors.current.accentFill else KumaColors.SurfaceContainer)
+                                        .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
                                         .border(
                                             width = 1.dp,
-                                            color = if (isSelected) (if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder) else KumaColors.BorderDefault,
+                                            color = if (isSelected) (if (colors.isDark) Color.Transparent else colors.accentFillBorder) else KumaColors.BorderDefault,
                                             shape = PillShape
                                         )
                                         .clickable { selectedCategory = category }
@@ -223,54 +367,93 @@ fun RoutinesScreen(
                                         text = category,
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) LocalKumaColors.current.onAccentFill else LocalKumaColors.current.textPrimary
+                                            color = if (isSelected) colors.onAccentFill else colors.textPrimary
                                         )
                                     )
                                 }
                             }
                         }
                     }
+                }
 
-                    // Routine Cards or Empty State
-                    if (filteredRoutines.isEmpty()) {
-                        item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 40.dp, horizontal = 20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = s.noRoutinesMessage,
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = LocalKumaColors.current.textPrimary
-                                    ),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    } else {
-                        items(filteredRoutines, key = { it.id }) { routine ->
-                            RoutineCardItem(
-                                routine = routine,
-                                onClick = { selectedRoutineForDetail = routine },
-                                onStart = {
-                                    workoutRepository.startWorkoutFromRoutine(routine)
-                                    onStartRoutine()
-                                },
-                                onDelete = { routineRepository.deleteRoutine(routine.id) }
+                // 3. Routine Cards or Empty State
+                if (programRoutines.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 36.dp, horizontal = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = KumaColors.TextMuted,
+                                modifier = Modifier.size(52.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = s.noRoutinesInProgramYet,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = s.createRoutineForProgramHint(activeProgram.name),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = KumaColors.TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
+                            KumaPrimaryButton(
+                                text = s.createRoutineButton,
+                                onClick = { showCreateRoutineScreen = true },
+                                modifier = Modifier.fillMaxWidth(0.7f)
                             )
                         }
                     }
-
+                } else if (filteredRoutines.isEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(100.dp))
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 30.dp, horizontal = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = s.noRoutinesMessage,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
+                } else {
+                    items(filteredRoutines, key = { it.id }) { routine ->
+                        RoutineCardItem(
+                            routine = routine,
+                            onClick = { selectedRoutineForDetail = routine },
+                            onStart = {
+                                workoutRepository.startWorkoutFromRoutine(routine)
+                                onStartRoutine()
+                            },
+                            onDelete = { routineRepository.deleteRoutine(routine.id) }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
 
+        // Routine Detail Screen Overlay
         if (selectedRoutineForDetail != null) {
             val routine = selectedRoutineForDetail!!
             RoutineDetailScreen(
@@ -293,10 +476,12 @@ fun RoutinesScreen(
             )
         }
 
+        // Create / Edit Routine Screen Overlay
         if (showCreateRoutineScreen) {
             CreateRoutineScreen(
                 exerciseRepository = exerciseRepository,
                 routineToEdit = routineBeingEdited,
+                currentProgramId = activeProgram.id,
                 onNavigateBack = {
                     showCreateRoutineScreen = false
                     routineBeingEdited = null
@@ -310,6 +495,105 @@ fun RoutinesScreen(
                     showCreateRoutineScreen = false
                     routineBeingEdited = null
                 }
+            )
+        }
+
+        // Modal 1: Training Programs Selector
+        if (showProgramSelectorModal) {
+            TrainingProgramSelectorModal(
+                programs = programs,
+                activeProgramId = activeProgram.id,
+                routinesCountByProgram = routinesCountByProgram,
+                onSelectProgram = { prog ->
+                    trainingProgramRepository.setActiveProgramId(prog.id)
+                    settingsRepository?.updateProfile {
+                        it.copy(
+                            activeProgramId = prog.id,
+                            trainingDaysPerWeek = prog.targetDaysPerWeek,
+                            goal = prog.category
+                        )
+                    }
+                    showProgramSelectorModal = false
+                },
+                onEditProgram = { prog ->
+                    programBeingEdited = prog
+                    showProgramSelectorModal = false
+                },
+                onDeleteProgram = { prog ->
+                    programToDelete = prog
+                },
+                onCreateNewProgram = {
+                    showCreateProgramModal = true
+                    showProgramSelectorModal = false
+                },
+                onDismiss = { showProgramSelectorModal = false }
+            )
+        }
+
+        // Modal 2: Create New Program
+        if (showCreateProgramModal) {
+            CreateEditProgramModal(
+                programToEdit = null,
+                onDismiss = { showCreateProgramModal = false },
+                onSave = { name, description, category, targetDays ->
+                    val created = trainingProgramRepository.createProgram(
+                        name = name,
+                        description = description,
+                        category = category,
+                        targetDaysPerWeek = targetDays
+                    )
+                    trainingProgramRepository.setActiveProgramId(created.id)
+                    settingsRepository?.updateProfile {
+                        it.copy(
+                            activeProgramId = created.id,
+                            trainingDaysPerWeek = created.targetDaysPerWeek,
+                            goal = created.category
+                        )
+                    }
+                    showCreateProgramModal = false
+                }
+            )
+        }
+
+        // Modal 3: Edit Existing Program
+        if (programBeingEdited != null) {
+            val prog = programBeingEdited!!
+            CreateEditProgramModal(
+                programToEdit = prog,
+                onDismiss = { programBeingEdited = null },
+                onSave = { name, description, category, targetDays ->
+                    val updated = prog.copy(
+                        name = name,
+                        description = description,
+                        category = category,
+                        targetDaysPerWeek = targetDays
+                    )
+                    trainingProgramRepository.updateProgram(updated)
+                    if (activeProgram.id == updated.id) {
+                        settingsRepository?.updateProfile {
+                            it.copy(
+                                trainingDaysPerWeek = updated.targetDaysPerWeek,
+                                goal = updated.category
+                            )
+                        }
+                    }
+                    programBeingEdited = null
+                }
+            )
+        }
+
+        // Modal 4: Delete Program Confirmation
+        if (programToDelete != null) {
+            val prog = programToDelete!!
+            val count = routinesCountByProgram[prog.id] ?: 0
+            DeleteProgramConfirmationDialog(
+                program = prog,
+                routineCount = count,
+                onConfirm = {
+                    trainingProgramRepository.deleteProgram(prog.id, routineRepository)
+                    programToDelete = null
+                },
+                onDismiss = { programToDelete = null }
             )
         }
     }
@@ -412,5 +696,15 @@ fun RoutineCardItem(
                 )
             }
         }
+    }
+}
+
+private fun formatGoalName(goal: TrainingGoal): String {
+    return when (goal) {
+        TrainingGoal.HYPERTROPHY -> "Hypertrophy"
+        TrainingGoal.STRENGTH -> "Strength"
+        TrainingGoal.FAT_LOSS -> "Fat Loss"
+        TrainingGoal.ENDURANCE -> "Endurance"
+        TrainingGoal.GENERAL -> "General Fitness"
     }
 }

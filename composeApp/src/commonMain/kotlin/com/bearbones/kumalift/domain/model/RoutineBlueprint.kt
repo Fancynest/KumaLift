@@ -15,6 +15,7 @@ data class RoutineExerciseConfig(
 @Serializable
 data class RoutineBlueprint(
     val id: String,
+    val programId: String = DEFAULT_PROGRAM_ID,
     val title: String,
     val splitCategory: String, // "PPL Split", "Upper / Lower", "Full Body"
     val muscleFocus: String,   // "Chest · Triceps · Delts"

@@ -199,6 +199,31 @@ interface AppStrings {
     val rpeTiers: List<String>
     val presetRoutineCategories: List<String>
 
+    // Multi Training Programs
+    val trainingProgramsTitle: String
+    val newProgramButton: String
+    val createProgramTitle: String
+    val editProgramTitle: String
+    val programNameLabel: String
+    val programNamePlaceholder: String
+    val programNameRequiredError: String
+    val programDescriptionLabel: String
+    val programDescriptionPlaceholder: String
+    val programCategoryLabel: String
+    val programTargetDaysLabel: String
+    val daysPerWeek: String
+    val activeBadge: String
+    val useProgramButton: String
+    val switchProgramHint: String
+    val switchProgramButton: String
+    val activeProgramCardSubtitle: String
+    val deleteProgramTitle: String
+    fun deleteProgramMessage(name: String, routineCount: Int): String
+    val cannotDeleteOnlyProgram: String
+    fun routinesInProgramCount(count: Int): String
+    val noRoutinesInProgramYet: String
+    fun createRoutineForProgramHint(name: String): String
+
     // Active Workout Logger
     val workoutLogTitle: String
     val finishWorkoutButton: String

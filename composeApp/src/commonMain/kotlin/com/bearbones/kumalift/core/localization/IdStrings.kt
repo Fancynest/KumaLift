@@ -206,6 +206,32 @@ object IdStrings : AppStrings {
     )
     override val presetRoutineCategories = listOf("PPL Split", "Upper / Lower", "Full Body", "Kustom")
 
+    // Multi Training Programs
+    override val trainingProgramsTitle = "Program Latihan"
+    override val newProgramButton = "+ Program Baru"
+    override val createProgramTitle = "Program Latihan Baru"
+    override val editProgramTitle = "Edit Program Latihan"
+    override val programNameLabel = "Nama Program"
+    override val programNamePlaceholder = "misal: Fat Loss Program"
+    override val programNameRequiredError = "Nama program tidak boleh kosong"
+    override val programDescriptionLabel = "Deskripsi (Opsional)"
+    override val programDescriptionPlaceholder = "Catatan atau fokus latihan..."
+    override val programCategoryLabel = "Fokus / Kategori Program"
+    override val programTargetDaysLabel = "Target Latihan per Minggu"
+    override val daysPerWeek = "hari / minggu"
+    override val activeBadge = "AKTIF"
+    override val useProgramButton = "Gunakan Program"
+    override val switchProgramHint = "Ketuk untuk mengganti atau kelola program"
+    override val switchProgramButton = "Ganti"
+    override val activeProgramCardSubtitle = "Program Latihan Aktif"
+    override val deleteProgramTitle = "Hapus Program Latihan?"
+    override fun deleteProgramMessage(name: String, routineCount: Int) =
+        "Semua $routineCount routine di dalam program '$name' akan ikut terhapus. Tindakan ini tidak dapat dibatalkan."
+    override val cannotDeleteOnlyProgram = "Tidak dapat menghapus satu-satunya program latihan yang tersisa."
+    override fun routinesInProgramCount(count: Int) = "$count routine"
+    override val noRoutinesInProgramYet = "Belum ada routine di program ini"
+    override fun createRoutineForProgramHint(name: String) = "Buat routine baru untuk mengisi $name"
+
     // Active Workout Logger
     override val workoutLogTitle = "Catatan Latihan"
     override val finishWorkoutButton = "Selesai"

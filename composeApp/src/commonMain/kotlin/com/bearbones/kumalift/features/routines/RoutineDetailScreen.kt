@@ -356,7 +356,7 @@ private fun RoutineExerciseDetailCard(config: RoutineExerciseConfig) {
                             color = colors.textPrimary,
                             fontSize = 15.sp
                         ),
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))

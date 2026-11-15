@@ -490,8 +490,9 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                     )
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                val formatted1Rm = kotlin.math.round(pr.estimated1RmKg * 10.0) / 10.0
                 Text(
-                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev} · ${s.estimatedOneRepMaxHeader}: ${pr.estimated1RmKg} ${s.unitKg}",
+                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev} · ${s.estimatedOneRepMaxHeader}: $formatted1Rm ${s.unitKg}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 13.sp

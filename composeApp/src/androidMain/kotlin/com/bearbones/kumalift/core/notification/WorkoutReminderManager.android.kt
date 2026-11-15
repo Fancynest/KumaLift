@@ -22,13 +22,14 @@ actual class WorkoutReminderManager(private val context: Context) {
     }
 
     actual fun hasNotificationPermission(): Boolean {
+        val areEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
+            areEnabled && ContextCompat.checkSelfPermission(
                 context,
                 android.Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         } else {
-            NotificationManagerCompat.from(context).areNotificationsEnabled()
+            areEnabled
         }
     }
 

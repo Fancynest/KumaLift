@@ -89,22 +89,6 @@ fun RoutinesScreen(
         }
     }
 
-    val targetDays = settings?.profile?.trainingDaysPerWeek ?: 4
-    val nowMs = remember { kotlinx.datetime.Clock.System.now().toEpochMilliseconds() }
-    val oneWeekAgoMs = nowMs - 7L * 24 * 3600_000L
-    val workoutsThisWeek = remember(completedWorkouts) {
-        completedWorkouts.count { it.startTimeEpochMs >= oneWeekAgoMs }
-    }
-    val adherenceFrac = if (targetDays > 0) (workoutsThisWeek.toFloat() / targetDays).coerceIn(0f, 1f) else 0f
-    val adherencePct = (adherenceFrac * 100).toInt()
-    val goalName = when (settings?.profile?.goal) {
-        com.bearbones.kumalift.domain.model.TrainingGoal.HYPERTROPHY -> s.programHypertrophy
-        com.bearbones.kumalift.domain.model.TrainingGoal.STRENGTH -> s.programStrength
-        com.bearbones.kumalift.domain.model.TrainingGoal.ENDURANCE -> s.programEndurance
-        com.bearbones.kumalift.domain.model.TrainingGoal.FAT_LOSS -> s.programFatLoss
-        com.bearbones.kumalift.domain.model.TrainingGoal.GENERAL, null -> s.programGeneral
-    }
-
     val categories = remember(routines, allCategoryLabel) {
         listOf(allCategoryLabel) + routines.map { it.splitCategory }.distinct()
     }
@@ -212,83 +196,6 @@ fun RoutinesScreen(
                 ) {
                     item {
                         Spacer(modifier = Modifier.height(6.dp))
-                        // Mesocycle Progress Banner
-                        KumaCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = KumaColors.SurfaceContainerLow,
-                            cornerRadius = 18.dp
-                        ) {
-                            Column(modifier = Modifier.padding(20.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = s.trainingProgramHeader,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = LocalKumaColors.current.accentText,
-                                            letterSpacing = 0.8.sp
-                                        )
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(PillShape)
-                                            .background(KumaColors.SurfaceContainerHigh)
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = s.adherenceProgress(workoutsThisWeek, targetDays),
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = KumaColors.TextWhite,
-                                                fontWeight = FontWeight.Bold
-                                            ),
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = goalName,
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = s.weeklyAdherenceLabel,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = KumaColors.TextMuted
-                                    )
-                                    Text(
-                                        text = "$adherencePct%",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            color = LocalKumaColors.current.accentText,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                LinearProgressIndicator(
-                                    progress = { adherenceFrac },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(PillShape),
-                                    color = LocalKumaColors.current.accentChart,
-                                    trackColor = KumaColors.SurfaceContainerHighest
-                                )
-                            }
-                        }
                     }
 
                     // Category Filter Pills

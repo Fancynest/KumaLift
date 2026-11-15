@@ -463,10 +463,10 @@ private fun ExerciseRowItem(
         ) {
             Text(
                 text = exercise.name,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

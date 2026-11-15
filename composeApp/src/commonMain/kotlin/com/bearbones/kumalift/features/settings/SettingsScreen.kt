@@ -1196,8 +1196,8 @@ private fun NotificationSettingsPage(
                                 )
                             }
 
-                            // Notification permission alert if disabled in OS
-                            if (!hasPostNotificationPermission) {
+                            // Notification permission alert if workout reminders are turned on but disabled in OS
+                            if (settings.notifications.workoutReminders && !hasPostNotificationPermission) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()

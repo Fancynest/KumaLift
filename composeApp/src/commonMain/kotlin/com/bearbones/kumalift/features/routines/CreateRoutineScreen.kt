@@ -632,7 +632,7 @@ fun CreateRoutineScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(120.dp))
                 Spacer(modifier = Modifier.navigationBarsPadding())
             }
         }
@@ -777,52 +777,19 @@ private fun SelectedExerciseRow(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    // Title, Muscle & Superset Toggle
+                    // Title, Muscle
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                text = exercise.name,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textPrimary
-                                ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-
-                            // Superset Pill Toggle
-                            Box(
-                                modifier = Modifier
-                                    .clip(PillShape)
-                                    .background(
-                                        if (config.supersetGroupId != null) colors.supersetBadgeTint
-                                        else KumaColors.SurfaceContainer
-                                    )
-                                    .clickable {
-                                        val nextSs = when (config.supersetGroupId) {
-                                            null -> "A"
-                                            "A" -> "B"
-                                            "B" -> null
-                                            else -> null
-                                        }
-                                        onSupersetChange(nextSs)
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (config.supersetGroupId != null) "SS ${config.supersetGroupId}" else "+ SS",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (config.supersetGroupId != null) colors.supersetBadge else KumaColors.TextMuted
-                                    )
-                                )
-                            }
-                        }
+                        Text(
+                            text = exercise.name,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                fontSize = 15.sp,
+                                lineHeight = 18.sp
+                            ),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = exercise.localizedMuscleSubtitle(s),
@@ -835,21 +802,56 @@ private fun SelectedExerciseRow(
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Remove button (reorder arrow buttons removed per requirement)
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(CircleShape)
-                            .background(KumaColors.SurfaceContainer)
-                            .clickable(onClick = onRemove),
-                        contentAlignment = Alignment.Center
+                    // Action buttons: Superset pill + Remove button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = s.remove,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        // Superset Pill Toggle
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(
+                                    if (config.supersetGroupId != null) colors.supersetBadgeTint
+                                    else KumaColors.SurfaceContainer
+                                )
+                                .clickable {
+                                    val nextSs = when (config.supersetGroupId) {
+                                        null -> "A"
+                                        "A" -> "B"
+                                        "B" -> null
+                                        else -> null
+                                    }
+                                    onSupersetChange(nextSs)
+                                }
+                                .padding(horizontal = 7.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (config.supersetGroupId != null) "SS ${config.supersetGroupId}" else "+ SS",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (config.supersetGroupId != null) colors.supersetBadge else KumaColors.TextMuted
+                                )
+                            )
+                        }
+
+                        // Remove button
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable(onClick = onRemove),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = s.remove,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
                     }
                 }
 
@@ -923,10 +925,10 @@ private fun MiniStepper(
 
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
+            style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         )
 
@@ -1164,11 +1166,14 @@ private fun ExercisePickerModal(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = ex.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                    style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary
+                                        color = colors.textPrimary,
+                                        fontSize = 15.sp,
+                                        lineHeight = 18.sp
                                     ),
-                                    maxLines = 1
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(

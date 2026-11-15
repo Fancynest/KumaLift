@@ -21,7 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.bearbones.kumalift.core.backup.AutoBackupService
+import com.bearbones.kumalift.core.crypto.BackupCrypto
+import com.bearbones.kumalift.core.crypto.BackupFileType
+import com.bearbones.kumalift.core.data.rememberDataExportBytesLauncher
 import com.bearbones.kumalift.core.data.rememberDataExportLauncher
+import com.bearbones.kumalift.core.data.rememberDataImportBytesLauncher
 import com.bearbones.kumalift.core.data.rememberDataImportLauncher
 import com.bearbones.kumalift.core.data.rememberFolderPickerLauncher
 import com.bearbones.kumalift.core.localization.label
@@ -32,6 +36,7 @@ import com.bearbones.kumalift.data.export.ImportMode
 import com.bearbones.kumalift.domain.model.BackupFrequency
 import com.bearbones.kumalift.features.routines.WorkoutScheduleModal
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.EnhancedEncryption
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
@@ -40,6 +45,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -90,6 +96,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaCard
@@ -2433,6 +2440,41 @@ private fun ExportImportDataPage(
     var isRunningBackupNow by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
+    var pendingImportBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var showPasswordPromptDialog by remember { mutableStateOf(false) }
+    var passwordInput by remember { mutableStateOf("") }
+    var showSetPasswordExportDialog by remember { mutableStateOf(false) }
+    var exportPasswordInput by remember { mutableStateOf("") }
+
+    val exportBytesLauncher = rememberDataExportBytesLauncher(strings = s) { success, msg ->
+        statusMessage = msg
+        if (success) {
+            settingsRepository.update {
+                it.copy(dataBackup = it.dataBackup.copy(lastBackupEpochMs = currentEpochMillis()))
+            }
+        }
+    }
+
+    val importBytesLauncher = rememberDataImportBytesLauncher { bytes ->
+        if (bytes != null) {
+            val inspection = BackupCrypto.inspectFile(bytes)
+            if (inspection.type == BackupFileType.PASSWORD_ENCRYPTED) {
+                pendingImportBytes = bytes
+                passwordInput = ""
+                showPasswordPromptDialog = true
+            } else {
+                val unpackResult = backupManager?.unpackBackupPayload(bytes)
+                if (unpackResult?.isSuccess == true) {
+                    pendingImportContent = unpackResult.getOrNull()
+                } else {
+                    statusMessage = s.failedToRestoreBackup
+                }
+            }
+        } else {
+            statusMessage = s.importCancelledOrNoFile
+        }
+    }
+
     val folderPickerLauncher = rememberFolderPickerLauncher { uri, name ->
         if (uri != null) {
             settingsRepository.update { current ->
@@ -2542,6 +2584,116 @@ private fun ExportImportDataPage(
                             fontWeight = FontWeight.Bold
                         )
                     }
+                }
+            }
+        )
+    }
+
+    // Dialog for Prompting Password on Encrypted Backup Import
+    if (showPasswordPromptDialog && pendingImportBytes != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showPasswordPromptDialog = false
+                pendingImportBytes = null
+            },
+            title = {
+                Text(
+                    text = s.setBackupPasswordTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = s.encryptBackupsSubtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                    )
+                    OutlinedTextField(
+                        value = passwordInput,
+                        onValueChange = { passwordInput = it },
+                        label = { Text(s.passwordFieldLabel) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val bytes = pendingImportBytes!!
+                        val unpackResult = backupManager?.unpackBackupPayload(bytes, passwordInput)
+                        showPasswordPromptDialog = false
+                        pendingImportBytes = null
+                        if (unpackResult?.isSuccess == true) {
+                            pendingImportContent = unpackResult.getOrNull()
+                        } else {
+                            statusMessage = s.backupInvalidJson(s.autoBackupStatusFailed("Incorrect password or corrupted file"))
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
+                ) {
+                    Text(s.done, color = colors.onAccentFill, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPasswordPromptDialog = false
+                    pendingImportBytes = null
+                }) {
+                    Text(s.cancel, color = colors.textSecondary)
+                }
+            }
+        )
+    }
+
+    // Dialog for Setting Password on Encrypted Backup Export
+    if (showSetPasswordExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showSetPasswordExportDialog = false },
+            title = {
+                Text(
+                    text = s.encryptBackupsTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = s.backupPasswordWarning,
+                        style = MaterialTheme.typography.bodySmall.copy(color = colors.warning)
+                    )
+                    OutlinedTextField(
+                        value = exportPasswordInput,
+                        onValueChange = { exportPasswordInput = it },
+                        label = { Text(s.passwordFieldLabel) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val pass = exportPasswordInput.trim()
+                        showSetPasswordExportDialog = false
+                        exportPasswordInput = ""
+                        if (pass.isNotEmpty() && backupManager != null) {
+                            val encryptedBytes = backupManager.exportPackage(settings, pass)
+                            val now = currentEpochMillis()
+                            exportBytesLauncher("KumaLift_Encrypted_$now.kumalift", "application/octet-stream", encryptedBytes)
+                        }
+                    },
+                    enabled = exportPasswordInput.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
+                ) {
+                    Text(s.save, color = colors.onAccentFill, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSetPasswordExportDialog = false }) {
+                    Text(s.cancel, color = colors.textSecondary)
                 }
             }
         )
@@ -3034,11 +3186,25 @@ private fun ExportImportDataPage(
                             )
                             SettingsDivider()
                             SettingsNavigationRow(
+                                icon = Icons.Default.EnhancedEncryption,
+                                title = s.encryptBackupsTitle,
+                                subtitle = s.encryptBackupsSubtitle,
+                                onClick = {
+                                    if (backupManager != null) {
+                                        exportPasswordInput = ""
+                                        showSetPasswordExportDialog = true
+                                    } else {
+                                        statusMessage = s.databaseRepoUnavailable
+                                    }
+                                }
+                            )
+                            SettingsDivider()
+                            SettingsNavigationRow(
                                 icon = Icons.Default.FileUpload,
                                 title = s.restoreFromBackupTitle,
                                 subtitle = s.restoreFromBackupSubtitle,
                                 onClick = {
-                                    importLauncher()
+                                    importBytesLauncher()
                                 }
                             )
                             SettingsDivider()

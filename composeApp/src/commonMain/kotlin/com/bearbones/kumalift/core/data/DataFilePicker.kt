@@ -19,3 +19,14 @@ expect fun rememberDataImportLauncher(
 expect fun rememberFolderPickerLauncher(
     onFolderPicked: (folderUri: String?, folderDisplayName: String?) -> Unit
 ): () -> Unit
+
+@Composable
+expect fun rememberDataExportBytesLauncher(
+    strings: AppStrings = LocalStrings.current,
+    onExportResult: (Boolean, String) -> Unit
+): (fileName: String, mimeType: String, bytes: ByteArray) -> Unit
+
+@Composable
+expect fun rememberDataImportBytesLauncher(
+    onBytesRead: (ByteArray?) -> Unit
+): () -> Unit

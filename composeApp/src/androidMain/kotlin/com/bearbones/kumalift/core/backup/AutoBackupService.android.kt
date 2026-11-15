@@ -69,7 +69,7 @@ object AutoBackupRunner {
 
         return try {
             val backupManager = DataBackupManager(databaseRepo)
-            val jsonPayload = backupManager.exportJson(settings)
+            val packageBytes = backupManager.exportPackage(settings)
 
             val sdf = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
             val timestampStr = sdf.format(Date())
@@ -79,7 +79,7 @@ object AutoBackupRunner {
                 ?: throw IllegalStateException("Cannot create backup file in destination folder")
 
             context.contentResolver.openOutputStream(fileDoc.uri)?.use { out ->
-                out.write(jsonPayload.encodeToByteArray())
+                out.write(packageBytes)
             } ?: throw IllegalStateException("Cannot write to destination backup file")
 
             // Pruning old backups past autoBackupKeepLast

@@ -132,3 +132,76 @@ actual fun rememberFolderPickerLauncher(
         }
     }
 }
+
+@Composable
+actual fun rememberDataExportBytesLauncher(
+    strings: AppStrings,
+    onExportResult: (Boolean, String) -> Unit
+): (fileName: String, mimeType: String, bytes: ByteArray) -> Unit {
+    val context = LocalContext.current
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+    val createDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("*/*")
+    ) { uri: Uri? ->
+        val bytes = pendingBytes
+        if (uri != null && bytes != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.write(bytes)
+                }
+                onExportResult(true, strings.backupFileSavedSuccess)
+            } catch (e: Exception) {
+                onExportResult(false, strings.failedToWriteBackupFile(e.message ?: ""))
+            } finally {
+                pendingBytes = null
+            }
+        } else {
+            pendingBytes = null
+            onExportResult(false, strings.backupFileSavingCancelled)
+        }
+    }
+
+    return remember(context, strings) {
+        { fileName: String, mimeType: String, bytes: ByteArray ->
+            pendingBytes = bytes
+            try {
+                createDocLauncher.launch(fileName)
+            } catch (e: Exception) {
+                pendingBytes = null
+                onExportResult(false, strings.failedToOpenFilePicker(e.message ?: ""))
+            }
+        }
+    }
+}
+
+@Composable
+actual fun rememberDataImportBytesLauncher(
+    onBytesRead: (ByteArray?) -> Unit
+): () -> Unit {
+    val context = LocalContext.current
+    val openDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                onBytesRead(bytes)
+            } catch (e: Exception) {
+                onBytesRead(null)
+            }
+        } else {
+            onBytesRead(null)
+        }
+    }
+
+    return remember(context) {
+        {
+            try {
+                openDocLauncher.launch(arrayOf("*/*", "application/octet-stream", "application/json"))
+            } catch (e: Exception) {
+                onBytesRead(null)
+            }
+        }
+    }
+}

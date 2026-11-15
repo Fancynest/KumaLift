@@ -26,6 +26,7 @@ import com.bearbones.kumalift.domain.model.WorkoutExercise
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -313,5 +314,59 @@ class DataBackupManagerTests {
         assertEquals(2, pruned.size)
         assertTrue(pruned.contains("KumaLift-backup-20261111-1000.kumalift"))
         assertTrue(pruned.contains("KumaLift-backup-20261110-1000.kumalift"))
+    }
+
+    @Test
+    fun testEncryptedPackageExportAndImportRoundTrip() {
+        val exercise = Exercise(
+            id = "custom_enc_1",
+            name = "Encrypted Romanian Deadlift",
+            primaryMuscle = MuscleGroup.LEGS,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        repository.saveCustomExercise(exercise)
+
+        val settings = UserSettings()
+        val password = "UltraSafePassword#2026"
+        val encryptedPackage = backupManager.exportPackage(settings, password)
+
+        // Wipe DB before restore
+        repository.wipeAllUserData()
+        assertTrue(repository.getAllCustomExercises().isEmpty())
+
+        // Restore with correct password
+        val result = backupManager.importBackupPackage(
+            fileBytes = encryptedPackage,
+            mode = ImportMode.REPLACE,
+            currentSettings = settings,
+            password = password
+        )
+
+        assertTrue(result.success, "Expected successful restore but got: ${result.message}")
+        val restoredExercises = repository.getAllCustomExercises()
+        assertEquals(1, restoredExercises.size)
+        assertEquals("Encrypted Romanian Deadlift", restoredExercises[0].name)
+    }
+
+    @Test
+    fun testEncryptedPackageWrongPasswordFails() {
+        val settings = UserSettings()
+        val password = "CorrectPassword123"
+        val encryptedPackage = backupManager.exportPackage(settings, password)
+
+        val result = backupManager.importBackupPackage(
+            fileBytes = encryptedPackage,
+            mode = ImportMode.REPLACE,
+            currentSettings = settings,
+            password = "WrongPassword999"
+        )
+
+        assertFalse(result.success)
+        assertTrue(
+            result.message.contains("Incorrect password or corrupted backup file") ||
+            result.message.contains("Password required"),
+            "Expected failure message but got: ${result.message}"
+        )
     }
 }

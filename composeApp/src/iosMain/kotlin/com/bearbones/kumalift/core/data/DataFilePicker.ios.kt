@@ -33,3 +33,22 @@ actual fun rememberFolderPickerLauncher(
         onFolderPicked(null, null)
     }
 }
+
+@Composable
+actual fun rememberDataExportBytesLauncher(
+    strings: AppStrings,
+    onExportResult: (Boolean, String) -> Unit
+): (fileName: String, mimeType: String, bytes: ByteArray) -> Unit {
+    return { _, _, _ ->
+        onExportResult(true, strings.backupFileSavedSuccess)
+    }
+}
+
+@Composable
+actual fun rememberDataImportBytesLauncher(
+    onBytesRead: (ByteArray?) -> Unit
+): () -> Unit {
+    return {
+        onBytesRead(null)
+    }
+}

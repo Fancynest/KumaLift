@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.data.export
 
+import com.bearbones.kumalift.core.crypto.BackupCrypto
+import com.bearbones.kumalift.core.crypto.BackupFileType
+import com.bearbones.kumalift.core.crypto.BackupInspection
 import com.bearbones.kumalift.core.localization.AppStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
@@ -134,6 +137,72 @@ class DataBackupManager(
         files["custom_exercises.csv"] = exSb.toString()
 
         return files
+    }
+
+    fun exportPackage(settings: UserSettings, password: String? = null): ByteArray {
+        val jsonBytes = exportJson(settings).encodeToByteArray()
+        return if (!password.isNullOrBlank()) {
+            BackupCrypto.encryptWithPassword(jsonBytes, password)
+        } else {
+            BackupCrypto.createUnencryptedContainer(jsonBytes)
+        }
+    }
+
+    fun unpackBackupPayload(fileBytes: ByteArray, password: String? = null): Result<String> {
+        val inspection = BackupCrypto.inspectFile(fileBytes)
+        return try {
+            when (inspection.type) {
+                BackupFileType.PASSWORD_ENCRYPTED -> {
+                    if (password.isNullOrBlank()) {
+                        Result.failure(IllegalArgumentException("Password required to decrypt backup"))
+                    } else {
+                        val decrypted = BackupCrypto.decryptWithPassword(fileBytes, password)
+                        Result.success(decrypted.decodeToString())
+                    }
+                }
+                BackupFileType.KEYSTORE_ENCRYPTED -> {
+                    val decrypted = BackupCrypto.decryptWithKeystore(fileBytes)
+                    Result.success(decrypted.decodeToString())
+                }
+                BackupFileType.UNENCRYPTED_CONTAINER -> {
+                    val unpacked = BackupCrypto.unpackUnencryptedContainer(fileBytes)
+                    Result.success(unpacked.decodeToString())
+                }
+                BackupFileType.LEGACY_JSON -> {
+                    Result.success(fileBytes.decodeToString())
+                }
+                BackupFileType.UNKNOWN -> {
+                    val str = fileBytes.decodeToString()
+                    if (str.trimStart().startsWith("{")) {
+                        Result.success(str)
+                    } else {
+                        Result.failure(IllegalArgumentException("Unrecognized backup file format"))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun importBackupPackage(
+        fileBytes: ByteArray,
+        mode: ImportMode,
+        currentSettings: UserSettings,
+        password: String? = null,
+        strings: AppStrings = resolveAppStrings(currentSettings.appearance.language),
+        onSettingsRestored: (UserSettings) -> Unit = {}
+    ): ImportResult {
+        val unpackResult = unpackBackupPayload(fileBytes, password)
+        if (unpackResult.isFailure) {
+            val err = unpackResult.exceptionOrNull()?.message ?: "Corrupted or invalid backup file"
+            return ImportResult(
+                success = false,
+                message = strings.backupInvalidJson(err)
+            )
+        }
+        val jsonString = unpackResult.getOrThrow()
+        return importBackup(jsonString, mode, currentSettings, strings, onSettingsRestored)
     }
 
     fun importBackup(

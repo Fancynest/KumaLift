@@ -9,6 +9,7 @@ import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.UserSettings
@@ -305,9 +306,17 @@ class KumaDatabaseRepository(
         val routineRows = queries.selectAllRoutines().executeAsList()
         return routineRows.map { rRow ->
             val reRows = queries.selectRoutineExercises(rRow.id).executeAsList()
-            val exercises = reRows.mapNotNull { reRow ->
-                exerciseLookup(reRow.exerciseId)
+            val configs = reRows.mapNotNull { reRow ->
+                val ex = exerciseLookup(reRow.exerciseId) ?: return@mapNotNull null
+                RoutineExerciseConfig(
+                    exercise = ex,
+                    targetSets = reRow.targetSets.toInt(),
+                    targetReps = reRow.targetReps.toInt(),
+                    targetWeightKg = reRow.targetWeightKg,
+                    restTimerSeconds = 90
+                )
             }
+            val exercises = configs.map { it.exercise }
 
             RoutineBlueprint(
                 id = rRow.id,
@@ -317,6 +326,7 @@ class KumaDatabaseRepository(
                 estimatedDurationMinutes = rRow.estimatedDurationMinutes.toInt(),
                 targetRpeTier = rRow.targetRpeTier,
                 exerciseTemplates = exercises,
+                exerciseConfigs = configs,
                 plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt()
             )
         }
@@ -336,16 +346,17 @@ class KumaDatabaseRepository(
                 createdAtEpochMs = currentEpochMillis()
             )
 
+            val configs = routine.effectiveConfigs
             queries.deleteRoutineExercises(routine.id)
-            routine.exerciseTemplates.forEachIndexed { orderIndex, ex ->
+            configs.forEachIndexed { orderIndex, cfg ->
                 queries.insertRoutineExercise(
-                    id = "${routine.id}_${ex.id}_$orderIndex",
+                    id = "${routine.id}_${cfg.exercise.id}_$orderIndex",
                     routineId = routine.id,
-                    exerciseId = ex.id,
+                    exerciseId = cfg.exercise.id,
                     orderIndex = orderIndex.toLong(),
-                    targetSets = routine.plannedSetsPerExercise.toLong(),
-                    targetReps = 8L,
-                    targetWeightKg = null
+                    targetSets = cfg.targetSets.toLong(),
+                    targetReps = cfg.targetReps.toLong(),
+                    targetWeightKg = cfg.targetWeightKg
                 )
             }
         }

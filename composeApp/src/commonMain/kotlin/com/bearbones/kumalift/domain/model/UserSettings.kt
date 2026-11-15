@@ -13,6 +13,8 @@ enum class AthleteSex {
 enum class TrainingGoal {
     HYPERTROPHY,
     STRENGTH,
+    ENDURANCE,
+    FAT_LOSS,
     GENERAL
 }
 
@@ -182,7 +184,8 @@ data class ProfileSettings(
     val sex: AthleteSex = AthleteSex.UNSPECIFIED,
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
     val goal: TrainingGoal = TrainingGoal.HYPERTROPHY,
-    val trainingDaysPerWeek: Int = 4
+    val trainingDaysPerWeek: Int = 4,
+    val selectedTrainingDays: List<Int> = listOf(1, 3, 5, 6)
 )
 
 @Serializable

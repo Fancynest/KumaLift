@@ -58,7 +58,7 @@ fun ExerciseThumbnail(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(Color(0xFF161A22))
+            .background(Color.White)
             .border(1.5.dp, muscleColor.copy(alpha = 0.5f), CircleShape),
         contentAlignment = Alignment.Center
     ) {

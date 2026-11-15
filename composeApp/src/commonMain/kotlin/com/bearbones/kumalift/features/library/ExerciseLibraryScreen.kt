@@ -114,6 +114,7 @@ fun ExerciseLibraryScreen(
                     val liveExercise = allExercises.find { it.id == detailedExercise.id } ?: detailedExercise
                     ExerciseDetailScreen(
                         exercise = liveExercise,
+                        settingsRepository = settingsRepository,
                         onNavigateBack = { selectedExerciseId = null },
                         onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
                             {

@@ -67,6 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -74,7 +75,11 @@ import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
+import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.Exercise
+import com.bearbones.kumalift.domain.model.TrainingGoal
+import com.bearbones.kumalift.domain.model.TrainingGoalConfig
+import androidx.compose.runtime.collectAsState
 
 enum class ExerciseDetailTab {
     SUMMARY,
@@ -91,6 +96,7 @@ enum class MetricSwitcherType {
 @Composable
 fun ExerciseDetailScreen(
     exercise: Exercise,
+    settingsRepository: SettingsRepository? = null,
     onNavigateBack: () -> Unit,
     onAddExercise: (() -> Unit)? = null,
     onSaveNote: ((String) -> Unit)? = null
@@ -304,6 +310,169 @@ fun ExerciseDetailScreen(
                                             fontWeight = FontWeight.Medium
                                         )
                                     )
+                                }
+                            }
+                        }
+
+                        // Adaptive Training Goal Recommendation Card
+                        item {
+                            val userSettings = settingsRepository?.settings?.collectAsState()?.value
+                            val currentGoal = userSettings?.profile?.goal ?: TrainingGoal.GENERAL
+                            val goalRec = remember(currentGoal, s) {
+                                TrainingGoalConfig.getConfig(currentGoal, s)
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                            ) {
+                                KumaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = KumaColors.SurfaceContainerLow,
+                                    cornerRadius = 14.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = s.trainingGoalTitle.uppercase(),
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.accentText,
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                            )
+                                            KumaBadge(text = goalRec.phaseLabel)
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Text(
+                                            text = goalRec.title,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // Metric Pills: Sets, Reps, Rest, RPE
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(KumaColors.SurfaceContainer)
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        text = s.setColumnHeader,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = KumaColors.TextMuted
+                                                    )
+                                                    Text(
+                                                        text = goalRec.setsRangeText,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(KumaColors.SurfaceContainer)
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        text = s.repsColumnHeader,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = KumaColors.TextMuted
+                                                    )
+                                                    Text(
+                                                        text = goalRec.repsRangeText,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(KumaColors.SurfaceContainer)
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        text = s.targetRestStat,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = KumaColors.TextMuted
+                                                    )
+                                                    Text(
+                                                        text = goalRec.restRangeText,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(KumaColors.SurfaceContainer)
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        text = "Target",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = KumaColors.TextMuted
+                                                    )
+                                                    Text(
+                                                        text = goalRec.targetRpe,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Text(
+                                            text = goalRec.progressionPrinciple,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = colors.textSecondary,
+                                                fontSize = 12.sp
+                                            )
+                                        )
+                                    }
                                 }
                             }
                         }

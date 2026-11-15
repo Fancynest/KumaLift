@@ -82,6 +82,8 @@ fun HomeScreen(
     val routines by (routineRepository?.routines ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val scheduledRoutine = routines.firstOrNull()
 
+    var showScheduleModal by remember { mutableStateOf(false) }
+
     val currentHour = remember {
         try {
             Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).hour
@@ -99,6 +101,8 @@ fun HomeScreen(
     val phaseText = when (settings.profile.goal) {
         TrainingGoal.HYPERTROPHY -> s.phaseHypertrophy
         TrainingGoal.STRENGTH -> s.phaseStrength
+        TrainingGoal.ENDURANCE -> s.phaseEndurance
+        TrainingGoal.FAT_LOSS -> s.phaseFatLoss
         TrainingGoal.GENERAL -> s.phaseGeneral
     }
 
@@ -294,7 +298,9 @@ fun HomeScreen(
                 if (settings.appearance.showWeeklyHorizon) {
                     item {
                         KumaCard(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showScheduleModal = true },
                             backgroundColor = KumaColors.SurfaceContainerLow,
                             cornerRadius = 18.dp
                         ) {
@@ -368,6 +374,7 @@ fun HomeScreen(
                                     }
                                 }
 
+                                val plannedDays = settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5, 6) }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -377,9 +384,11 @@ fun HomeScreen(
                                     dayIndices.forEachIndexed { idx, dayNum ->
                                         val isDone = daysDone[idx]
                                         val isToday = dayNum == todayDayOfWeek
+                                        val isPlanned = plannedDays.contains(dayNum)
                                         DayCircle(
                                             day = dayLabels[idx],
                                             isDone = isDone,
+                                            isRest = !isPlanned && !isDone,
                                             isActive = isToday && !isDone
                                         )
                                     }
@@ -593,6 +602,13 @@ fun HomeScreen(
                 }
             }
             }
+        }
+
+        if (showScheduleModal) {
+            com.bearbones.kumalift.features.routines.WorkoutScheduleModal(
+                settingsRepository = settingsRepository,
+                onDismiss = { showScheduleModal = false }
+            )
         }
     }
 }

@@ -25,6 +25,7 @@ import com.bearbones.kumalift.core.data.rememberDataImportLauncher
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.export.ImportMode
+import com.bearbones.kumalift.features.routines.WorkoutScheduleModal
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restore
@@ -447,6 +448,8 @@ private fun ProfileSettingsPage(
     var bioInput by remember { mutableStateOf(settings.profile.bio) }
     var birthdayInput by remember { mutableStateOf(settings.profile.birthday) }
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
+    var selectedGoal by remember { mutableStateOf(settings.profile.goal) }
+    var showScheduleModal by remember { mutableStateOf(false) }
     var bwInput by remember { mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "") }
     var htInput by remember { mutableStateOf(settings.profile.heightCm?.toString() ?: "") }
     var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
@@ -517,6 +520,7 @@ private fun ProfileSettingsPage(
                                     bio = bioInput.trim(),
                                     birthday = birthdayInput.trim(),
                                     sex = selectedSex,
+                                    goal = selectedGoal,
                                     bodyweightKg = bwInput.toDoubleOrNull(),
                                     heightCm = htInput.toDoubleOrNull()
                                 )
@@ -699,8 +703,128 @@ private fun ProfileSettingsPage(
                     }
                 }
 
+                // Training Goal Section
+                item {
+                    Text(
+                        text = s.trainingGoalTitle,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        ),
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
+                }
+
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(
+                            TrainingGoal.HYPERTROPHY to s.programHypertrophy,
+                            TrainingGoal.STRENGTH to s.programStrength,
+                            TrainingGoal.ENDURANCE to s.programEndurance,
+                            TrainingGoal.FAT_LOSS to s.programFatLoss,
+                            TrainingGoal.GENERAL to s.programGeneral
+                        ).forEach { (goal, label) ->
+                            val isSelected = selectedGoal == goal
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
+                                    .clickable { selectedGoal = goal }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) colors.accentFill else colors.border,
+                                        RoundedCornerShape(10.dp)
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) colors.onAccentFill else colors.textPrimary
+                                        )
+                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = colors.onAccentFill,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Training Schedule Section
+                item {
+                    Text(
+                        text = s.trainingScheduleTitle,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        ),
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
+                }
+
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .clickable { showScheduleModal = true }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = s.trainingScheduleTitle,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                                Text(
+                                    text = s.trainingDaysSubtitle(settings.profile.trainingDaysPerWeek),
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = colors.textSecondary
+                                    )
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
                 item { Spacer(modifier = Modifier.height(40.dp)) }
             }
+        }
+
+        if (showScheduleModal) {
+            WorkoutScheduleModal(
+                settingsRepository = settingsRepository,
+                onDismiss = { showScheduleModal = false }
+            )
         }
     }
 }

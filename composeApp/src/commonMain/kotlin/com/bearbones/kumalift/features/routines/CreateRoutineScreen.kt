@@ -31,18 +31,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,18 +82,25 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 @Composable
 fun CreateRoutineScreen(
     exerciseRepository: ExerciseRepository,
+    routineToEdit: RoutineBlueprint? = null,
     onNavigateBack: () -> Unit,
     onSaveRoutine: (RoutineBlueprint) -> Unit
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
 
-    var routineTitle by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("PPL Split") }
-    var customCategory by remember { mutableStateOf("") }
-    var selectedDurationMinutes by remember { mutableStateOf(60) }
-    var selectedRpeTier by remember { mutableStateOf(s.rpeTiers.getOrElse(2) { "RPE 8–9" }) }
-    val selectedExercises = remember { mutableStateListOf<Exercise>() }
+    var routineTitle by remember(routineToEdit) { mutableStateOf(routineToEdit?.title ?: "") }
+    var selectedCategory by remember(routineToEdit) { mutableStateOf(routineToEdit?.splitCategory ?: "PPL Split") }
+    var customCategory by remember(routineToEdit) { mutableStateOf("") }
+    var selectedDurationMinutes by remember(routineToEdit) { mutableStateOf(routineToEdit?.estimatedDurationMinutes ?: 60) }
+    var selectedRpeTier by remember(routineToEdit) { mutableStateOf(routineToEdit?.targetRpeTier ?: s.rpeTiers.getOrElse(2) { "RPE 8–9" }) }
+    val selectedConfigs = remember(routineToEdit) {
+        mutableStateListOf<RoutineExerciseConfig>().apply {
+            if (routineToEdit != null) {
+                addAll(routineToEdit.effectiveConfigs)
+            }
+        }
+    }
     var hasAttemptedSubmit by remember { mutableStateOf(false) }
     var showExercisePicker by remember { mutableStateOf(false) }
 
@@ -101,14 +114,15 @@ fun CreateRoutineScreen(
         selectedCategory
     }
 
-    val autoMuscleFocus = remember(selectedExercises.toList(), s) {
-        val muscles = selectedExercises.map { it.primaryMuscle.label(s) }.distinct()
+    val autoMuscleFocus = remember(selectedConfigs.toList(), s) {
+        val muscles = selectedConfigs.map { it.exercise.primaryMuscle.label(s) }.distinct()
         if (muscles.isEmpty()) s.muscleFullBody else muscles.joinToString(" · ")
     }
 
     val isTitleValid = routineTitle.trim().isNotEmpty()
-    val isExercisesValid = selectedExercises.isNotEmpty()
+    val isExercisesValid = selectedConfigs.isNotEmpty()
     val isFormValid = isTitleValid && isExercisesValid
+    val screenTitle = if (routineToEdit != null) s.editRoutineTitle else s.createRoutineTitle
 
     Box(
         modifier = Modifier
@@ -146,7 +160,7 @@ fun CreateRoutineScreen(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Text(
-                        text = s.createRoutineTitle,
+                        text = screenTitle,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -158,15 +172,17 @@ fun CreateRoutineScreen(
                     onClick = {
                         hasAttemptedSubmit = true
                         if (isFormValid) {
+                            val routineId = routineToEdit?.id ?: com.bearbones.kumalift.core.util.IdGenerator.routineId(routineTitle.trim())
                             val newRoutine = RoutineBlueprint(
-                                id = com.bearbones.kumalift.core.util.IdGenerator.routineId(routineTitle.trim()),
+                                id = routineId,
                                 title = routineTitle.trim(),
                                 splitCategory = finalCategory,
                                 muscleFocus = autoMuscleFocus,
                                 estimatedDurationMinutes = selectedDurationMinutes,
                                 targetRpeTier = selectedRpeTier,
-                                exerciseTemplates = selectedExercises.toList(),
-                                plannedSetsPerExercise = 3
+                                exerciseTemplates = selectedConfigs.map { it.exercise },
+                                exerciseConfigs = selectedConfigs.toList(),
+                                plannedSetsPerExercise = selectedConfigs.firstOrNull()?.targetSets ?: 3
                             )
                             onSaveRoutine(newRoutine)
                         }
@@ -454,7 +470,7 @@ fun CreateRoutineScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${s.exercisesInRoutineHeader} (${selectedExercises.size}) *",
+                            text = "${s.exercisesInRoutineHeader} (${selectedConfigs.size}) *",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold,
@@ -474,7 +490,7 @@ fun CreateRoutineScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (selectedExercises.isEmpty()) {
+                    if (selectedConfigs.isEmpty()) {
                         KumaCard(
                             modifier = Modifier.fillMaxWidth(),
                             backgroundColor = KumaColors.SurfaceContainerLow,
@@ -522,11 +538,30 @@ fun CreateRoutineScreen(
                         }
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            selectedExercises.forEachIndexed { index, exercise ->
+                            selectedConfigs.forEachIndexed { index, config ->
                                 SelectedExerciseRow(
                                     index = index + 1,
-                                    exercise = exercise,
-                                    onRemove = { selectedExercises.removeAt(index) }
+                                    config = config,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < selectedConfigs.size - 1,
+                                    onMoveUp = {
+                                        val item = selectedConfigs.removeAt(index)
+                                        selectedConfigs.add(index - 1, item)
+                                    },
+                                    onMoveDown = {
+                                        val item = selectedConfigs.removeAt(index)
+                                        selectedConfigs.add(index + 1, item)
+                                    },
+                                    onSetsChange = { newSets ->
+                                        selectedConfigs[index] = config.copy(targetSets = newSets)
+                                    },
+                                    onRepsChange = { newReps ->
+                                        selectedConfigs[index] = config.copy(targetReps = newReps)
+                                    },
+                                    onRestChange = { newRest ->
+                                        selectedConfigs[index] = config.copy(restTimerSeconds = newRest)
+                                    },
+                                    onRemove = { selectedConfigs.removeAt(index) }
                                 )
                             }
 
@@ -563,10 +598,17 @@ fun CreateRoutineScreen(
         if (showExercisePicker) {
             ExercisePickerModal(
                 exerciseRepository = exerciseRepository,
-                selectedIds = selectedExercises.map { it.id }.toSet(),
+                selectedIds = selectedConfigs.map { it.exercise.id }.toSet(),
                 onAddExercise = { ex ->
-                    if (!selectedExercises.any { it.id == ex.id }) {
-                        selectedExercises.add(ex)
+                    if (!selectedConfigs.any { it.exercise.id == ex.id }) {
+                        selectedConfigs.add(
+                            RoutineExerciseConfig(
+                                exercise = ex,
+                                targetSets = 3,
+                                targetReps = 8,
+                                restTimerSeconds = 90
+                            )
+                        )
                     }
                 },
                 onDismiss = { showExercisePicker = false }
@@ -578,92 +620,225 @@ fun CreateRoutineScreen(
 @Composable
 private fun SelectedExerciseRow(
     index: Int,
-    exercise: Exercise,
+    config: RoutineExerciseConfig,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onSetsChange: (Int) -> Unit,
+    onRepsChange: (Int) -> Unit,
+    onRestChange: (Int) -> Unit,
     onRemove: () -> Unit
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
+    val exercise = config.exercise
+
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = KumaColors.SurfaceContainerLow,
-        cornerRadius = 12.dp
+        cornerRadius = 14.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Index number
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(colors.accentFill),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "$index",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = colors.onAccentFill,
-                        fontWeight = FontWeight.ExtraBold
+                // Index number
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(colors.accentFill),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "$index",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.onAccentFill,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     )
-                )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Thumbnail
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White)
+                ) {
+                    ExerciseThumbnailMedia(
+                        assetPath = exercise.thumbnailUrl,
+                        contentDescription = exercise.name,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Title & Muscle
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = exercise.name,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = exercise.localizedMuscleSubtitle(s),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary
+                        ),
+                        maxLines = 1
+                    )
+                }
+
+                // Reorder buttons (Up & Down)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onMoveUp,
+                        enabled = canMoveUp,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = s.moveUpAction,
+                            tint = if (canMoveUp) colors.textPrimary else colors.textSecondary.copy(alpha = 0.3f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onMoveDown,
+                        enabled = canMoveDown,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDownward,
+                            contentDescription = s.moveDownAction,
+                            tint = if (canMoveDown) colors.textPrimary else colors.textSecondary.copy(alpha = 0.3f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Remove button
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(KumaColors.SurfaceContainer)
+                            .clickable(onClick = onRemove),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = s.remove,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Thumbnail
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White)
+            // Configuration Steppers (Sets, Reps, Rest)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ExerciseThumbnailMedia(
-                    assetPath = exercise.thumbnailUrl,
-                    contentDescription = exercise.name,
-                    modifier = Modifier.fillMaxSize()
+                // Sets stepper
+                MiniStepper(
+                    modifier = Modifier.weight(1f),
+                    label = "${config.targetSets} Set",
+                    onMinus = { onSetsChange(maxOf(1, config.targetSets - 1)) },
+                    onPlus = { onSetsChange(minOf(20, config.targetSets + 1)) }
+                )
+
+                // Reps stepper
+                MiniStepper(
+                    modifier = Modifier.weight(1.1f),
+                    label = "${config.targetReps} Reps",
+                    onMinus = { onRepsChange(maxOf(1, config.targetReps - 1)) },
+                    onPlus = { onRepsChange(minOf(100, config.targetReps + 1)) }
+                )
+
+                // Rest stepper
+                MiniStepper(
+                    modifier = Modifier.weight(1.2f),
+                    label = "${config.restTimerSeconds}s Rest",
+                    onMinus = { onRestChange(maxOf(15, config.restTimerSeconds - 15)) },
+                    onPlus = { onRestChange(minOf(300, config.restTimerSeconds + 15)) }
                 )
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.width(12.dp))
+@Composable
+private fun MiniStepper(
+    modifier: Modifier = Modifier,
+    label: String,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit
+) {
+    val colors = LocalKumaColors.current
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(KumaColors.SurfaceContainer)
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(KumaColors.SurfaceContainerHigh)
+                .clickable(onClick = onMinus),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(14.dp)
+            )
+        }
 
-            // Title & Muscle
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = exercise.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    ),
-                    maxLines = 1
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = exercise.localizedMuscleSubtitle(s),
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = colors.textSecondary
-                    ),
-                    maxLines = 1
-                )
-            }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary,
+                fontSize = 11.sp
+            )
+        )
 
-            // Remove button
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onRemove),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = s.remove,
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(KumaColors.SurfaceContainerHigh)
+                .clickable(onClick = onPlus),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = colors.textPrimary,
+                modifier = Modifier.size(14.dp)
+            )
         }
     }
 }

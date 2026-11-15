@@ -49,6 +49,26 @@ interface AppStrings {
     val phaseHypertrophy: String
     val phaseStrength: String
     val phaseGeneral: String
+    val phaseEndurance: String
+    val phaseFatLoss: String
+    val programEndurance: String
+    val programFatLoss: String
+    val goalEndurance: String
+    val goalFatLoss: String
+    val routineDetailTitle: String
+    val editRoutineButton: String
+    val editRoutineTitle: String
+    val moveUpAction: String
+    val moveDownAction: String
+    val pauseWorkoutButton: String
+    val resumeWorkoutButton: String
+    val cancelWorkoutButton: String
+    val cancelWorkoutDialogTitle: String
+    val cancelWorkoutDialogMessage: String
+    val trainingScheduleTitle: String
+    val trainingGoalTitle: String
+    val exerciseNotesLabel: String
+    val exerciseNotesPlaceholder: String
     fun volumeThisWeek(vol: String): String
     fun goalProgress(pct: Int, current: Int, target: Int): String
     fun prRecordsCount(count: Int): String

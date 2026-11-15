@@ -76,10 +76,17 @@ fun RoutinesScreen(
     val allCategoryLabel = s.allProgramsCategory
     var selectedCategory by rememberSaveable(s.allProgramsCategory) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by rememberSaveable { mutableStateOf(false) }
+    var selectedRoutineForDetail by remember { mutableStateOf<RoutineBlueprint?>(null) }
+    var routineBeingEdited by remember { mutableStateOf<RoutineBlueprint?>(null) }
 
-    // T10: Handle back when create routine modal is open
-    KumaBackHandler(enabled = showCreateRoutineScreen) {
-        showCreateRoutineScreen = false
+    // T10: Handle back when detail or create routine modal is open
+    KumaBackHandler(enabled = showCreateRoutineScreen || selectedRoutineForDetail != null) {
+        if (showCreateRoutineScreen) {
+            showCreateRoutineScreen = false
+            routineBeingEdited = null
+        } else if (selectedRoutineForDetail != null) {
+            selectedRoutineForDetail = null
+        }
     }
 
     val targetDays = settings?.profile?.trainingDaysPerWeek ?: 4
@@ -93,6 +100,8 @@ fun RoutinesScreen(
     val goalName = when (settings?.profile?.goal) {
         com.bearbones.kumalift.domain.model.TrainingGoal.HYPERTROPHY -> s.programHypertrophy
         com.bearbones.kumalift.domain.model.TrainingGoal.STRENGTH -> s.programStrength
+        com.bearbones.kumalift.domain.model.TrainingGoal.ENDURANCE -> s.programEndurance
+        com.bearbones.kumalift.domain.model.TrainingGoal.FAT_LOSS -> s.programFatLoss
         com.bearbones.kumalift.domain.model.TrainingGoal.GENERAL, null -> s.programGeneral
     }
 
@@ -338,6 +347,7 @@ fun RoutinesScreen(
                         items(filteredRoutines, key = { it.id }) { routine ->
                             RoutineCardItem(
                                 routine = routine,
+                                onClick = { selectedRoutineForDetail = routine },
                                 onStart = {
                                     workoutRepository.startWorkoutFromRoutine(routine)
                                     onStartRoutine()
@@ -354,13 +364,44 @@ fun RoutinesScreen(
             }
         }
 
+        if (selectedRoutineForDetail != null) {
+            val routine = selectedRoutineForDetail!!
+            RoutineDetailScreen(
+                routine = routine,
+                onNavigateBack = { selectedRoutineForDetail = null },
+                onStartWorkout = { r ->
+                    workoutRepository.startWorkoutFromRoutine(r)
+                    selectedRoutineForDetail = null
+                    onStartRoutine()
+                },
+                onEditRoutine = { r ->
+                    routineBeingEdited = r
+                    selectedRoutineForDetail = null
+                    showCreateRoutineScreen = true
+                },
+                onDeleteRoutine = { r ->
+                    routineRepository.deleteRoutine(r.id)
+                    selectedRoutineForDetail = null
+                }
+            )
+        }
+
         if (showCreateRoutineScreen) {
             CreateRoutineScreen(
                 exerciseRepository = exerciseRepository,
-                onNavigateBack = { showCreateRoutineScreen = false },
-                onSaveRoutine = { newRoutine ->
-                    routineRepository.addRoutine(newRoutine)
+                routineToEdit = routineBeingEdited,
+                onNavigateBack = {
                     showCreateRoutineScreen = false
+                    routineBeingEdited = null
+                },
+                onSaveRoutine = { updatedOrNewRoutine ->
+                    if (routineBeingEdited != null) {
+                        routineRepository.updateRoutine(updatedOrNewRoutine)
+                    } else {
+                        routineRepository.addRoutine(updatedOrNewRoutine)
+                    }
+                    showCreateRoutineScreen = false
+                    routineBeingEdited = null
                 }
             )
         }
@@ -370,12 +411,15 @@ fun RoutinesScreen(
 @Composable
 fun RoutineCardItem(
     routine: RoutineBlueprint,
+    onClick: (() -> Unit)? = null,
     onStart: () -> Unit,
     onDelete: (() -> Unit)? = null
 ) {
     val s = LocalStrings.current
     KumaCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         backgroundColor = KumaColors.SurfaceContainerLow,
         cornerRadius = 18.dp
     ) {

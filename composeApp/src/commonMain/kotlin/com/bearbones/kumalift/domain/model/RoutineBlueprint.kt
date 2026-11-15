@@ -3,6 +3,15 @@ package com.bearbones.kumalift.domain.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class RoutineExerciseConfig(
+    val exercise: Exercise,
+    val targetSets: Int = 3,
+    val targetReps: Int = 8,
+    val targetWeightKg: Double? = null,
+    val restTimerSeconds: Int = 90
+)
+
+@Serializable
 data class RoutineBlueprint(
     val id: String,
     val title: String,
@@ -11,6 +20,25 @@ data class RoutineBlueprint(
     val estimatedDurationMinutes: Int = 60,
     val targetRpeTier: String = "Heavy, RPE 8–9",
     val exerciseTemplates: List<Exercise> = emptyList(),
+    val exerciseConfigs: List<RoutineExerciseConfig> = emptyList(),
     val plannedSetsPerExercise: Int = 3,
     val lastPerformedDaysAgo: String? = null
-)
+) {
+    /**
+     * Resolves effective exercise configurations, ensuring backward compatibility with
+     * older routines that only have `exerciseTemplates`.
+     */
+    val effectiveConfigs: List<RoutineExerciseConfig>
+        get() {
+            if (exerciseConfigs.isNotEmpty()) return exerciseConfigs
+            return exerciseTemplates.map {
+                RoutineExerciseConfig(
+                    exercise = it,
+                    targetSets = plannedSetsPerExercise,
+                    targetReps = 8,
+                    targetWeightKg = null,
+                    restTimerSeconds = 90
+                )
+            }
+        }
+}

@@ -108,6 +108,7 @@ fun MeScreen(
     var selectedMetric by rememberSaveable { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
+    var showScheduleModal by remember { mutableStateOf(false) }
 
     val athleteName = settings.profile.name.ifBlank { s.athleteDefault }
     val athleteUsername = settings.profile.username.ifBlank { s.athleteUsernameDefault }
@@ -501,7 +502,7 @@ fun MeScreen(
                             icon = Icons.Default.CalendarToday,
                             title = s.calendarCardTitle,
                             subtitle = s.trainingDaysSubtitle(settings.profile.trainingDaysPerWeek),
-                            onClick = onNavigateToRoutines
+                            onClick = { showScheduleModal = true }
                         )
                     }
                 }
@@ -617,6 +618,13 @@ fun MeScreen(
         MeasuresModal(
             settingsRepository = settingsRepository,
             onDismiss = { showMeasuresDialog = false }
+        )
+    }
+
+    if (showScheduleModal) {
+        com.bearbones.kumalift.features.routines.WorkoutScheduleModal(
+            settingsRepository = settingsRepository,
+            onDismiss = { showScheduleModal = false }
         )
     }
 }

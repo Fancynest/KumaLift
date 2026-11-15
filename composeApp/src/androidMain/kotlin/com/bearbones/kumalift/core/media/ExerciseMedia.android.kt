@@ -36,12 +36,12 @@ actual fun ExerciseThumbnailMedia(
     val normalizedPath = assetPath.removePrefix("/")
     val assetUri = "file:///android_asset/$normalizedPath"
 
-    // Native 180x180 resolution with ARGB_8888 for maximum visual clarity
+    // Native 180x180 resolution with ARGB_8888; allowHardware(false) eliminates texture-upload black flickers during scroll
     val imageRequest = remember(assetUri) {
         ImageRequest.Builder(context)
             .data(assetUri)
             .bitmapConfig(android.graphics.Bitmap.Config.ARGB_8888)
-            .allowHardware(true)
+            .allowHardware(false)
             .memoryCacheKey(assetUri)
             .crossfade(false)
             .build()
@@ -52,8 +52,8 @@ actual fun ExerciseThumbnailMedia(
         contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier,
-        placeholder = remember { ColorPainter(Color(0xFF161A22)) },
-        error = remember { ColorPainter(Color(0xFF1C2028)) }
+        placeholder = remember { ColorPainter(Color.White) },
+        error = remember { ColorPainter(Color(0xFFF3F4F6)) }
     )
 }
 
@@ -74,7 +74,7 @@ actual fun ExerciseGifMedia(
 @Composable
 internal fun ThumbnailFallback(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.background(Color(0xFF1C2028)),
+        modifier = modifier.background(Color.White),
         contentAlignment = Alignment.Center
     ) {
         Icon(

@@ -121,6 +121,14 @@ class RoutineRepository(
         onSave?.invoke(_routines.value)
     }
 
+    fun updateRoutine(routine: RoutineBlueprint) {
+        _routines.update { current ->
+            current.map { if (it.id == routine.id) routine else it }
+        }
+        databaseRepo?.saveCustomRoutine(routine)
+        onSave?.invoke(_routines.value)
+    }
+
     fun deleteRoutine(routineId: String) {
         _routines.update { current ->
             current.filterNot { it.id == routineId }
@@ -384,15 +392,19 @@ class WorkoutRepository(
         prefillSource: PrefillSource = PrefillSource.LAST_SESSION
     ) {
         val now = currentEpochMillis()
-        val workoutExercises = routine.exerciseTemplates.mapIndexed { index, exercise ->
+        val configs = routine.effectiveConfigs
+        val workoutExercises = configs.mapIndexed { index, config ->
+            val exercise = config.exercise
             val previousSet = findPreviousSet(exercise.id, prefillSource)
-            // Bodyweight default is 0 added weight, barbell/dumbbell default from previous or 0
+            // Bodyweight default is 0 added weight, barbell/dumbbell default from target, previous, or starting weight
             val isBodyweight = exercise.equipment == Equipment.BODYWEIGHT
-            val defaultWeight = previousSet?.weightKg
+            val defaultWeight = config.targetWeightKg
+                ?: previousSet?.weightKg
                 ?: (if (isBodyweight) 0.0 else (exercise.currentPrWeightKg?.let { it * 0.75 } ?: 20.0))
-            val defaultReps = previousSet?.reps ?: 8
+            val defaultReps = if (config.targetReps > 0) config.targetReps else (previousSet?.reps ?: 8)
+            val setsCount = maxOf(1, config.targetSets)
 
-            val sets = (1..routine.plannedSetsPerExercise).map { setIndex ->
+            val sets = (1..setsCount).map { setIndex ->
                 SetLog(
                     id = IdGenerator.setId(exercise.id, setIndex),
                     setNumber = setIndex,
@@ -409,7 +421,8 @@ class WorkoutRepository(
             WorkoutExercise(
                 id = IdGenerator.workoutExerciseId(exercise.id),
                 exercise = exercise,
-                sets = sets
+                sets = sets,
+                restTimerSeconds = config.restTimerSeconds
             )
         }
 
@@ -700,6 +713,20 @@ class WorkoutRepository(
 
     fun updateWorkoutNotes(notes: String) {
         _activeWorkout.update { it?.copy(notes = notes) }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun updateExerciseNotes(workoutExerciseId: String, notes: String) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            currentWorkout.copy(
+                exercises = currentWorkout.exercises.map { we ->
+                    if (we.id == workoutExerciseId || we.exercise.id == workoutExerciseId) {
+                        we.copy(notes = notes)
+                    } else we
+                }
+            )
+        }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 

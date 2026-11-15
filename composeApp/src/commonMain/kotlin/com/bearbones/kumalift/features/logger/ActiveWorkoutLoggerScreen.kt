@@ -116,11 +116,14 @@ fun ActiveWorkoutLoggerScreen(
     var showRestTimerBar by remember { mutableStateOf(false) }
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
     var showLeaveLoggerDialog by remember { mutableStateOf(false) }
+    var showCancelWorkoutDialog by remember { mutableStateOf(false) }
 
     // T10: Handle back navigation in active workout logger
     KumaBackHandler(enabled = true) {
         if (showConfirmFinishDialog) {
             showConfirmFinishDialog = false
+        } else if (showCancelWorkoutDialog) {
+            showCancelWorkoutDialog = false
         } else if (showLeaveLoggerDialog) {
             showLeaveLoggerDialog = false
         } else if (settings.logging.confirmFinish) {
@@ -396,6 +399,76 @@ fun ActiveWorkoutLoggerScreen(
                         }
                     }
 
+                    if (workout.isPaused) {
+                        item {
+                            KumaCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                backgroundColor = Color(0xFF2A2015),
+                                cornerRadius = 14.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFF59E0B).copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Timer,
+                                                contentDescription = null,
+                                                tint = Color(0xFFF59E0B),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Column {
+                                            Text(
+                                                text = s.pauseWorkoutButton.uppercase(),
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFFF59E0B)
+                                                )
+                                            )
+                                            Text(
+                                                text = s.resumeWorkoutButton,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = KumaColors.TextSecondary
+                                                )
+                                            )
+                                        }
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(Color(0xFFF59E0B))
+                                            .clickable { workoutRepository.resumeWorkout() }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = s.resumeWorkoutButton,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.Black
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Exercise Cards List
                     items(workout.exercises, key = { it.id }) { we ->
                         ExerciseLoggingCard(
@@ -441,6 +514,9 @@ fun ActiveWorkoutLoggerScreen(
                             },
                             onRemoveExercise = {
                                 workoutRepository.removeExerciseFromActiveWorkout(we.id)
+                            },
+                            onUpdateNotes = { notes ->
+                                workoutRepository.updateExerciseNotes(we.id, notes)
                             }
                         )
                     }
@@ -492,6 +568,25 @@ fun ActiveWorkoutLoggerScreen(
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         color = KumaColors.OnElectricLime,
                                         fontWeight = FontWeight.ExtraBold
+                                    )
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .border(1.dp, KumaColors.ErrorRed.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                                    .clickable { showCancelWorkoutDialog = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = s.cancelWorkoutButton,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        color = KumaColors.ErrorRed,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 )
                             }
@@ -609,6 +704,50 @@ fun ActiveWorkoutLoggerScreen(
                 textContentColor = KumaColors.TextSecondary
             )
         }
+
+        if (showCancelWorkoutDialog) {
+            AlertDialog(
+                onDismissRequest = { showCancelWorkoutDialog = false },
+                title = {
+                    Text(
+                        text = s.cancelWorkoutDialogTitle,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                text = {
+                    Text(
+                        text = s.cancelWorkoutDialogMessage,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showCancelWorkoutDialog = false
+                            workoutRepository.cancelWorkout()
+                            onNavigateBack()
+                        }
+                    ) {
+                        Text(
+                            text = s.cancelWorkoutButton,
+                            color = KumaColors.ErrorRed,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCancelWorkoutDialog = false }) {
+                        Text(
+                            text = s.cancel,
+                            color = KumaColors.TextMuted
+                        )
+                    }
+                },
+                containerColor = KumaColors.SurfaceContainerHigh,
+                titleContentColor = KumaColors.TextWhite,
+                textContentColor = KumaColors.TextSecondary
+            )
+        }
     }
 }
 
@@ -646,7 +785,8 @@ fun ExerciseLoggingCard(
     onUpdateSetRpe: (String, Double?) -> Unit,
     onAddSet: () -> Unit,
     onRemoveLastSet: () -> Unit = {},
-    onRemoveExercise: () -> Unit = {}
+    onRemoveExercise: () -> Unit = {},
+    onUpdateNotes: (String) -> Unit = {}
 ) {
     val exercise = workoutExercise.exercise
     val s = LocalStrings.current
@@ -837,6 +977,51 @@ fun ExerciseLoggingCard(
                         )
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            var isEditingNotes by remember { mutableStateOf(workoutExercise.notes.isNotBlank()) }
+            var notesText by remember(workoutExercise.notes) { mutableStateOf(workoutExercise.notes) }
+
+            if (isEditingNotes) {
+                OutlinedTextField(
+                    value = notesText,
+                    onValueChange = {
+                        notesText = it
+                        onUpdateNotes(it)
+                    },
+                    placeholder = {
+                        Text(
+                            text = s.exerciseNotesPlaceholder,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = KumaColors.TextMuted
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        color = LocalKumaColors.current.textPrimary
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = LocalKumaColors.current.accentText,
+                        unfocusedBorderColor = KumaColors.BorderDefault,
+                        cursorColor = LocalKumaColors.current.accentText,
+                        focusedContainerColor = KumaColors.SurfaceContainer,
+                        unfocusedContainerColor = KumaColors.SurfaceContainer
+                    ),
+                    maxLines = 3
+                )
+            } else {
+                Text(
+                    text = "+ ${s.exerciseNotesLabel}",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = LocalKumaColors.current.accentText,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = Modifier
+                        .clickable { isEditingNotes = true }
+                        .padding(vertical = 4.dp)
+                )
             }
         }
     }

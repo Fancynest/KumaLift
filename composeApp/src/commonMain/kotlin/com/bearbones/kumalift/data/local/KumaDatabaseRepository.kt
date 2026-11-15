@@ -73,11 +73,13 @@ class KumaDatabaseRepository(
                     pinnedNote = weRow.pinnedNote ?: ""
                 )
 
+                val (extractedSsId, cleanNote) = extractSupersetGroup(weRow.pinnedNote)
                 WorkoutExercise(
                     id = weRow.id,
                     exercise = exModel,
                     sets = sets,
-                    notes = weRow.pinnedNote ?: ""
+                    notes = cleanNote,
+                    supersetGroupId = extractedSsId
                 )
             }
 
@@ -130,7 +132,7 @@ class KumaDatabaseRepository(
                     equipment = we.exercise.equipment.name,
                     movementType = we.exercise.movementType.name,
                     orderIndex = orderIndex.toLong(),
-                    pinnedNote = we.notes.ifBlank { we.exercise.pinnedNote }
+                    pinnedNote = formatNoteWithSuperset(we.notes.ifBlank { we.exercise.pinnedNote }, we.supersetGroupId)
                 )
 
                 we.sets.forEach { set ->
@@ -308,12 +310,14 @@ class KumaDatabaseRepository(
             val reRows = queries.selectRoutineExercises(rRow.id).executeAsList()
             val configs = reRows.mapNotNull { reRow ->
                 val ex = exerciseLookup(reRow.exerciseId) ?: return@mapNotNull null
+                val ssId = if (reRow.id.contains("__SS_")) reRow.id.substringAfter("__SS_") else null
                 RoutineExerciseConfig(
                     exercise = ex,
                     targetSets = reRow.targetSets.toInt(),
                     targetReps = reRow.targetReps.toInt(),
                     targetWeightKg = reRow.targetWeightKg,
-                    restTimerSeconds = 90
+                    restTimerSeconds = 90,
+                    supersetGroupId = ssId
                 )
             }
             val exercises = configs.map { it.exercise }
@@ -349,8 +353,9 @@ class KumaDatabaseRepository(
             val configs = routine.effectiveConfigs
             queries.deleteRoutineExercises(routine.id)
             configs.forEachIndexed { orderIndex, cfg ->
+                val ssSuffix = if (cfg.supersetGroupId != null) "__SS_${cfg.supersetGroupId}" else ""
                 queries.insertRoutineExercise(
-                    id = "${routine.id}_${cfg.exercise.id}_$orderIndex",
+                    id = "${routine.id}_${cfg.exercise.id}_${orderIndex}$ssSuffix",
                     routineId = routine.id,
                     exerciseId = cfg.exercise.id,
                     orderIndex = orderIndex.toLong(),
@@ -359,6 +364,25 @@ class KumaDatabaseRepository(
                     targetWeightKg = cfg.targetWeightKg
                 )
             }
+        }
+    }
+
+    private fun formatNoteWithSuperset(note: String, supersetGroupId: String?): String {
+        return if (supersetGroupId != null) {
+            "[SS:$supersetGroupId] $note".trim()
+        } else {
+            note
+        }
+    }
+
+    private fun extractSupersetGroup(rawNote: String?): Pair<String?, String> {
+        if (rawNote == null) return null to ""
+        val regex = Regex("^\\[SS:([a-zA-Z0-9_-]+)\\]\\s*(.*)", RegexOption.DOT_MATCHES_ALL)
+        val match = regex.find(rawNote)
+        return if (match != null) {
+            match.groupValues[1] to match.groupValues[2]
+        } else {
+            null to rawNote
         }
     }
 

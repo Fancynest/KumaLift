@@ -8,7 +8,8 @@ data class RoutineExerciseConfig(
     val targetSets: Int = 3,
     val targetReps: Int = 8,
     val targetWeightKg: Double? = null,
-    val restTimerSeconds: Int = 90
+    val restTimerSeconds: Int = 90,
+    val supersetGroupId: String? = null
 )
 
 @Serializable

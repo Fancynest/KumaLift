@@ -469,6 +469,11 @@ fun HomeScreen(
                     }
                 }
 
+                // Muscle Recovery & Fatigue Tracker
+                item {
+                    MuscleRecoveryCard(completedWorkouts = completedWorkouts)
+                }
+
                 // 4. Monthly Quick Glance Metrics (Spacious 3-column)
                 if (settings.appearance.showMonthlyGlance) {
                     item {

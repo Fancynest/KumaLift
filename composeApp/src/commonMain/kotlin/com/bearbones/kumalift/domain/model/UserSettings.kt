@@ -185,7 +185,8 @@ data class ProfileSettings(
     val experienceLevel: ExperienceLevel = ExperienceLevel.INTERMEDIATE,
     val goal: TrainingGoal = TrainingGoal.HYPERTROPHY,
     val trainingDaysPerWeek: Int = 4,
-    val selectedTrainingDays: List<Int> = listOf(1, 3, 5, 6)
+    val selectedTrainingDays: List<Int> = listOf(1, 3, 5, 6),
+    val hasCompletedOnboarding: Boolean = false
 )
 
 @Serializable
@@ -310,6 +311,7 @@ data class AppearanceSettings(
 @Serializable
 data class DataBackupSettings(
     val autoBackupEnabled: Boolean = false,
+    val autoBackupToGoogleDrive: Boolean = false,
     val autoBackupFrequency: BackupFrequency = BackupFrequency.WEEKLY,
     val autoBackupFolderUri: String? = null,
     val autoBackupKeepLast: Int = 5,

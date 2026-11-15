@@ -556,4 +556,32 @@ interface AppStrings {
     val diagnosticLogCleared: String
     val noDiagnosticLogsYet: String
     val removeLastSetAction: String
+
+    // Advanced Features: Plate Calc, Warm-up, Progression, Recovery, Superset, Onboarding, Drive
+    val barWeight: String
+    val totalWeight: String
+    val loadEachSide: String
+    val warmupSetsTitle: String
+    val addWarmupSetsAction: String
+    val warmupSetGenerated: String
+    val progressionReady: String
+    val applyProgressionAction: String
+    val muscleRecoveryTitle: String
+    val recoveryFresh: String
+    val recoveryRecovering: String
+    val recoveryFatigued: String
+    val recoveryDisclaimer: String
+    val supersetLabel: String
+    val onboardingSkip: String
+    val onboardingStepGoal: String
+    val onboardingStepDays: String
+    val onboardingStepExp: String
+    val onboardingFinish: String
+    val googleDriveHeader: String
+    val autoBackupGoogleDriveTitle: String
+    val autoBackupGoogleDriveSubtitle: String
+    val backupToGoogleDriveNow: String
+    val backupToGoogleDriveNowSubtitle: String
+    val restoreFromGoogleDriveTitle: String
+    val restoreFromGoogleDriveSubtitle: String
 }

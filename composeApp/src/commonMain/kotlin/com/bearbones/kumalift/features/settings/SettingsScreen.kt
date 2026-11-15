@@ -2629,6 +2629,103 @@ private fun ExportImportDataPage(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Section: Google Drive & Cloud Auto-Backup
+                item {
+                    Text(
+                        text = s.googleDriveHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.accentText,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    KumaCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Storage,
+                                        contentDescription = null,
+                                        tint = colors.accentText
+                                    )
+                                    Column {
+                                        Text(
+                                            text = s.autoBackupGoogleDriveTitle,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                        Text(
+                                            text = s.autoBackupGoogleDriveSubtitle,
+                                            style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted)
+                                        )
+                                    }
+                                }
+                                Switch(
+                                    checked = settings.dataBackup.autoBackupToGoogleDrive,
+                                    onCheckedChange = { isChecked ->
+                                        settingsRepository.update { current ->
+                                            current.copy(
+                                                dataBackup = current.dataBackup.copy(
+                                                    autoBackupToGoogleDrive = isChecked,
+                                                    autoBackupEnabled = isChecked
+                                                )
+                                            )
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = colors.accentText,
+                                        checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
+                                    )
+                                )
+                            }
+                            SettingsDivider()
+                            SettingsNavigationRow(
+                                icon = Icons.Default.FileDownload,
+                                title = s.backupToGoogleDriveNow,
+                                subtitle = s.backupToGoogleDriveNowSubtitle,
+                                onClick = {
+                                    if (backupManager != null) {
+                                        val jsonPayload = backupManager.exportJson(settings)
+                                        val now = currentEpochMillis()
+                                        exportLauncher("KumaLift_GoogleDrive_Backup_$now.json", jsonPayload)
+                                        settingsRepository.update { current ->
+                                            current.copy(
+                                                dataBackup = current.dataBackup.copy(
+                                                    lastBackupEpochMs = now
+                                                )
+                                            )
+                                        }
+                                    } else {
+                                        statusMessage = s.databaseRepoUnavailable
+                                    }
+                                }
+                            )
+                            SettingsDivider()
+                            SettingsNavigationRow(
+                                icon = Icons.Default.FileUpload,
+                                title = s.restoreFromGoogleDriveTitle,
+                                subtitle = s.restoreFromGoogleDriveSubtitle,
+                                onClick = {
+                                    importLauncher()
+                                }
+                            )
+                        }
+                    }
+                }
+
                 // Section 1: Backup & Restore Actions
                 item {
                     Text(

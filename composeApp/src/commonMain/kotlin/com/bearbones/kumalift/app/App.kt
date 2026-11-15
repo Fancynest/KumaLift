@@ -126,8 +126,17 @@ fun App() {
             theme = settings.appearance.theme,
             highContrast = settings.appearance.highContrast
         ) {
-            Scaffold(
-                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            if (!settings.profile.hasCompletedOnboarding) {
+                com.bearbones.kumalift.features.onboarding.OnboardingScreen(
+                    settingsRepository = settingsRepository,
+                    routineRepository = routineRepository,
+                    onComplete = {
+                        // Automatically flips hasCompletedOnboarding to true
+                    }
+                )
+            } else {
+                Scaffold(
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     // Bottom navigation bar is visible ONLY when no fullscreen overlay is active
                     if (navigator.currentOverlay == null) {
@@ -252,6 +261,7 @@ fun App() {
             }
         }
     }
+}
 }
 }
 

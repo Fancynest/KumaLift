@@ -31,8 +31,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -490,7 +492,7 @@ fun ActiveWorkoutLoggerScreen(
                                         } else {
                                             settings.logging.restTimerDefaultSec
                                         }
-                                        restTimer.start(durationSec)
+                                        restTimer.start(durationSec, we.exercise.name)
                                     }
                                 }
                             },
@@ -517,6 +519,21 @@ fun ActiveWorkoutLoggerScreen(
                             },
                             onUpdateNotes = { notes ->
                                 workoutRepository.updateExerciseNotes(we.id, notes)
+                            },
+                            onAddWarmupSets = {
+                                workoutRepository.addWarmupSetsToExercise(we.id)
+                            },
+                            onApplyProgression = { newWeight ->
+                                workoutRepository.applyProgressionToExercise(we.id, newWeight)
+                            },
+                            onToggleSuperset = {
+                                val nextSs = when (we.supersetGroupId) {
+                                    null -> "A"
+                                    "A" -> "B"
+                                    "B" -> null
+                                    else -> null
+                                }
+                                workoutRepository.updateExerciseSupersetGroup(we.id, nextSs)
                             }
                         )
                     }
@@ -786,11 +803,41 @@ fun ExerciseLoggingCard(
     onAddSet: () -> Unit,
     onRemoveLastSet: () -> Unit = {},
     onRemoveExercise: () -> Unit = {},
-    onUpdateNotes: (String) -> Unit = {}
+    onUpdateNotes: (String) -> Unit = {},
+    onAddWarmupSets: () -> Unit = {},
+    onApplyProgression: (Double) -> Unit = {},
+    onToggleSuperset: () -> Unit = {}
 ) {
     val exercise = workoutExercise.exercise
     val s = LocalStrings.current
     var showMenu by remember { mutableStateOf(false) }
+    var showPlateCalcModal by remember { mutableStateOf(false) }
+
+    val currentTopWeight = workoutExercise.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg ?: 60.0
+
+    if (showPlateCalcModal) {
+        PlateCalculatorDialog(
+            initialWeightKg = currentTopWeight,
+            unit = settings.units.weightUnit,
+            onDismiss = { showPlateCalcModal = false },
+            onConfirm = { calculatedWeight ->
+                val firstWorkingSet = workoutExercise.sets.firstOrNull { it.setType != SetType.WARMUP }
+                if (firstWorkingSet != null) {
+                    onUpdateSet(firstWorkingSet.id, calculatedWeight, firstWorkingSet.reps)
+                }
+                showPlateCalcModal = false
+            }
+        )
+    }
+
+    val progressionAdvice = remember(workoutExercise.sets, currentTopWeight, settings.profile.goal) {
+        com.bearbones.kumalift.domain.model.ProgressionAdvisor.advise(
+            exercise = exercise,
+            previousSets = workoutExercise.sets,
+            currentWeightKg = currentTopWeight,
+            trainingGoal = settings.profile.goal
+        )
+    }
 
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
@@ -798,6 +845,35 @@ fun ExerciseLoggingCard(
         cornerRadius = 18.dp
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            // Superset Group Header (if part of superset)
+            if (workoutExercise.supersetGroupId != null) {
+                Row(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(Color(0xFF06B6D4).copy(alpha = 0.15f))
+                        .border(1.dp, Color(0xFF06B6D4), PillShape)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF06B6D4))
+                    )
+                    Text(
+                        text = "SUPERSET ${workoutExercise.supersetGroupId}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF06B6D4),
+                            letterSpacing = 0.5.sp
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             // Exercise Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -844,6 +920,50 @@ fun ExerciseLoggingCard(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text(s.addWarmupSetsAction) },
+                            onClick = {
+                                showMenu = false
+                                onAddWarmupSets()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = LocalKumaColors.current.accentText
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(s.plateCalculatorTitle) },
+                            onClick = {
+                                showMenu = false
+                                showPlateCalcModal = true
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = Color(0xFF1E88E5)
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(if (workoutExercise.supersetGroupId != null) "Ubah/Lepas Superset" else "Gabung ke Superset")
+                            },
+                            onClick = {
+                                showMenu = false
+                                onToggleSuperset()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.SwapVert,
+                                    contentDescription = null,
+                                    tint = Color(0xFF06B6D4)
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text(s.removeExerciseAction, color = KumaColors.ErrorRed) },
                             onClick = {
                                 showMenu = false
@@ -856,6 +976,60 @@ fun ExerciseLoggingCard(
                                     tint = KumaColors.ErrorRed
                                 )
                             }
+                        )
+                    }
+                }
+            }
+
+            // Progression Overload Advisor Banner
+            if (progressionAdvice is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseWeight) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF10B981).copy(alpha = 0.12f))
+                        .border(1.dp, Color(0xFF10B981).copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("⚡", fontSize = 14.sp)
+                        Column {
+                            Text(
+                                text = s.progressionReady,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF10B981)
+                                )
+                            )
+                            Text(
+                                text = "+${progressionAdvice.deltaKg} kg (${progressionAdvice.details})",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = KumaColors.TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(Color(0xFF10B981))
+                            .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg) }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "Terapkan",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
                         )
                     }
                 }
@@ -1038,12 +1212,14 @@ fun SetRowItem(
     onSetTypeChange: (SetType) -> Unit,
     onRpeChange: (Double?) -> Unit
 ) {
+    val s = LocalStrings.current
     val bg = if (set.isCompleted) KumaColors.SurfaceContainer.copy(alpha = 0.5f) else KumaColors.SurfaceContainer
     val unit = settings.units.weightUnit
     val displayWeight = UnitConverters.toDisplayWeight(set.weightKg, unit)
 
     var showWeightDialog by remember { mutableStateOf(false) }
     var showRepsDialog by remember { mutableStateOf(false) }
+    var showTypeMenu by remember { mutableStateOf(false) }
 
     if (showWeightDialog) {
         WeightInputDialog(
@@ -1097,11 +1273,7 @@ fun SetRowItem(
         Box(
             modifier = Modifier
                 .width(36.dp)
-                .clickable {
-                    val currentIndex = enabledTypes.indexOf(set.setType)
-                    val nextType = enabledTypes[(if (currentIndex >= 0) currentIndex + 1 else 0) % enabledTypes.size]
-                    onSetTypeChange(nextType)
-                },
+                .clickable { showTypeMenu = true },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -1111,6 +1283,40 @@ fun SetRowItem(
                     color = typeColor
                 )
             )
+
+            DropdownMenu(
+                expanded = showTypeMenu,
+                onDismissRequest = { showTypeMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("${s.setTypeNormal} (${set.setNumber})") },
+                    onClick = {
+                        onSetTypeChange(SetType.NORMAL)
+                        showTypeMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("W · ${s.setTypeWarmup}", color = Color(0xFFF59E0B)) },
+                    onClick = {
+                        onSetTypeChange(SetType.WARMUP)
+                        showTypeMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("D · ${s.setTypeDrop}", color = Color(0xFFEC4899)) },
+                    onClick = {
+                        onSetTypeChange(SetType.DROP)
+                        showTypeMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("F · ${s.setTypeFailure}", color = Color(0xFFEF4444)) },
+                    onClick = {
+                        onSetTypeChange(SetType.FAILURE)
+                        showTypeMenu = false
+                    }
+                )
+            }
         }
 
         // Previous & Set Heart Rate (respects showPreviousColumn)
@@ -1273,6 +1479,19 @@ fun WeightInputDialog(
     } else ""
     var textValue by remember { mutableStateOf(initialStr) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showPlateCalcModal by remember { mutableStateOf(false) }
+
+    if (showPlateCalcModal) {
+        PlateCalculatorDialog(
+            initialWeightKg = textValue.toDoubleOrNull() ?: initialWeight,
+            unit = unit,
+            onDismiss = { showPlateCalcModal = false },
+            onConfirm = { calculatedWeight ->
+                textValue = calculatedWeight.toString().removeSuffix(".0")
+                showPlateCalcModal = false
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1352,6 +1571,34 @@ fun WeightInputDialog(
                             )
                         }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable { showPlateCalcModal = true }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = colors.accentText,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = s.plateCalculatorTitle,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentText
+                        )
+                    )
                 }
             }
         },

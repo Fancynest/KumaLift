@@ -8,8 +8,14 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.bearbones.kumalift.core.timer.AndroidAppProvider
 
 class KumaApplication : Application(), ImageLoaderFactory {
+    override fun onCreate() {
+        super.onCreate()
+        AndroidAppProvider.appContext = this
+    }
+
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .memoryCache {

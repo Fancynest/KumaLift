@@ -31,7 +31,22 @@ data class RestTimerState(
         }
 }
 
+object RestTimerCoordinator {
+    var activeRestTimer: RestTimer? = null
+
+    fun addSeconds(seconds: Int) {
+        activeRestTimer?.addSeconds(seconds)
+    }
+
+    fun skip() {
+        activeRestTimer?.stop()
+    }
+}
+
 expect fun playTimerCompletionFeedback()
+expect fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?)
+expect fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int)
+expect fun notifyRestTimerStopped()
 
 class RestTimer(private val scope: CoroutineScope) {
 
@@ -39,9 +54,10 @@ class RestTimer(private val scope: CoroutineScope) {
     val state: StateFlow<RestTimerState> = _state.asStateFlow()
 
     private var countdownJob: Job? = null
-    private var targetEndEpochMs: Long = 0L
+    var targetEndEpochMs: Long = 0L
+        private set
 
-    fun start(seconds: Int = 90) {
+    fun start(seconds: Int = 90, exerciseName: String? = null) {
         countdownJob?.cancel()
         val now = currentEpochMillis()
         targetEndEpochMs = now + seconds * 1000L
@@ -51,6 +67,9 @@ class RestTimer(private val scope: CoroutineScope) {
             isRunning = true,
             isFinished = false
         )
+
+        RestTimerCoordinator.activeRestTimer = this
+        notifyRestTimerStarted(targetEndEpochMs, seconds, exerciseName)
 
         countdownJob = scope.launch(Dispatchers.Default) {
             while (_state.value.isRunning) {
@@ -63,6 +82,10 @@ class RestTimer(private val scope: CoroutineScope) {
                         isRunning = false,
                         isFinished = true
                     )
+                    notifyRestTimerStopped()
+                    if (RestTimerCoordinator.activeRestTimer === this@RestTimer) {
+                        RestTimerCoordinator.activeRestTimer = null
+                    }
                     playTimerCompletionFeedback()
                     break
                 } else {
@@ -82,15 +105,24 @@ class RestTimer(private val scope: CoroutineScope) {
             remainingSeconds = newRemaining,
             isFinished = newRemaining <= 0
         )
+        notifyRestTimerUpdated(targetEndEpochMs, newRemaining)
     }
 
     fun stop() {
         countdownJob?.cancel()
         _state.value = _state.value.copy(isRunning = false)
+        notifyRestTimerStopped()
+        if (RestTimerCoordinator.activeRestTimer === this) {
+            RestTimerCoordinator.activeRestTimer = null
+        }
     }
 
     fun reset() {
         countdownJob?.cancel()
         _state.value = RestTimerState(isRunning = false, isFinished = false)
+        notifyRestTimerStopped()
+        if (RestTimerCoordinator.activeRestTimer === this) {
+            RestTimerCoordinator.activeRestTimer = null
+        }
     }
 }

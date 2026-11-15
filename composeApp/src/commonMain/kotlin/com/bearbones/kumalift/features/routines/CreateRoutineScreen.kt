@@ -38,6 +38,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -561,6 +565,9 @@ fun CreateRoutineScreen(
                                     onRestChange = { newRest ->
                                         selectedConfigs[index] = config.copy(restTimerSeconds = newRest)
                                     },
+                                    onSupersetChange = { newSs ->
+                                        selectedConfigs[index] = config.copy(supersetGroupId = newSs)
+                                    },
                                     onRemove = { selectedConfigs.removeAt(index) }
                                 )
                             }
@@ -628,14 +635,23 @@ private fun SelectedExerciseRow(
     onSetsChange: (Int) -> Unit,
     onRepsChange: (Int) -> Unit,
     onRestChange: (Int) -> Unit,
+    onSupersetChange: (String?) -> Unit,
     onRemove: () -> Unit
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     val exercise = config.exercise
 
+    var dragDelta by remember { mutableStateOf(0f) }
+
     KumaCard(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (config.supersetGroupId != null) {
+                    Modifier.border(1.5.dp, Color(0xFF06B6D4), RoundedCornerShape(14.dp))
+                } else Modifier
+            ),
         backgroundColor = KumaColors.SurfaceContainerLow,
         cornerRadius = 14.dp
     ) {
@@ -644,6 +660,40 @@ private fun SelectedExerciseRow(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Drag handle for smooth touch drag reordering
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .pointerInput(canMoveUp, canMoveDown) {
+                            detectVerticalDragGestures(
+                                onVerticalDrag = { change, amount ->
+                                    change.consume()
+                                    dragDelta += amount
+                                    if (dragDelta > 50f && canMoveDown) {
+                                        onMoveDown()
+                                        dragDelta = 0f
+                                    } else if (dragDelta < -50f && canMoveUp) {
+                                        onMoveUp()
+                                        dragDelta = 0f
+                                    }
+                                },
+                                onDragEnd = { dragDelta = 0f },
+                                onDragCancel = { dragDelta = 0f }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapVert,
+                        contentDescription = "Drag to reorder",
+                        tint = colors.textSecondary.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(4.dp))
+
                 // Index number
                 Box(
                     modifier = Modifier
@@ -679,17 +729,52 @@ private fun SelectedExerciseRow(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Title & Muscle
+                // Title, Muscle & Superset Toggle
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = exercise.name,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textPrimary
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = exercise.name,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        // Superset Pill Toggle
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(
+                                    if (config.supersetGroupId != null) Color(0xFF06B6D4).copy(alpha = 0.2f)
+                                    else KumaColors.SurfaceContainer
+                                )
+                                .clickable {
+                                    val nextSs = when (config.supersetGroupId) {
+                                        null -> "A"
+                                        "A" -> "B"
+                                        "B" -> null
+                                        else -> null
+                                    }
+                                    onSupersetChange(nextSs)
+                                }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (config.supersetGroupId != null) "SS ${config.supersetGroupId}" else "+ SS",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (config.supersetGroupId != null) Color(0xFF06B6D4) else KumaColors.TextMuted
+                                )
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = exercise.localizedMuscleSubtitle(s),
@@ -700,7 +785,7 @@ private fun SelectedExerciseRow(
                     )
                 }
 
-                // Reorder buttons (Up & Down)
+                // Reorder buttons (Up & Down) + Remove button
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onMoveUp,

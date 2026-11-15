@@ -730,6 +730,66 @@ class WorkoutRepository(
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 
+    fun addWarmupSetsToExercise(exerciseId: String) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    val workingWeight = we.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg
+                        ?: we.exercise.currentPrWeightKg ?: 60.0
+                    val barWeight = if (we.exercise.equipment == Equipment.DUMBBELL) 0.0 else 20.0
+                    val warmupSets = com.bearbones.kumalift.domain.model.WarmupSetCalculator.generateWarmupSets(
+                        workingWeightKg = workingWeight,
+                        barWeightKg = barWeight,
+                        weightStepKg = we.exercise.defaultIncrementKg
+                    )
+                    val existingNonWarmup = we.sets.filterNot { it.setType == SetType.WARMUP }
+                    val combined = (warmupSets + existingNonWarmup).mapIndexed { idx, s ->
+                        s.copy(setNumber = idx + 1)
+                    }
+                    we.copy(sets = combined)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun updateExerciseSupersetGroup(exerciseId: String, supersetGroupId: String?) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) we.copy(supersetGroupId = supersetGroupId) else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun applyProgressionToExercise(exerciseId: String, newWeightKg: Double) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    val updatedSets = we.sets.map { s ->
+                        if (s.setType != SetType.WARMUP) {
+                            s.copy(weightKg = newWeightKg, targetWeightKg = newWeightKg)
+                        } else s
+                    }
+                    we.copy(sets = updatedSets)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
     fun pauseWorkout() {
         val current = _activeWorkout.value ?: return
         if (current.isPaused) return

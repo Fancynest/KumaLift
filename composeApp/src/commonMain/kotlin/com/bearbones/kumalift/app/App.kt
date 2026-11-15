@@ -1,6 +1,5 @@
 package com.bearbones.kumalift.app
 
-import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,14 +28,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,17 +66,6 @@ import com.bearbones.kumalift.features.routines.RoutinesScreen
 import com.bearbones.kumalift.features.settings.SettingsScreen
 import com.bearbones.kumalift.features.summary.WorkoutSummaryScreen
 
-enum class Screen {
-    HOME,
-    ROUTINES,
-    LIBRARY,
-    PROGRESS,
-    ME,
-    ACTIVE_LOGGER,
-    SUMMARY,
-    SETTINGS
-}
-
 @Composable
 fun App() {
     val databaseRepo = rememberDatabaseRepository()
@@ -107,79 +90,25 @@ fun App() {
         )
     }
 
-    val mainTabs = remember { listOf(Screen.HOME, Screen.ROUTINES, Screen.LIBRARY, Screen.PROGRESS, Screen.ME) }
-    val pagerState = rememberPagerState(initialPage = 0) { mainTabs.size }
     val coroutineScope = rememberCoroutineScope()
+    val navigator = rememberAppNavigator()
+    val saveableStateHolder = rememberSaveableStateHolder()
 
+    // Hoisted states surviving navigation across tabs and process recreation
     val libraryFilterState = rememberLibraryFilterState()
     val libraryListState = rememberLazyListState()
     val routinesListState = rememberLazyListState()
     val progressListState = rememberLazyListState()
 
-    val screenStack = remember { mutableStateListOf(Screen.HOME) }
-    val currentScreen = screenStack.lastOrNull() ?: Screen.HOME
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
     val isEnglish = resolveIsEnglish(settings.appearance.language)
 
-    fun navigateTo(screen: Screen) {
-        if (screen in mainTabs) {
-            val targetIndex = mainTabs.indexOf(screen)
-            if (targetIndex >= 0) {
-                coroutineScope.launch {
-                    pagerState.animateScrollToPage(targetIndex)
-                }
-            }
-            while (screenStack.size > 1 && screenStack.last() !in mainTabs) {
-                screenStack.removeAt(screenStack.lastIndex)
-            }
-            if (screenStack.isNotEmpty() && screenStack.last() in mainTabs) {
-                screenStack[screenStack.lastIndex] = screen
-            } else {
-                screenStack.add(screen)
-            }
-        } else {
-            screenStack.add(screen)
-        }
-    }
-
-    fun popScreen() {
-        if (screenStack.size > 1) {
-            screenStack.removeAt(screenStack.lastIndex)
-        } else if (pagerState.currentPage > 0) {
-            coroutineScope.launch { pagerState.animateScrollToPage(0) }
-            if (screenStack.isNotEmpty()) {
-                screenStack[0] = Screen.HOME
-            }
-        }
-    }
-
-    // Sync pager swipe with currentScreen state
-    LaunchedEffect(pagerState.currentPage) {
-        val tab = mainTabs[pagerState.currentPage]
-        if (currentScreen in mainTabs && currentScreen != tab) {
-            if (screenStack.isNotEmpty() && screenStack.last() in mainTabs) {
-                screenStack[screenStack.lastIndex] = tab
-            } else {
-                screenStack.add(tab)
-            }
-        }
-    }
-
-    // Sync programmatic navigation with pager state
-    LaunchedEffect(currentScreen) {
-        if (currentScreen in mainTabs) {
-            val targetIndex = mainTabs.indexOf(currentScreen)
-            if (targetIndex >= 0 && pagerState.currentPage != targetIndex) {
-                pagerState.scrollToPage(targetIndex)
-            }
-        }
-    }
-
-    // T10 & Point 12: Handle back navigation at root level with proper navigation stack
-    val isRootHomeScreen = (currentScreen == Screen.HOME && pagerState.currentPage == 0 && screenStack.size <= 1)
-    KumaBackHandler(enabled = !isRootHomeScreen) {
-        popScreen()
+    // Root back handler: Screen-specific sub-navigation handlers (e.g. ExerciseDetail,
+    // CreateExercise, Settings sub-menus) register their own KumaBackHandler inside their
+    // respective composables, which takes priority because they are deeper in the composition tree.
+    KumaBackHandler(enabled = navigator.overlays.isNotEmpty() || navigator.selectedTab != Tab.HOME) {
+        navigator.back()
     }
 
     KumaLiftTheme(
@@ -189,17 +118,28 @@ fun App() {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
-                // Show bottom navigation bar only on main screens (not inside fullscreen active logger, summary, or settings)
-                if (currentScreen != Screen.ACTIVE_LOGGER && currentScreen != Screen.SUMMARY && currentScreen != Screen.SETTINGS) {
-                    val activeTab = if (currentScreen in mainTabs) mainTabs[pagerState.currentPage] else currentScreen
+                // Bottom navigation bar is visible ONLY when no fullscreen overlay is active
+                if (navigator.currentOverlay == null) {
                     KumaBottomNavigation(
-                        currentScreen = activeTab,
+                        selectedTab = navigator.selectedTab,
                         hasActiveWorkout = activeWorkout != null,
                         isEnglish = isEnglish,
-                        onTabSelected = { targetScreen ->
-                            navigateTo(targetScreen)
+                        onTabSelected = { targetTab ->
+                            if (navigator.selectedTab == targetTab) {
+                                // Tapping current tab again: scroll its list to top (never resets filters)
+                                when (targetTab) {
+                                    Tab.ROUTINES -> coroutineScope.launch { routinesListState.animateScrollToItem(0) }
+                                    Tab.LIBRARY -> coroutineScope.launch { libraryListState.animateScrollToItem(0) }
+                                    Tab.PROGRESS -> coroutineScope.launch { progressListState.animateScrollToItem(0) }
+                                    else -> Unit
+                                }
+                            } else {
+                                navigator.selectTab(targetTab)
+                            }
                         },
-                        onActiveLoggerClick = { navigateTo(Screen.ACTIVE_LOGGER) }
+                        onActiveLoggerClick = {
+                            navigator.push(Overlay.ActiveLogger)
+                        }
                     )
                 }
             }
@@ -209,104 +149,93 @@ fun App() {
                     .fillMaxSize()
                     .padding(bottom = paddingValues.calculateBottomPadding())
             ) {
-                when (currentScreen) {
-                    Screen.ACTIVE_LOGGER -> {
+                // Tab content wrapped in SaveableStateProvider so each tab retains scroll and filters
+                saveableStateHolder.SaveableStateProvider(navigator.selectedTab) {
+                    when (navigator.selectedTab) {
+                        Tab.HOME -> HomeScreen(
+                            workoutRepository = workoutRepository,
+                            settingsRepository = settingsRepository,
+                            routineRepository = routineRepository,
+                            personalRecordRepository = personalRecordRepository,
+                            onStartWorkout = { navigator.push(Overlay.ActiveLogger) },
+                            onStartFreestyle = { navigator.push(Overlay.ActiveLogger) },
+                            onOpenSettings = { navigator.push(Overlay.Settings) }
+                        )
+                        Tab.ROUTINES -> RoutinesScreen(
+                            routineRepository = routineRepository,
+                            workoutRepository = workoutRepository,
+                            exerciseRepository = exerciseRepository,
+                            settingsRepository = settingsRepository,
+                            listState = routinesListState,
+                            onStartRoutine = { navigator.push(Overlay.ActiveLogger) }
+                        )
+                        Tab.LIBRARY -> ExerciseLibraryScreen(
+                            exerciseRepository = exerciseRepository,
+                            workoutRepository = workoutRepository,
+                            settingsRepository = settingsRepository,
+                            filterState = libraryFilterState,
+                            listState = libraryListState,
+                            onExerciseSelected = {
+                                if (activeWorkout != null) {
+                                    navigator.push(Overlay.ActiveLogger)
+                                }
+                            }
+                        )
+                        Tab.PROGRESS -> ProgressAnalyticsScreen(
+                            personalRecordRepository = personalRecordRepository,
+                            settingsRepository = settingsRepository,
+                            workoutRepository = workoutRepository,
+                            listState = progressListState
+                        )
+                        Tab.ME -> MeScreen(
+                            workoutRepository = workoutRepository,
+                            settingsRepository = settingsRepository,
+                            personalRecordRepository = personalRecordRepository,
+                            onNavigateToSettings = { navigator.push(Overlay.Settings) },
+                            onNavigateToProgress = { navigator.selectTab(Tab.PROGRESS) },
+                            onNavigateToLibrary = { navigator.selectTab(Tab.LIBRARY) },
+                            onNavigateToRoutines = { navigator.selectTab(Tab.ROUTINES) },
+                            onStartWorkout = { navigator.push(Overlay.ActiveLogger) }
+                        )
+                    }
+                }
+
+                // Fullscreen overlays rendered above tab content
+                when (navigator.currentOverlay) {
+                    is Overlay.ActiveLogger -> {
                         ActiveWorkoutLoggerScreen(
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
-                            onNavigateBack = { popScreen() },
+                            onNavigateBack = { navigator.back() },
                             onFinishWorkout = {
-                                if (screenStack.isNotEmpty()) screenStack.removeAt(screenStack.lastIndex)
-                                screenStack.add(Screen.SUMMARY)
+                                navigator.popOverlay()
+                                navigator.push(Overlay.Summary)
                             },
                             onAddExerciseClick = {
-                                navigateTo(Screen.LIBRARY)
+                                navigator.popOverlay()
+                                navigator.selectTab(Tab.LIBRARY)
                             }
                         )
                     }
-                    Screen.SUMMARY -> {
+                    is Overlay.Summary -> {
                         WorkoutSummaryScreen(
                             workout = activeWorkout,
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
                             onSaveAndClose = {
-                                screenStack.clear()
-                                screenStack.add(Screen.HOME)
-                                coroutineScope.launch {
-                                    pagerState.scrollToPage(0)
-                                }
+                                navigator.selectTab(Tab.HOME)
                             }
                         )
                     }
-                    Screen.SETTINGS -> {
+                    is Overlay.Settings -> {
                         SettingsScreen(
                             settingsRepository = settingsRepository,
                             databaseRepo = databaseRepo,
                             workoutRepository = workoutRepository,
-                            onNavigateBack = { popScreen() }
+                            onNavigateBack = { navigator.back() }
                         )
                     }
-                    else -> {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            when (mainTabs[page]) {
-                                Screen.HOME -> HomeScreen(
-                                    workoutRepository = workoutRepository,
-                                    settingsRepository = settingsRepository,
-                                    routineRepository = routineRepository,
-                                    personalRecordRepository = personalRecordRepository,
-                                    onStartWorkout = { navigateTo(Screen.ACTIVE_LOGGER) },
-                                    onStartFreestyle = { navigateTo(Screen.ACTIVE_LOGGER) },
-                                    onOpenSettings = { navigateTo(Screen.SETTINGS) }
-                                )
-                                Screen.ROUTINES -> RoutinesScreen(
-                                    routineRepository = routineRepository,
-                                    workoutRepository = workoutRepository,
-                                    exerciseRepository = exerciseRepository,
-                                    settingsRepository = settingsRepository,
-                                    listState = routinesListState,
-                                    onStartRoutine = { navigateTo(Screen.ACTIVE_LOGGER) }
-                                )
-                                Screen.LIBRARY -> ExerciseLibraryScreen(
-                                    exerciseRepository = exerciseRepository,
-                                    workoutRepository = workoutRepository,
-                                    settingsRepository = settingsRepository,
-                                    filterState = libraryFilterState,
-                                    listState = libraryListState,
-                                    onExerciseSelected = {
-                                        if (activeWorkout != null) {
-                                            popScreen()
-                                        }
-                                    }
-                                )
-                                Screen.PROGRESS -> ProgressAnalyticsScreen(
-                                    personalRecordRepository = personalRecordRepository,
-                                    settingsRepository = settingsRepository,
-                                    workoutRepository = workoutRepository,
-                                    listState = progressListState
-                                )
-                                Screen.ME -> MeScreen(
-                                    workoutRepository = workoutRepository,
-                                    settingsRepository = settingsRepository,
-                                    personalRecordRepository = personalRecordRepository,
-                                    onNavigateToSettings = { navigateTo(Screen.SETTINGS) },
-                                    onNavigateToProgress = {
-                                        navigateTo(Screen.PROGRESS)
-                                    },
-                                    onNavigateToLibrary = {
-                                        navigateTo(Screen.LIBRARY)
-                                    },
-                                    onNavigateToRoutines = {
-                                        navigateTo(Screen.ROUTINES)
-                                    },
-                                    onStartWorkout = { navigateTo(Screen.ACTIVE_LOGGER) }
-                                )
-                                else -> Unit
-                            }
-                        }
-                    }
+                    null -> Unit
                 }
             }
         }
@@ -315,10 +244,10 @@ fun App() {
 
 @Composable
 fun KumaBottomNavigation(
-    currentScreen: Screen,
+    selectedTab: Tab,
     hasActiveWorkout: Boolean,
     isEnglish: Boolean = false,
-    onTabSelected: (Screen) -> Unit,
+    onTabSelected: (Tab) -> Unit,
     onActiveLoggerClick: () -> Unit
 ) {
     Column(
@@ -385,32 +314,32 @@ fun KumaBottomNavigation(
             NavItem(
                 icon = Icons.Default.Home,
                 label = if (isEnglish) "Home" else "Beranda",
-                isSelected = currentScreen == Screen.HOME,
-                onClick = { onTabSelected(Screen.HOME) }
+                isSelected = selectedTab == Tab.HOME,
+                onClick = { onTabSelected(Tab.HOME) }
             )
             NavItem(
                 icon = Icons.Default.FitnessCenter,
                 label = if (isEnglish) "Workouts" else "Latihan",
-                isSelected = currentScreen == Screen.ROUTINES,
-                onClick = { onTabSelected(Screen.ROUTINES) }
+                isSelected = selectedTab == Tab.ROUTINES,
+                onClick = { onTabSelected(Tab.ROUTINES) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.MenuBook,
                 label = if (isEnglish) "Exercises" else "Gerakan",
-                isSelected = currentScreen == Screen.LIBRARY,
-                onClick = { onTabSelected(Screen.LIBRARY) }
+                isSelected = selectedTab == Tab.LIBRARY,
+                onClick = { onTabSelected(Tab.LIBRARY) }
             )
             NavItem(
                 icon = Icons.AutoMirrored.Filled.ShowChart,
                 label = if (isEnglish) "Progress" else "Progres",
-                isSelected = currentScreen == Screen.PROGRESS,
-                onClick = { onTabSelected(Screen.PROGRESS) }
+                isSelected = selectedTab == Tab.PROGRESS,
+                onClick = { onTabSelected(Tab.PROGRESS) }
             )
             NavItem(
                 icon = Icons.Default.Person,
                 label = if (isEnglish) "Profile" else "Profil",
-                isSelected = currentScreen == Screen.ME,
-                onClick = { onTabSelected(Screen.ME) }
+                isSelected = selectedTab == Tab.ME,
+                onClick = { onTabSelected(Tab.ME) }
             )
         }
     }

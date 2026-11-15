@@ -40,3 +40,9 @@ assets/keystore*
 
 # Upscaled sprite sheets (derivative works of Gym visual, generated locally via tools/upscale_gifs.py)
 composeApp/src/androidMain/assets/anim/*.webp
+
+# Documentation QA test renders
+documentation/qa_renders/
+
+__pycache__/
+*.pyc

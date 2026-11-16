@@ -16,7 +16,20 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -38,8 +51,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
@@ -654,6 +665,7 @@ fun PrevInputDialog(
 @Composable
 fun CustomRestTimerDialog(
     initialSeconds: Int,
+    title: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
@@ -673,7 +685,7 @@ fun CustomRestTimerDialog(
         containerColor = KumaColors.SurfaceContainerLow,
         title = {
             Text(
-                text = s.customRestTimerTitle,
+                text = title ?: s.customRestTimerTitle,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -807,6 +819,359 @@ fun CustomRestTimerDialog(
             Button(
                 onClick = {
                     onConfirm(totalSeconds.coerceIn(5, 1800))
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.onAccentFill
+                )
+            ) {
+                Text(s.setTimerButton, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ExerciseRestTimerDialog(
+    exerciseName: String,
+    initialExerciseSeconds: Int,
+    sets: List<Triple<String, Int, Int>>, // id, setNumber, reps
+    initialSetTimers: Map<String, Int?> = emptyMap(),
+    onDismiss: () -> Unit,
+    onConfirm: (exerciseSeconds: Int, perSetTimers: Map<String, Int?>) -> Unit
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+
+    var selectedTab by remember { mutableStateOf(0) } // 0 = All Sets, 1 = Per Set
+    val baseSec = initialExerciseSeconds.coerceAtLeast(15)
+    var globalSeconds by remember { mutableStateOf(baseSec) }
+    val setTimerMap = remember {
+        mutableStateOf(
+            sets.associate { (id, _, _) ->
+                id to (initialSetTimers[id] ?: baseSec)
+            }.toMutableMap()
+        )
+    }
+
+    val presets = listOf(30, 45, 60, 90, 120, 150, 180, 240, 300)
+    var activeEditingSetId by remember { mutableStateOf(sets.firstOrNull()?.first ?: "") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.imePadding(),
+        containerColor = KumaColors.SurfaceContainerLow,
+        title = {
+            Column {
+                Text(
+                    text = s.customRestTimerTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+                Text(
+                    text = exerciseName,
+                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Segmented Tabs: [ Semua Set ] | [ Tiap Set / Reps ]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .padding(3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selectedTab == 0) colors.accentFill else KumaColors.SurfaceContainer)
+                            .clickable { selectedTab = 0 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = s.restTimerAllSetsTab,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedTab == 0) colors.onAccentFill else colors.textPrimary
+                            )
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selectedTab == 1) colors.accentFill else KumaColors.SurfaceContainer)
+                            .clickable { selectedTab = 1 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = s.restTimerPerSetTab,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedTab == 1) colors.onAccentFill else colors.textPrimary
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (selectedTab == 0) {
+                    // ALL SETS MODE
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .padding(vertical = 14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = s.secondsRestLabel(globalSeconds),
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colors.accentText
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        presets.forEach { secPreset ->
+                            val isSelected = globalSeconds == secPreset
+                            Box(
+                                modifier = Modifier
+                                    .clip(PillShape)
+                                    .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
+                                    .clickable {
+                                        globalSeconds = secPreset
+                                        // update all per-set maps as well
+                                        sets.forEach { (id, _, _) -> setTimerMap.value[id] = secPreset }
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = s.secondsShort(secPreset),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) colors.onAccentFill else colors.textPrimary
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // PER SET / REPS MODE
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        sets.forEach { (setId, setNum, reps) ->
+                            val currentSec = setTimerMap.value[setId] ?: globalSeconds
+                            val isEditingThis = activeEditingSetId == setId
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(KumaColors.SurfaceContainer)
+                                    .border(
+                                        width = if (isEditingThis) 1.5.dp else 0.dp,
+                                        color = if (isEditingThis) colors.accentFill else KumaColors.BorderDefault,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable { activeEditingSetId = setId }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(PillShape)
+                                                .background(if (isEditingThis) colors.accentFill else KumaColors.SurfaceContainerHigh),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "$setNum",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = if (isEditingThis) colors.onAccentFill else colors.textPrimary
+                                                )
+                                            )
+                                        }
+                                        Text(
+                                            text = s.setRepsTimerLabel(setNum, reps),
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        // -15s
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(KumaColors.SurfaceContainerHigh)
+                                                .clickable {
+                                                    val newSec = (currentSec - 15).coerceAtLeast(15)
+                                                    val map = setTimerMap.value.toMutableMap()
+                                                    map[setId] = newSec
+                                                    setTimerMap.value = map
+                                                    activeEditingSetId = setId
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Remove,
+                                                contentDescription = null,
+                                                tint = colors.textSecondary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+
+                                        // Seconds Pill
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(PillShape)
+                                                .background(if (isEditingThis) colors.accentFill.copy(alpha = 0.2f) else KumaColors.SurfaceContainerHigh)
+                                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Timer,
+                                                    contentDescription = null,
+                                                    tint = colors.accentText,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                                Text(
+                                                    text = s.secondsShort(currentSec),
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = colors.accentText
+                                                    )
+                                                )
+                                            }
+                                        }
+
+                                        // +15s
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(KumaColors.SurfaceContainerHigh)
+                                                .clickable {
+                                                    val newSec = (currentSec + 15).coerceAtMost(600)
+                                                    val map = setTimerMap.value.toMutableMap()
+                                                    map[setId] = newSec
+                                                    setTimerMap.value = map
+                                                    activeEditingSetId = setId
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                tint = colors.textSecondary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Presets bar for active editing set
+                        if (activeEditingSetId.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                presets.take(6).forEach { secPreset ->
+                                    val currentSec = setTimerMap.value[activeEditingSetId] ?: globalSeconds
+                                    val isSelected = currentSec == secPreset
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
+                                            .clickable {
+                                                val map = setTimerMap.value.toMutableMap()
+                                                map[activeEditingSetId] = secPreset
+                                                setTimerMap.value = map
+                                            }
+                                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = s.secondsShort(secPreset),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) colors.onAccentFill else colors.textPrimary,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalMap = if (selectedTab == 0) {
+                        sets.associate { (id, _, _) -> id to globalSeconds }
+                    } else {
+                        setTimerMap.value
+                    }
+                    onConfirm(globalSeconds.coerceIn(5, 1800), finalMap)
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentFill,

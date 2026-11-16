@@ -483,15 +483,19 @@ fun ActiveWorkoutLoggerScreen(
                                 ) { completed ->
                                     if (completed && settings.logging.restTimerAutoStart) {
                                         showRestTimerBar = true
-                                        val durationSec = if (settings.logging.restTimerSeparateByType) {
-                                            if (we.exercise.movementType == MovementType.COMPOUND) {
-                                                settings.logging.restTimerCompoundSec
+                                        val completedSet = we.sets.firstOrNull { it.id == setId }
+                                        val durationSec = completedSet?.restTimerSeconds
+                                            ?: if (we.restTimerSeconds > 0) {
+                                                we.restTimerSeconds
+                                            } else if (settings.logging.restTimerSeparateByType) {
+                                                if (we.exercise.movementType == MovementType.COMPOUND) {
+                                                    settings.logging.restTimerCompoundSec
+                                                } else {
+                                                    settings.logging.restTimerIsolationSec
+                                                }
                                             } else {
-                                                settings.logging.restTimerIsolationSec
+                                                settings.logging.restTimerDefaultSec
                                             }
-                                        } else {
-                                            settings.logging.restTimerDefaultSec
-                                        }
                                         restTimer.start(durationSec, we.exercise.name)
                                     }
                                 }
@@ -510,6 +514,12 @@ fun ActiveWorkoutLoggerScreen(
                             },
                             onUpdateRestTimer = { newRest ->
                                 workoutRepository.updateExerciseRestTimer(we.id, newRest)
+                            },
+                            onUpdateAllSetsRestTimers = { newRest, perSetTimers ->
+                                workoutRepository.updateAllSetsRestTimers(we.id, newRest, perSetTimers)
+                            },
+                            onUpdateSetRestTimer = { setId, restSec ->
+                                workoutRepository.updateSetRestTimer(we.id, setId, restSec)
                             },
                             onAddSet = {
                                 workoutRepository.addSetToExercise(we.id)
@@ -812,6 +822,8 @@ fun ExerciseLoggingCard(
     onUpdateSetRpe: (String, Double?) -> Unit,
     onUpdateSetPrevious: (String, Double?, Int?) -> Unit = { _, _, _ -> },
     onUpdateRestTimer: (Int) -> Unit = {},
+    onUpdateAllSetsRestTimers: (Int, Map<String, Int?>) -> Unit = { _, _ -> },
+    onUpdateSetRestTimer: (String, Int?) -> Unit = { _, _ -> },
     onAddSet: () -> Unit,
     onRemoveLastSet: () -> Unit = {},
     onRemoveExercise: () -> Unit = {},
@@ -827,11 +839,14 @@ fun ExerciseLoggingCard(
     var showRestTimerModal by remember { mutableStateOf(false) }
 
     if (showRestTimerModal) {
-        CustomRestTimerDialog(
-            initialSeconds = workoutExercise.restTimerSeconds,
+        ExerciseRestTimerDialog(
+            exerciseName = workoutExercise.exercise.name,
+            initialExerciseSeconds = workoutExercise.restTimerSeconds,
+            sets = workoutExercise.sets.map { Triple(it.id, it.setNumber, it.reps) },
+            initialSetTimers = workoutExercise.sets.associate { it.id to (it.restTimerSeconds ?: workoutExercise.restTimerSeconds) },
             onDismiss = { showRestTimerModal = false },
-            onConfirm = { newSec ->
-                onUpdateRestTimer(newSec)
+            onConfirm = { exerciseSec, perSetTimers ->
+                onUpdateAllSetsRestTimers(exerciseSec, perSetTimers)
                 showRestTimerModal = false
             }
         )
@@ -978,7 +993,12 @@ fun ExerciseLoggingCard(
                                 showRestTimerModal = true
                             },
                             leadingIcon = {
-                                Text("⏱", fontSize = 16.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Timer,
+                                    contentDescription = null,
+                                    tint = LocalKumaColors.current.warning,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         )
                         DropdownMenuItem(
@@ -1144,7 +1164,8 @@ fun ExerciseLoggingCard(
                     onRepsChange = { newReps -> onUpdateSet(set.id, set.weightKg, newReps) },
                     onSetTypeChange = { newType -> onUpdateSetType(set.id, newType) },
                     onRpeChange = { newRpe -> onUpdateSetRpe(set.id, newRpe) },
-                    onPreviousChange = { prevW, prevR -> onUpdateSetPrevious(set.id, prevW, prevR) }
+                    onPreviousChange = { prevW, prevR -> onUpdateSetPrevious(set.id, prevW, prevR) },
+                    onRestTimerChange = { newRest -> onUpdateSetRestTimer(set.id, newRest) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -1251,7 +1272,8 @@ fun SetRowItem(
     onRepsChange: (Int) -> Unit,
     onSetTypeChange: (SetType) -> Unit,
     onRpeChange: (Double?) -> Unit,
-    onPreviousChange: (Double?, Int?) -> Unit = { _, _ -> }
+    onPreviousChange: (Double?, Int?) -> Unit = { _, _ -> },
+    onRestTimerChange: (Int?) -> Unit = {}
 ) {
     val s = LocalStrings.current
     val bg = if (set.isCompleted) KumaColors.SurfaceContainer.copy(alpha = 0.5f) else KumaColors.SurfaceContainer
@@ -1263,6 +1285,19 @@ fun SetRowItem(
     var showTypeMenu by remember { mutableStateOf(false) }
     var showPrevDialog by remember { mutableStateOf(false) }
     var showRpeDialog by remember { mutableStateOf(false) }
+    var showRestTimerDialog by remember { mutableStateOf(false) }
+
+    if (showRestTimerDialog) {
+        CustomRestTimerDialog(
+            initialSeconds = set.restTimerSeconds ?: 90,
+            title = s.setRestTimerTitleWithNumber(set.setNumber),
+            onDismiss = { showRestTimerDialog = false },
+            onConfirm = { newSec ->
+                onRestTimerChange(newSec)
+                showRestTimerDialog = false
+            }
+        )
+    }
 
     if (showPrevDialog) {
         PrevInputDialog(
@@ -1343,13 +1378,25 @@ fun SetRowItem(
                 .clickable { showTypeMenu = true },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    color = typeColor
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        color = typeColor
+                    )
                 )
-            )
+                if (set.restTimerSeconds != null) {
+                    Text(
+                        text = s.timerBadgeSeconds(set.restTimerSeconds),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = LocalKumaColors.current.warning
+                        )
+                    )
+                }
+            }
 
             DropdownMenu(
                 expanded = showTypeMenu,
@@ -1381,6 +1428,21 @@ fun SetRowItem(
                     onClick = {
                         onSetTypeChange(SetType.FAILURE)
                         showTypeMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(s.setRestTimerMenuLabel(set.setNumber), style = MaterialTheme.typography.bodyMedium) },
+                    onClick = {
+                        showTypeMenu = false
+                        showRestTimerDialog = true
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = LocalKumaColors.current.warning,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 )
             }

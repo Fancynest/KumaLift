@@ -40,7 +40,8 @@ data class RoutineSetConfig(
     val targetRpe: Double? = null,
     val previousWeightKg: Double? = null,
     val previousReps: Int? = null,
-    val previousPerformance: String? = null
+    val previousPerformance: String? = null,
+    val restTimerSeconds: Int? = null
 )
 
 @Serializable
@@ -65,7 +66,8 @@ data class RoutineExerciseConfig(
                     targetRpe = null,
                     previousWeightKg = null,
                     previousReps = null,
-                    previousPerformance = null
+                    previousPerformance = null,
+                    restTimerSeconds = restTimerSeconds
                 )
             }
         }

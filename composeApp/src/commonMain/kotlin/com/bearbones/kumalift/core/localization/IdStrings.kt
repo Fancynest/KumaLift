@@ -866,6 +866,13 @@ object IdStrings : AppStrings {
     override val customRestTimerMinutes = "Menit"
     override val customRestTimerSeconds = "Detik"
     override val deleteSetAction = "Hapus Set"
+    override val restTimerAllSetsTab = "Semua Set"
+    override val restTimerPerSetTab = "Tiap Set / Reps"
+    override fun setRestTimerMenuLabel(setNum: Int) = "Atur Timer Set $setNum"
+    override fun setRestTimerTitleWithNumber(setNum: Int) = "Timer Set $setNum"
+    override val applyToAllSetsPrompt = "Terapkan ke semua set"
+    override fun setRepsTimerLabel(setNum: Int, reps: Int) = "Set $setNum ($reps Repetisi)"
+    override fun timerBadgeSeconds(sec: Int) = "${sec}dtk"
 
     override val backupErrorFolderNotConfigured = "Folder pencadangan belum dikonfigurasi. Silakan pilih folder di Pengaturan."
     override val backupErrorFolderInaccessible = "Folder pencadangan tidak dapat diakses. Silakan pilih ulang folder di Pengaturan."

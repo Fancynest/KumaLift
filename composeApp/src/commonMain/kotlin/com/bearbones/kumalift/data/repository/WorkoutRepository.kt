@@ -432,7 +432,8 @@ class WorkoutRepository(
                     targetWeightKg = targetWeight,
                     targetReps = targetReps,
                     previousWeightKg = prevWeight,
-                    previousReps = prevReps
+                    previousReps = prevReps,
+                    restTimerSeconds = setConfig.restTimerSeconds
                 )
             }
             WorkoutExercise(
@@ -650,6 +651,43 @@ class WorkoutRepository(
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 
+    fun updateSetRestTimer(exerciseId: String, setId: String, restTimerSeconds: Int?) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    val updatedSets = we.sets.map { set ->
+                        if (set.id == setId) set.copy(restTimerSeconds = restTimerSeconds) else set
+                    }
+                    we.copy(sets = updatedSets)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun updateAllSetsRestTimers(exerciseId: String, exerciseRestSeconds: Int, setTimers: Map<String, Int?>) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    val updatedSets = we.sets.map { set ->
+                        val specific = setTimers[set.id]
+                        set.copy(restTimerSeconds = specific)
+                    }
+                    we.copy(restTimerSeconds = exerciseRestSeconds, sets = updatedSets)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
     fun addSetToExercise(exerciseId: String) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
@@ -667,7 +705,8 @@ class WorkoutRepository(
                         reps = lastSet?.reps ?: 10,
                         isCompleted = false,
                         previousWeightKg = lastSet?.weightKg,
-                        previousReps = lastSet?.reps
+                        previousReps = lastSet?.reps,
+                        restTimerSeconds = lastSet?.restTimerSeconds ?: we.restTimerSeconds
                     )
                     we.copy(sets = we.sets + newSet)
                 } else we

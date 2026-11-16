@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -92,6 +93,7 @@ import com.bearbones.kumalift.domain.model.localizedSplitCategory
 import com.bearbones.kumalift.domain.model.RoutineSetConfig
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.features.logger.CustomRestTimerDialog
+import com.bearbones.kumalift.features.logger.ExerciseRestTimerDialog
 import com.bearbones.kumalift.features.logger.PrevInputDialog
 import com.bearbones.kumalift.features.logger.RepsInputDialog
 import com.bearbones.kumalift.features.logger.RpePickerDialog
@@ -808,6 +810,7 @@ private fun SelectedExerciseRow(
     var showRepsDialogForSet by remember { mutableStateOf(false) }
     var showRpeDialogForSet by remember { mutableStateOf(false) }
     var showPrevDialogForSet by remember { mutableStateOf(false) }
+    var showSetRestTimerDialog by remember { mutableStateOf(false) }
     var showCustomRestTimerDialog by remember { mutableStateOf(false) }
 
     // Weight Dialog
@@ -896,13 +899,45 @@ private fun SelectedExerciseRow(
         )
     }
 
-    // Custom Rest Timer Dialog
-    if (showCustomRestTimerDialog) {
+    // Per-Set Custom Rest Timer Dialog
+    if (showSetRestTimerDialog && activeDialogSetIndex != null && activeDialogSetIndex!! < effectiveSets.size) {
+        val targetSet = effectiveSets[activeDialogSetIndex!!]
         CustomRestTimerDialog(
-            initialSeconds = config.restTimerSeconds,
+            initialSeconds = targetSet.restTimerSeconds ?: config.restTimerSeconds,
+            title = s.setRestTimerTitleWithNumber(targetSet.setNumber),
+            onDismiss = {
+                showSetRestTimerDialog = false
+                activeDialogSetIndex = null
+            },
+            onConfirm = { newSec ->
+                val updated = effectiveSets.toMutableList()
+                updated[activeDialogSetIndex!!] = targetSet.copy(restTimerSeconds = newSec)
+                onConfigChange(config.copy(setConfigs = updated))
+                showSetRestTimerDialog = false
+                activeDialogSetIndex = null
+            }
+        )
+    }
+
+    // Custom Rest Timer Dialog (All sets & per-set tabs)
+    if (showCustomRestTimerDialog) {
+        ExerciseRestTimerDialog(
+            exerciseName = config.exercise.name,
+            initialExerciseSeconds = config.restTimerSeconds,
+            sets = effectiveSets.map { Triple(it.setNumber.toString(), it.setNumber, it.targetReps) },
+            initialSetTimers = effectiveSets.associate { it.setNumber.toString() to (it.restTimerSeconds ?: config.restTimerSeconds) },
             onDismiss = { showCustomRestTimerDialog = false },
-            onConfirm = { newRest ->
-                onConfigChange(config.copy(restTimerSeconds = newRest))
+            onConfirm = { exerciseSec, perSetTimers ->
+                val updatedSets = effectiveSets.map { sc ->
+                    val setSec = perSetTimers[sc.setNumber.toString()]
+                    sc.copy(restTimerSeconds = setSec)
+                }
+                onConfigChange(
+                    config.copy(
+                        restTimerSeconds = exerciseSec,
+                        setConfigs = updatedSets
+                    )
+                )
                 showCustomRestTimerDialog = false
             }
         )
@@ -1154,16 +1189,36 @@ private fun SelectedExerciseRow(
                             .padding(vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Set Number
-                        Text(
-                            text = "${setCfg.setNumber}",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = colors.textPrimary
-                            ),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.width(32.dp)
-                        )
+                        // Set Number (clickable for custom rest timer on this set)
+                        Column(
+                            modifier = Modifier
+                                .width(32.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    activeDialogSetIndex = sIndex
+                                    showSetRestTimerDialog = true
+                                },
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "${setCfg.setNumber}",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                            if (setCfg.restTimerSeconds != null) {
+                                Text(
+                                    text = s.timerBadgeSeconds(setCfg.restTimerSeconds),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.warning
+                                    )
+                                )
+                            }
+                        }
 
                         // PREV Cell
                         Box(
@@ -1352,7 +1407,12 @@ private fun SelectedExerciseRow(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
-                            Text("⏱", fontSize = 11.sp)
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Text(
                                 text = s.secondsRestLabel(config.restTimerSeconds),
                                 style = MaterialTheme.typography.labelSmall.copy(

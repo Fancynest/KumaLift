@@ -758,6 +758,13 @@ interface AppStrings {
     val customRestTimerMinutes: String
     val customRestTimerSeconds: String
     val deleteSetAction: String
+    val restTimerAllSetsTab: String
+    val restTimerPerSetTab: String
+    fun setRestTimerMenuLabel(setNum: Int): String
+    fun setRestTimerTitleWithNumber(setNum: Int): String
+    val applyToAllSetsPrompt: String
+    fun setRepsTimerLabel(setNum: Int, reps: Int): String
+    fun timerBadgeSeconds(sec: Int): String
 
     val backupErrorFolderNotConfigured: String
     val backupErrorFolderInaccessible: String

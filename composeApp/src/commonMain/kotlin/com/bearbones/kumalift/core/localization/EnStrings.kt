@@ -866,6 +866,13 @@ object EnStrings : AppStrings {
     override val customRestTimerMinutes = "Minutes"
     override val customRestTimerSeconds = "Seconds"
     override val deleteSetAction = "Delete Set"
+    override val restTimerAllSetsTab = "All Sets"
+    override val restTimerPerSetTab = "Per Set / Reps"
+    override fun setRestTimerMenuLabel(setNum: Int) = "Set $setNum Timer"
+    override fun setRestTimerTitleWithNumber(setNum: Int) = "Set $setNum Timer"
+    override val applyToAllSetsPrompt = "Apply to all sets"
+    override fun setRepsTimerLabel(setNum: Int, reps: Int) = "Set $setNum ($reps Reps)"
+    override fun timerBadgeSeconds(sec: Int) = "${sec}s"
 
     override val backupErrorFolderNotConfigured = "Backup folder is not configured. Please select a folder in Settings."
     override val backupErrorFolderInaccessible = "Backup folder is inaccessible. Please re-select the folder in Settings."

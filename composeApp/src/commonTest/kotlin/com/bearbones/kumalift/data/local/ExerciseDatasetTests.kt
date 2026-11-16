@@ -66,4 +66,69 @@ class ExerciseDatasetTests {
             )
         }
     }
+
+    @Test
+    fun testExerciseDataDictionariesParityAndNonBlankLabels() {
+        val exercises = SeedData.defaultExercises
+        val idStrings = com.bearbones.kumalift.core.localization.IdStrings
+        val enStrings = com.bearbones.kumalift.core.localization.EnStrings
+
+        for (ex in exercises) {
+            if (ex.subMuscle.isNotBlank()) {
+                val idSub = idStrings.subMuscleLabel(ex.subMuscle)
+                val enSub = enStrings.subMuscleLabel(ex.subMuscle)
+                assertTrue(idSub.isNotBlank(), "Id subMuscleLabel must not be blank for ${ex.subMuscle}")
+                assertTrue(enSub.isNotBlank(), "En subMuscleLabel must not be blank for ${ex.subMuscle}")
+            }
+
+            if (ex.equipmentDetail.isNotBlank()) {
+                val idEq = idStrings.equipmentDetailLabel(ex.equipmentDetail)
+                val enEq = enStrings.equipmentDetailLabel(ex.equipmentDetail)
+                assertTrue(idEq.isNotBlank(), "Id equipmentDetailLabel must not be blank for ${ex.equipmentDetail}")
+                assertTrue(enEq.isNotBlank(), "En equipmentDetailLabel must not be blank for ${ex.equipmentDetail}")
+            }
+
+            if (ex.secondaryMuscleDetails.isNotBlank()) {
+                val tokens = ex.secondaryMuscleDetails.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                for (token in tokens) {
+                    val idSec = idStrings.secondaryMuscleDetailLabel(token)
+                    val enSec = enStrings.secondaryMuscleDetailLabel(token)
+                    assertTrue(idSec.isNotBlank(), "Id secondaryMuscleDetailLabel must not be blank for $token")
+                    assertTrue(enSec.isNotBlank(), "En secondaryMuscleDetailLabel must not be blank for $token")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testExercisesIdJsonCoverageAndParity() {
+        val payload = ExerciseDataset.indonesianInstructionsPayload
+        assertNotNull(payload, "exercises_id.json must load successfully")
+        assertEquals("machine-translated", payload.source, "Source must be recorded as machine-translated")
+        assertEquals(1324, payload.exercises.size, "exercises_id.json must contain instructions for all 1,324 exercises")
+
+        val allIds = ExerciseDataset.allExerciseIds
+        for ((id, steps) in payload.exercises) {
+            assertTrue(allIds.contains(id), "Every id ($id) in exercises_id.json must exist in exercises.json")
+            assertTrue(steps.isNotEmpty(), "Exercise $id in exercises_id.json must have non-empty instruction steps")
+            for (step in steps) {
+                assertTrue(step.isNotBlank(), "Step in exercise $id must not be blank")
+            }
+        }
+    }
+
+    @Test
+    fun testEffectiveStepsLocalization() {
+        val idStrings = com.bearbones.kumalift.core.localization.IdStrings
+        val enStrings = com.bearbones.kumalift.core.localization.EnStrings
+
+        val ex = SeedData.defaultExercises.first { it.id == "0001" }
+        val idSteps = ex.getEffectiveSteps(idStrings)
+        val enSteps = ex.getEffectiveSteps(enStrings)
+
+        assertTrue(idSteps.isNotEmpty(), "Indonesian steps should not be empty")
+        assertTrue(enSteps.isNotEmpty(), "English steps should not be empty")
+        assertTrue(idSteps.first().contains("Berbaring telentang"), "Indonesian step 1 should be in Indonesian: ${idSteps.first()}")
+        assertTrue(enSteps.first().contains("Lie flat on your back"), "English step 1 should be in English: ${enSteps.first()}")
+    }
 }

@@ -91,6 +91,36 @@ val Exercise.localizedMuscleSubtitle: String
     @ReadOnlyComposable
     get() = localizedMuscleSubtitle(LocalStrings.current)
 
+fun Exercise.localizedEquipmentDetail(s: AppStrings): String {
+    if (equipmentDetail.isNotBlank()) {
+        return s.equipmentDetailLabel(equipmentDetail)
+    }
+    return equipment.label(s)
+}
+
+val Exercise.localizedEquipmentDetail: String
+    @Composable
+    @ReadOnlyComposable
+    get() = localizedEquipmentDetail(LocalStrings.current)
+
+fun Exercise.localizedSecondaryMuscles(s: AppStrings): String {
+    if (secondaryMuscleDetails.isNotBlank()) {
+        return secondaryMuscleDetails.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .joinToString(", ") { s.secondaryMuscleDetailLabel(it) }
+    }
+    if (secondaryMuscles.isNotEmpty()) {
+        return secondaryMuscles.joinToString(", ") { it.label(s) }
+    }
+    return s.stabilizerMusclesDefault
+}
+
+val Exercise.localizedSecondaryMuscles: String
+    @Composable
+    @ReadOnlyComposable
+    get() = localizedSecondaryMuscles(LocalStrings.current)
+
 fun SetType.label(s: AppStrings): String = when (this) {
     SetType.WARMUP -> s.setTypeWarmup
     SetType.NORMAL -> s.setTypeNormal

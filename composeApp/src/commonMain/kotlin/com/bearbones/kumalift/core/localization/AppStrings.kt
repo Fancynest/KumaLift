@@ -513,6 +513,12 @@ interface AppStrings {
     // Sub-Muscles mapping (19 items from dataset)
     fun subMuscleLabel(code: String): String
 
+    // Equipment Details mapping (28 items from dataset)
+    fun equipmentDetailLabel(code: String): String
+
+    // Secondary Muscle Details mapping (40 items from dataset)
+    fun secondaryMuscleDetailLabel(code: String): String
+
     // Enums - Set Types
     val setTypeWarmup: String
     val setTypeNormal: String

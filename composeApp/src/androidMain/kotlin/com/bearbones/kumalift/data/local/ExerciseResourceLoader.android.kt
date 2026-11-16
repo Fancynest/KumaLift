@@ -7,3 +7,11 @@ actual fun readExercisesJson(): String {
         ?: throw IllegalStateException("exercises.json resource not found in classpath")
     return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
 }
+
+actual fun readExercisesIdJson(): String {
+    val stream = Thread.currentThread().contextClassLoader?.getResourceAsStream("exercises_id.json")
+        ?: ExerciseDataset::class.java.classLoader?.getResourceAsStream("exercises_id.json")
+        ?: ExerciseDataset::class.java.getResourceAsStream("/exercises_id.json")
+        ?: return "{}"
+    return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+}

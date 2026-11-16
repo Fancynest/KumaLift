@@ -12,3 +12,10 @@ actual fun readExercisesJson(): String {
         ?: return "[]"
     return NSString.stringWithContentsOfFile(path, NSUTF8StringEncoding, null) as? String ?: "[]"
 }
+
+@OptIn(ExperimentalForeignApi::class)
+actual fun readExercisesIdJson(): String {
+    val path = NSBundle.mainBundle.pathForResource("exercises_id", "json")
+        ?: return "{}"
+    return NSString.stringWithContentsOfFile(path, NSUTF8StringEncoding, null) as? String ?: "{}"
+}

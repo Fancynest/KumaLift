@@ -64,14 +64,27 @@ data class Exercise(
     val attribution: String = "© Gym visual",
     val pinnedNote: String = ""
 ) {
-    fun getEffectiveSteps(defaultSteps: List<String> = emptyList()): List<String> {
+    fun getEffectiveSteps(
+        s: com.bearbones.kumalift.core.localization.AppStrings? = null,
+        defaultSteps: List<String> = emptyList()
+    ): List<String> {
+        if (s != null) {
+            val localized = com.bearbones.kumalift.data.local.ExerciseDataset.getLocalizedSteps(id, s)
+            if (!localized.isNullOrEmpty()) return localized
+        }
         if (instructionSteps.isNotEmpty()) return instructionSteps
-        if (instructions.isBlank()) return if (defaultSteps.isNotEmpty()) defaultSteps else listOf(
-            "Posisikan tubuh dengan stabil dan nyaman.",
-            "Lakukan gerakan secara terkontrol dengan menjaga postur yang benar.",
-            "Rasakan kontraksi otot target pada puncak gerakan.",
-            "Kembali perlahan ke posisi awal sambil mengatur pernapasan."
-        )
+        if (instructions.isBlank()) {
+            if (defaultSteps.isNotEmpty()) return defaultSteps
+            if (s != null) {
+                return listOf(s.defaultStep1, s.defaultStep2, s.defaultStep3, s.defaultStep4)
+            }
+            return listOf(
+                "Posisikan tubuh dengan stabil dan nyaman.",
+                "Lakukan gerakan secara terkontrol dengan menjaga postur yang benar.",
+                "Rasakan kontraksi otot target pada puncak gerakan.",
+                "Kembali perlahan ke posisi awal sambil mengatur pernapasan."
+            )
+        }
         val lines = instructions.split("\n").map { it.trim().removePrefix("-").trim() }.filter { it.isNotBlank() }
         if (lines.size > 1) return lines
         val sentences = instructions.split(Regex("(?<=[.!?])\\s+")).map { it.trim() }.filter { it.isNotBlank() }

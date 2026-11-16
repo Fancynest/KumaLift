@@ -74,7 +74,9 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.localization.localizedEquipmentDetail
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
+import com.bearbones.kumalift.core.localization.localizedSecondaryMuscles
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.TrainingGoal
@@ -109,8 +111,8 @@ fun ExerciseDetailScreen(
     var showHelpDialog by remember { mutableStateOf<String?>(null) }
     var showTipDialog by rememberSaveable { mutableStateOf(false) }
 
-    val steps = remember(exercise) {
-        exercise.getEffectiveSteps()
+    val steps = remember(exercise, s) {
+        exercise.getEffectiveSteps(s)
     }
 
     val colors = LocalKumaColors.current
@@ -267,11 +269,7 @@ fun ExerciseDetailScreen(
                                     )
                                 )
 
-                                val secondaryStr = if (exercise.secondaryMuscles.isNotEmpty()) {
-                                    exercise.secondaryMuscles.joinToString(", ") { it.label(s) }
-                                } else {
-                                    s.stabilizerMusclesDefault
-                                }
+                                val secondaryStr = exercise.localizedSecondaryMuscles(s)
 
                                 Text(
                                     text = s.secondaryMusclesLabel(secondaryStr),
@@ -284,6 +282,7 @@ fun ExerciseDetailScreen(
 
                         // Guidance Tip Banner (Lightbulb)
                         item {
+                            val equipmentStr = exercise.localizedEquipmentDetail(s)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -304,7 +303,7 @@ fun ExerciseDetailScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Text(
-                                        text = s.howToLogEquipmentTitle(exercise.equipment.label.lowercase()),
+                                        text = s.howToLogEquipmentTitle(equipmentStr.lowercase()),
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.Medium
@@ -902,11 +901,12 @@ fun ExerciseDetailScreen(
 
     // Barbell Tip Dialog
     if (showTipDialog) {
+        val equipmentStr = exercise.localizedEquipmentDetail(s)
         AlertDialog(
             onDismissRequest = { showTipDialog = false },
-            title = { Text(s.howToLogDialogTitle(exercise.equipment.label), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
+            title = { Text(s.howToLogDialogTitle(equipmentStr), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
             text = {
-                Text(s.howToLogDialogBody(exercise.equipment.label), style = MaterialTheme.typography.bodyMedium)
+                Text(s.howToLogDialogBody(equipmentStr), style = MaterialTheme.typography.bodyMedium)
             },
             confirmButton = {
                 Button(

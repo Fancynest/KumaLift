@@ -223,6 +223,10 @@ interface AppStrings {
     fun routinesInProgramCount(count: Int): String
     val noRoutinesInProgramYet: String
     fun createRoutineForProgramHint(name: String): String
+    val programActiveDaysLabel: String
+    val maxDaysNotice: String
+    val restDayTitle: String
+    fun restDayProgramMessage(name: String): String
 
     // Active Workout Logger
     val workoutLogTitle: String

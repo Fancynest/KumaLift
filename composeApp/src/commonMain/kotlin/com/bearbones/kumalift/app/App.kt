@@ -178,6 +178,7 @@ fun App() {
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
                             routineRepository = routineRepository,
+                            trainingProgramRepository = trainingProgramRepository,
                             personalRecordRepository = personalRecordRepository,
                             onStartWorkout = { navigator.push(Overlay.ActiveLogger) },
                             onStartFreestyle = { navigator.push(Overlay.ActiveLogger) },

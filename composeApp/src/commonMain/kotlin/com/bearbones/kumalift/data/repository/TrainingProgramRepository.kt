@@ -48,16 +48,19 @@ class TrainingProgramRepository(
         name: String,
         description: String = "",
         category: TrainingGoal = TrainingGoal.HYPERTROPHY,
-        targetDaysPerWeek: Int = 4
+        activeDays: List<Int> = listOf(1, 3, 5),
+        targetDaysPerWeek: Int = activeDays.size
     ): TrainingProgram {
         val cleanName = name.trim().ifBlank { "Training Program" }
         val id = IdGenerator.nextId("prog")
+        val cleanDays = activeDays.filter { it in 1..7 }.distinct().take(3).ifEmpty { listOf(1, 3, 5) }.sorted()
         val newProgram = TrainingProgram(
             id = id,
             name = cleanName,
             description = description.trim(),
             category = category,
-            targetDaysPerWeek = targetDaysPerWeek.coerceIn(1, 7),
+            targetDaysPerWeek = cleanDays.size,
+            activeDays = cleanDays,
             isDefault = false,
             createdAtEpochMs = currentEpochMillis()
         )
@@ -69,10 +72,15 @@ class TrainingProgramRepository(
     }
 
     fun updateProgram(program: TrainingProgram) {
+        val cleanDays = program.activeDays.filter { it in 1..7 }.distinct().take(3).ifEmpty { listOf(1, 3, 5) }.sorted()
+        val normalized = program.copy(
+            activeDays = cleanDays,
+            targetDaysPerWeek = cleanDays.size
+        )
         _programs.update { list ->
-            list.map { if (it.id == program.id) program else it }
+            list.map { if (it.id == normalized.id) normalized else it }
         }
-        databaseRepo?.saveTrainingProgram(program)
+        databaseRepo?.saveTrainingProgram(normalized)
         onProgramsChanged?.invoke(_programs.value)
     }
 

@@ -920,7 +920,7 @@ fun ExerciseLoggingCard(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text(s.addWarmupSetsAction) },
+                            text = { Text(s.addWarmupSetsAction, style = MaterialTheme.typography.bodyMedium) },
                             onClick = {
                                 showMenu = false
                                 onAddWarmupSets()
@@ -934,7 +934,7 @@ fun ExerciseLoggingCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(s.plateCalculatorTitle) },
+                            text = { Text(s.plateCalculatorTitle, style = MaterialTheme.typography.bodyMedium) },
                             onClick = {
                                 showMenu = false
                                 showPlateCalcModal = true
@@ -949,7 +949,10 @@ fun ExerciseLoggingCard(
                         )
                         DropdownMenuItem(
                             text = {
-                                Text(if (workoutExercise.supersetGroupId != null) s.supersetUngroupAction else s.supersetGroupAction)
+                                Text(
+                                    if (workoutExercise.supersetGroupId != null) s.supersetUngroupAction else s.supersetGroupAction,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             },
                             onClick = {
                                 showMenu = false
@@ -964,7 +967,7 @@ fun ExerciseLoggingCard(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(s.removeExerciseAction, color = KumaColors.ErrorRed) },
+                            text = { Text(s.removeExerciseAction, style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.ErrorRed)) },
                             onClick = {
                                 showMenu = false
                                 onRemoveExercise()
@@ -1291,28 +1294,28 @@ fun SetRowItem(
                 onDismissRequest = { showTypeMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text(s.setTypeNormalMenuLabel(set.setNumber)) },
+                    text = { Text(s.setTypeNormalMenuLabel(set.setNumber), style = MaterialTheme.typography.bodyMedium) },
                     onClick = {
                         onSetTypeChange(SetType.NORMAL)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeWarmupMenuLabel, color = LocalKumaColors.current.setTypeWarmup) },
+                    text = { Text(s.setTypeWarmupMenuLabel, style = MaterialTheme.typography.bodyMedium.copy(color = LocalKumaColors.current.setTypeWarmup)) },
                     onClick = {
                         onSetTypeChange(SetType.WARMUP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeDropMenuLabel, color = LocalKumaColors.current.setTypeDrop) },
+                    text = { Text(s.setTypeDropMenuLabel, style = MaterialTheme.typography.bodyMedium.copy(color = LocalKumaColors.current.setTypeDrop)) },
                     onClick = {
                         onSetTypeChange(SetType.DROP)
                         showTypeMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text(s.setTypeFailureMenuLabel, color = LocalKumaColors.current.setTypeFailure) },
+                    text = { Text(s.setTypeFailureMenuLabel, style = MaterialTheme.typography.bodyMedium.copy(color = LocalKumaColors.current.setTypeFailure)) },
                     onClick = {
                         onSetTypeChange(SetType.FAILURE)
                         showTypeMenu = false
@@ -1524,15 +1527,15 @@ fun WeightInputDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("0.0", color = KumaColors.TextMuted) },
+                    placeholder = { Text("0.0", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     isError = errorMessage != null,
                     supportingText = {
                         if (errorMessage != null) {
-                            Text(errorMessage!!, color = KumaColors.ErrorRed)
+                            Text(errorMessage!!, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.ErrorRed))
                         } else {
-                            Text(s.enterValidWeightHint, color = KumaColors.TextMuted)
+                            Text(s.enterValidWeightHint, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted))
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1620,12 +1623,12 @@ fun WeightInputDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(s.save, fontWeight = FontWeight.Bold)
+                Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(s.cancel, color = colors.textSecondary)
+                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
             }
         }
     )
@@ -1671,15 +1674,15 @@ fun RepsInputDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("10", color = KumaColors.TextMuted) },
+                    placeholder = { Text("10", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     isError = errorMessage != null,
                     supportingText = {
                         if (errorMessage != null) {
-                            Text(errorMessage!!, color = KumaColors.ErrorRed)
+                            Text(errorMessage!!, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.ErrorRed))
                         } else {
-                            Text(s.enterValidRepsHint, color = KumaColors.TextMuted)
+                            Text(s.enterValidRepsHint, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted))
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1739,12 +1742,12 @@ fun RepsInputDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(s.save, fontWeight = FontWeight.Bold)
+                Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(s.cancel, color = colors.textSecondary)
+                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
             }
         }
     )

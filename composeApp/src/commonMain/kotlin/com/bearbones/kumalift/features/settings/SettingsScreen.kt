@@ -563,7 +563,7 @@ private fun ProfileSettingsPage(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(s.done, fontWeight = FontWeight.Bold)
+                    Text(s.done, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
 
@@ -964,7 +964,7 @@ private fun ChangeUsernamePage(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(s.updateButton, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(s.updateButton, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp))
                 }
             }
         }
@@ -1585,12 +1585,12 @@ private fun NotificationSettingsPage(
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(text = s.save, fontWeight = FontWeight.Bold)
+                    Text(text = s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCustomTimeDialog = false }) {
-                    Text(text = s.cancel, color = colors.textSecondary)
+                    Text(text = s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )
@@ -2554,7 +2554,8 @@ private fun ExportImportDataPage(
             },
             text = {
                 Text(
-                    text = s.restoreDataDialogBody
+                    text = s.restoreDataDialogBody,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
@@ -2576,14 +2577,14 @@ private fun ExportImportDataPage(
                     Text(
                         text = s.replaceFullButton,
                         color = colors.onAccentFill,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { pendingImportContent = null }) {
-                        Text(s.cancel, color = colors.textSecondary)
+                        Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                     }
                     Button(
                         onClick = {
@@ -2603,7 +2604,7 @@ private fun ExportImportDataPage(
                         Text(
                             text = s.mergeButton,
                             color = colors.textPrimary,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                         )
                     }
                 }
@@ -2633,7 +2634,7 @@ private fun ExportImportDataPage(
                     OutlinedTextField(
                         value = passwordInput,
                         onValueChange = { passwordInput = it },
-                        label = { Text(s.passwordFieldLabel) },
+                        label = { Text(s.passwordFieldLabel, style = MaterialTheme.typography.labelMedium) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -2655,7 +2656,7 @@ private fun ExportImportDataPage(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
                 ) {
-                    Text(s.done, color = colors.onAccentFill, fontWeight = FontWeight.Bold)
+                    Text(s.done, color = colors.onAccentFill, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
@@ -2663,7 +2664,7 @@ private fun ExportImportDataPage(
                     showPasswordPromptDialog = false
                     pendingImportBytes = null
                 }) {
-                    Text(s.cancel, color = colors.textSecondary)
+                    Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )
@@ -2688,7 +2689,7 @@ private fun ExportImportDataPage(
                     OutlinedTextField(
                         value = exportPasswordInput,
                         onValueChange = { exportPasswordInput = it },
-                        label = { Text(s.passwordFieldLabel) },
+                        label = { Text(s.passwordFieldLabel, style = MaterialTheme.typography.labelMedium) },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -2710,12 +2711,12 @@ private fun ExportImportDataPage(
                     enabled = exportPasswordInput.isNotBlank(),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
                 ) {
-                    Text(s.save, color = colors.onAccentFill, fontWeight = FontWeight.Bold)
+                    Text(s.save, color = colors.onAccentFill, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSetPasswordExportDialog = false }) {
-                    Text(s.cancel, color = colors.textSecondary)
+                    Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )
@@ -2728,13 +2729,13 @@ private fun ExportImportDataPage(
             title = {
                 Text(
                     text = s.clearHistoryConfirmTitle,
-                    fontWeight = FontWeight.Bold,
-                    color = KumaColors.ErrorRed
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = KumaColors.ErrorRed)
                 )
             },
             text = {
                 Text(
-                    text = s.clearHistoryDialogBody
+                    text = s.clearHistoryDialogBody,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
@@ -2746,12 +2747,12 @@ private fun ExportImportDataPage(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
                 ) {
-                    Text(s.deleteHistoryButton, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(s.deleteHistoryButton, color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearHistoryDialog = false }) {
-                    Text(s.cancel, color = colors.textSecondary)
+                    Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )
@@ -2764,13 +2765,13 @@ private fun ExportImportDataPage(
             title = {
                 Text(
                     text = s.deleteAllDataConfirmTitle,
-                    fontWeight = FontWeight.Bold,
-                    color = KumaColors.ErrorRed
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = KumaColors.ErrorRed)
                 )
             },
             text = {
                 Text(
-                    text = s.deleteAllDataDialogBody
+                    text = s.deleteAllDataDialogBody,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             },
             confirmButton = {
@@ -2783,12 +2784,12 @@ private fun ExportImportDataPage(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
                 ) {
-                    Text(s.deleteEverythingButton, color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(s.deleteEverythingButton, color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text(s.cancel, color = colors.textSecondary)
+                    Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )

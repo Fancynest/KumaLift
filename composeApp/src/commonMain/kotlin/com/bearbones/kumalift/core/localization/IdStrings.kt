@@ -231,6 +231,10 @@ object IdStrings : AppStrings {
     override fun routinesInProgramCount(count: Int) = "$count routine"
     override val noRoutinesInProgramYet = "Belum ada routine di program ini"
     override fun createRoutineForProgramHint(name: String) = "Buat routine baru untuk mengisi $name"
+    override val programActiveDaysLabel = "Hari Aktif (Maksimal 3)"
+    override val maxDaysNotice = "Maksimal 3 hari dalam seminggu"
+    override val restDayTitle = "Hari Istirahat"
+    override fun restDayProgramMessage(name: String) = "Tidak ada jadwal latihan hari ini untuk $name. Istirahat untuk pemulihan otot atau mulai sesi latihan bebas."
 
     // Active Workout Logger
     override val workoutLogTitle = "Catatan Latihan"

@@ -92,8 +92,11 @@ fun KumaLiftTheme(
         MaterialTheme(
             colorScheme = resolvedColors.toMaterialColorScheme(),
             typography = typography,
-            shapes = KumaShapes,
-            content = content
-        )
+            shapes = KumaShapes
+        ) {
+            androidx.compose.material3.ProvideTextStyle(value = typography.bodyMedium) {
+                content()
+            }
+        }
     }
 }

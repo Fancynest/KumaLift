@@ -308,13 +308,13 @@ fun RoutineDetailScreen(
                         Text(
                             text = s.delete,
                             color = colors.error,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                         )
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) {
-                        Text(text = s.cancel, color = colors.textSecondary)
+                        Text(text = s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                     }
                 },
                 containerColor = KumaColors.SurfaceContainerHigh,

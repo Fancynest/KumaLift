@@ -231,6 +231,10 @@ object EnStrings : AppStrings {
     override fun routinesInProgramCount(count: Int) = if (count == 1) "1 routine" else "$count routines"
     override val noRoutinesInProgramYet = "No routines in this program yet"
     override fun createRoutineForProgramHint(name: String) = "Create a routine to start building $name"
+    override val programActiveDaysLabel = "Active Days (Max 3)"
+    override val maxDaysNotice = "Maximum 3 days per week"
+    override val restDayTitle = "Rest Day"
+    override fun restDayProgramMessage(name: String) = "No workout scheduled today for $name. Take time to recover or start a freestyle session."
 
     // Active Workout Logger
     override val workoutLogTitle = "Workout Log"

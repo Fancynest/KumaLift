@@ -10,7 +10,8 @@ data class TrainingProgram(
     val name: String,
     val description: String = "",
     val category: TrainingGoal = TrainingGoal.HYPERTROPHY,
-    val targetDaysPerWeek: Int = 4,
+    val targetDaysPerWeek: Int = 3,
+    val activeDays: List<Int> = listOf(1, 3, 5),
     val isDefault: Boolean = false,
     val createdAtEpochMs: Long = 0
 ) {
@@ -20,7 +21,8 @@ data class TrainingProgram(
             name = "Hypertrophy Program",
             description = "Focused on muscle hypertrophy and progressive overload.",
             category = TrainingGoal.HYPERTROPHY,
-            targetDaysPerWeek = 4,
+            targetDaysPerWeek = 3,
+            activeDays = listOf(1, 3, 5),
             isDefault = true,
             createdAtEpochMs = 1700000000000L
         )

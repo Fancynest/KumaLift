@@ -144,8 +144,7 @@ fun CreateExerciseScreen(
                 ) {
                     Text(
                         text = s.save,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     )
                 }
             }

@@ -897,7 +897,7 @@ private fun EditProfileModal(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(s.done, fontWeight = FontWeight.Bold)
+                    Text(s.done, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
 
@@ -1159,7 +1159,7 @@ private fun MeasuresModal(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(s.saveMeasuresButton, fontWeight = FontWeight.Bold)
+                Text(s.saveMeasuresButton, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
             }
         }
     }

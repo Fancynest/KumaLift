@@ -21,11 +21,20 @@ actual class DatabaseDriverFactory {
                     name TEXT NOT NULL,
                     description TEXT NOT NULL,
                     category TEXT NOT NULL,
-                    targetDaysPerWeek INTEGER NOT NULL DEFAULT 4,
+                    targetDaysPerWeek INTEGER NOT NULL DEFAULT 3,
+                    activeDays TEXT NOT NULL DEFAULT '1,3,5',
                     isDefault INTEGER NOT NULL DEFAULT 0,
                     createdAtEpochMs INTEGER NOT NULL
                 );
                 """.trimIndent(),
+                0
+            )
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE training_programs ADD COLUMN activeDays TEXT NOT NULL DEFAULT '1,3,5';",
                 0
             )
         } catch (_: Exception) {}

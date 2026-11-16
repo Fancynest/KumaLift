@@ -259,8 +259,21 @@ private fun ProgramItemCard(
                 }
 
                 // Target Days
+                val dayLabels = program.activeDays.mapNotNull { d ->
+                    s.dayNamesShort.getOrNull(d - 1)
+                }.joinToString(", ")
+                val targetDaysSummary = buildString {
+                    append(program.targetDaysPerWeek)
+                    append(" ")
+                    append(s.daysPerWeek)
+                    if (dayLabels.isNotBlank()) {
+                        append(" (")
+                        append(dayLabels)
+                        append(")")
+                    }
+                }
                 Text(
-                    text = "${program.targetDaysPerWeek} ${s.daysPerWeek}",
+                    text = targetDaysSummary,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.TextMuted
                     )
@@ -360,7 +373,7 @@ private fun ProgramItemCard(
 fun CreateEditProgramModal(
     programToEdit: TrainingProgram? = null,
     onDismiss: () -> Unit,
-    onSave: (name: String, description: String, category: TrainingGoal, targetDays: Int) -> Unit
+    onSave: (name: String, description: String, category: TrainingGoal, activeDays: List<Int>) -> Unit
 ) {
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
@@ -368,7 +381,9 @@ fun CreateEditProgramModal(
     var name by remember(programToEdit) { mutableStateOf(programToEdit?.name ?: "") }
     var description by remember(programToEdit) { mutableStateOf(programToEdit?.description ?: "") }
     var category by remember(programToEdit) { mutableStateOf(programToEdit?.category ?: TrainingGoal.HYPERTROPHY) }
-    var targetDays by remember(programToEdit) { mutableStateOf(programToEdit?.targetDaysPerWeek ?: 4) }
+    var selectedDays by remember(programToEdit) {
+        mutableStateOf(programToEdit?.activeDays?.filter { it in 1..7 }?.distinct()?.take(3)?.ifEmpty { listOf(1, 3, 5) } ?: listOf(1, 3, 5))
+    }
     var nameError by remember { mutableStateOf(false) }
 
     Dialog(
@@ -510,54 +525,80 @@ fun CreateEditProgramModal(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Target Days Stepper
+                    // Active Days Selector (Max 3 days)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = s.programActiveDaysLabel,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = KumaColors.TextSecondary
+                            )
+                        )
+                        Text(
+                            text = "${selectedDays.size} / 3",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (selectedDays.size >= 3) colors.accentText else KumaColors.TextMuted
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = s.programTargetDaysLabel,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = KumaColors.TextSecondary
+                        text = s.maxDaysNotice,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = KumaColors.TextMuted,
+                            fontSize = 11.sp
                         )
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val allDays = (1..7).map { dayNum ->
+                        dayNum to (s.dayNamesShort.getOrNull(dayNum - 1) ?: "D$dayNum")
+                    }
+
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(KumaColors.SurfaceContainer)
-                            .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        IconButton(
-                            onClick = { if (targetDays > 1) targetDays-- },
-                            enabled = targetDays > 1,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Remove,
-                                contentDescription = null,
-                                tint = if (targetDays > 1) colors.accentFill else KumaColors.TextMuted
-                            )
-                        }
-
-                        Text(
-                            text = "$targetDays ${s.daysPerWeek}",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = KumaColors.TextWhite
-                            )
-                        )
-
-                        IconButton(
-                            onClick = { if (targetDays < 7) targetDays++ },
-                            enabled = targetDays < 7,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = if (targetDays < 7) colors.accentFill else KumaColors.TextMuted
-                            )
+                        allDays.forEach { (dayNum, dayLabel) ->
+                            val isSelected = selectedDays.contains(dayNum)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) colors.accentFill else KumaColors.BorderDefault,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        if (isSelected) {
+                                            if (selectedDays.size > 1) {
+                                                selectedDays = (selectedDays - dayNum).sorted()
+                                            }
+                                        } else {
+                                            if (selectedDays.size < 3) {
+                                                selectedDays = (selectedDays + dayNum).sorted()
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dayLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) colors.onAccentFill else KumaColors.TextWhite,
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            }
                         }
                     }
 
@@ -587,7 +628,7 @@ fun CreateEditProgramModal(
                                 if (name.isBlank()) {
                                     nameError = true
                                 } else {
-                                    onSave(name.trim(), description.trim(), category, targetDays)
+                                    onSave(name.trim(), description.trim(), category, selectedDays.sorted())
                                 }
                             },
                             modifier = Modifier.weight(1f),

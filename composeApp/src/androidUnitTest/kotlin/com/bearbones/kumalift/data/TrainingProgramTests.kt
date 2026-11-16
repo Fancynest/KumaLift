@@ -22,7 +22,8 @@ class TrainingProgramTests {
         assertEquals(DEFAULT_PROGRAM_ID, defaultProg.id)
         assertEquals("Hypertrophy Program", defaultProg.name)
         assertEquals(TrainingGoal.HYPERTROPHY, defaultProg.category)
-        assertEquals(4, defaultProg.targetDaysPerWeek)
+        assertEquals(3, defaultProg.targetDaysPerWeek)
+        assertEquals(listOf(1, 3, 5), defaultProg.activeDays)
         assertTrue(defaultProg.isDefault)
         assertEquals(DEFAULT_PROGRAM_ID, repo.activeProgramId.value)
     }
@@ -35,14 +36,14 @@ class TrainingProgramTests {
             name = "Fat Loss Program",
             description = "High intensity and caloric burn",
             category = TrainingGoal.FAT_LOSS,
-            targetDaysPerWeek = 5
+            activeDays = listOf(2, 4)
         )
 
         val strength = repo.createProgram(
             name = "Strength Program",
             description = "Focus on 1RM and compound lifts",
             category = TrainingGoal.STRENGTH,
-            targetDaysPerWeek = 3
+            activeDays = listOf(1, 3, 5)
         )
 
         assertEquals(3, repo.programs.value.size)
@@ -50,8 +51,34 @@ class TrainingProgramTests {
         assertTrue(repo.programs.value.any { it.name == "Fat Loss Program" })
         assertTrue(repo.programs.value.any { it.name == "Strength Program" })
 
-        assertEquals(5, fatLoss.targetDaysPerWeek)
+        assertEquals(2, fatLoss.targetDaysPerWeek)
+        assertEquals(listOf(2, 4), fatLoss.activeDays)
         assertEquals(3, strength.targetDaysPerWeek)
+        assertEquals(listOf(1, 3, 5), strength.activeDays)
+    }
+
+    @Test
+    fun programActiveDaysClampedToMaximumThreeDays() {
+        val repo = TrainingProgramRepository()
+
+        // Attempt to pass 5 active days
+        val programWithExcessDays = repo.createProgram(
+            name = "Overloaded Program",
+            category = TrainingGoal.GENERAL,
+            activeDays = listOf(1, 2, 3, 4, 5)
+        )
+
+        // Must strictly clamp to max 3 days
+        assertEquals(3, programWithExcessDays.activeDays.size)
+        assertEquals(3, programWithExcessDays.targetDaysPerWeek)
+        assertEquals(listOf(1, 2, 3), programWithExcessDays.activeDays)
+
+        // Update program with 4 days
+        repo.updateProgram(programWithExcessDays.copy(activeDays = listOf(2, 4, 6, 7)))
+        val updated = repo.programs.value.find { it.id == programWithExcessDays.id }!!
+        assertEquals(3, updated.activeDays.size)
+        assertEquals(3, updated.targetDaysPerWeek)
+        assertEquals(listOf(2, 4, 6), updated.activeDays)
     }
 
     @Test

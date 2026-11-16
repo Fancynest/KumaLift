@@ -444,6 +444,15 @@ class KumaDatabaseRepository(
     // TRAINING PROGRAMS
     // ==========================================
 
+    private fun parseActiveDays(raw: String): List<Int> {
+        val days = raw.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..7 }.distinct().take(3)
+        return days.ifEmpty { listOf(1, 3, 5) }
+    }
+
+    private fun formatActiveDays(days: List<Int>): String {
+        return days.filter { it in 1..7 }.distinct().take(3).sorted().joinToString(",")
+    }
+
     fun getAllTrainingPrograms(): List<TrainingProgram> {
         val rows = queries.selectAllTrainingPrograms().executeAsList()
         return rows.map { row ->
@@ -458,6 +467,7 @@ class KumaDatabaseRepository(
                 description = row.description,
                 category = goal,
                 targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
+                activeDays = parseActiveDays(row.activeDays),
                 isDefault = row.isDefault == 1L,
                 createdAtEpochMs = row.createdAtEpochMs
             )
@@ -477,6 +487,7 @@ class KumaDatabaseRepository(
             description = row.description,
             category = goal,
             targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
+            activeDays = parseActiveDays(row.activeDays),
             isDefault = row.isDefault == 1L,
             createdAtEpochMs = row.createdAtEpochMs
         )
@@ -489,6 +500,7 @@ class KumaDatabaseRepository(
             description = program.description,
             category = program.category.name,
             targetDaysPerWeek = program.targetDaysPerWeek.toLong(),
+            activeDays = formatActiveDays(program.activeDays),
             isDefault = if (program.isDefault) 1L else 0L,
             createdAtEpochMs = if (program.createdAtEpochMs > 0L) program.createdAtEpochMs else currentEpochMillis()
         )

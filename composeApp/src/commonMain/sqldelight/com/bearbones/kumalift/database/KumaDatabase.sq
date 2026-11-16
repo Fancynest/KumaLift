@@ -83,7 +83,8 @@ CREATE TABLE training_programs (
     name TEXT NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL,
-    targetDaysPerWeek INTEGER NOT NULL DEFAULT 4,
+    targetDaysPerWeek INTEGER NOT NULL DEFAULT 3,
+    activeDays TEXT NOT NULL DEFAULT '1,3,5',
     isDefault INTEGER NOT NULL DEFAULT 0,
     createdAtEpochMs INTEGER NOT NULL
 );
@@ -237,8 +238,8 @@ SELECT * FROM training_programs WHERE id = ?;
 
 insertTrainingProgram:
 INSERT OR REPLACE INTO training_programs (
-    id, name, description, category, targetDaysPerWeek, isDefault, createdAtEpochMs
-) VALUES (?, ?, ?, ?, ?, ?, ?);
+    id, name, description, category, targetDaysPerWeek, activeDays, isDefault, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteTrainingProgram:
 DELETE FROM training_programs WHERE id = ?;

@@ -1036,7 +1036,7 @@ private fun ExercisePickerModal(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(s.done, fontWeight = FontWeight.Bold)
+                    Text(s.done, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
 

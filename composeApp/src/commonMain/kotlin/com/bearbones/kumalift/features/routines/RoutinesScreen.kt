@@ -510,6 +510,7 @@ fun RoutinesScreen(
                         it.copy(
                             activeProgramId = prog.id,
                             trainingDaysPerWeek = prog.targetDaysPerWeek,
+                            selectedTrainingDays = prog.activeDays,
                             goal = prog.category
                         )
                     }
@@ -535,18 +536,20 @@ fun RoutinesScreen(
             CreateEditProgramModal(
                 programToEdit = null,
                 onDismiss = { showCreateProgramModal = false },
-                onSave = { name, description, category, targetDays ->
+                onSave = { name, description, category, activeDays ->
                     val created = trainingProgramRepository.createProgram(
                         name = name,
                         description = description,
                         category = category,
-                        targetDaysPerWeek = targetDays
+                        activeDays = activeDays,
+                        targetDaysPerWeek = activeDays.size
                     )
                     trainingProgramRepository.setActiveProgramId(created.id)
                     settingsRepository?.updateProfile {
                         it.copy(
                             activeProgramId = created.id,
                             trainingDaysPerWeek = created.targetDaysPerWeek,
+                            selectedTrainingDays = created.activeDays,
                             goal = created.category
                         )
                     }
@@ -561,18 +564,20 @@ fun RoutinesScreen(
             CreateEditProgramModal(
                 programToEdit = prog,
                 onDismiss = { programBeingEdited = null },
-                onSave = { name, description, category, targetDays ->
+                onSave = { name, description, category, activeDays ->
                     val updated = prog.copy(
                         name = name,
                         description = description,
                         category = category,
-                        targetDaysPerWeek = targetDays
+                        targetDaysPerWeek = activeDays.size,
+                        activeDays = activeDays
                     )
                     trainingProgramRepository.updateProgram(updated)
                     if (activeProgram.id == updated.id) {
                         settingsRepository?.updateProfile {
                             it.copy(
                                 trainingDaysPerWeek = updated.targetDaysPerWeek,
+                                selectedTrainingDays = updated.activeDays,
                                 goal = updated.category
                             )
                         }

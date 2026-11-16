@@ -172,7 +172,7 @@ fun ExerciseDetailScreen(
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text(s.add, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(s.add, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp))
                     }
                 }
             }
@@ -819,7 +819,7 @@ fun ExerciseDetailScreen(
             onDismissRequest = { showNoteDialog = false },
             modifier = Modifier.imePadding(),
             title = {
-                Text(text = s.pinnedNoteSection, fontWeight = FontWeight.Bold)
+                Text(text = s.pinnedNoteSection, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
             },
             text = {
                 Column(
@@ -848,7 +848,7 @@ fun ExerciseDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             decorationBox = { inner ->
                                 if (noteInput.isBlank()) {
-                                    Text(s.pinnedNoteInputPlaceholder, color = colors.textSecondary.copy(alpha = 0.5f))
+                                    Text(s.pinnedNoteInputPlaceholder, style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary.copy(alpha = 0.5f)))
                                 }
                                 inner()
                             }
@@ -869,12 +869,12 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text(s.saveNoteButton, fontWeight = FontWeight.Bold)
+                    Text(s.saveNoteButton, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNoteDialog = false }) {
-                    Text(s.cancel, color = colors.textSecondary)
+                    Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
                 }
             }
         )
@@ -884,8 +884,8 @@ fun ExerciseDetailScreen(
     if (showHelpDialog != null) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = null },
-            title = { Text(s.infoTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(showHelpDialog!!) },
+            title = { Text(s.infoTitle, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
+            text = { Text(showHelpDialog!!, style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 Button(
                     onClick = { showHelpDialog = null },
@@ -894,7 +894,7 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text(s.done, fontWeight = FontWeight.Bold)
+                    Text(s.done, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
         )
@@ -904,9 +904,9 @@ fun ExerciseDetailScreen(
     if (showTipDialog) {
         AlertDialog(
             onDismissRequest = { showTipDialog = false },
-            title = { Text(s.howToLogDialogTitle(exercise.equipment.label), fontWeight = FontWeight.Bold) },
+            title = { Text(s.howToLogDialogTitle(exercise.equipment.label), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)) },
             text = {
-                Text(s.howToLogDialogBody(exercise.equipment.label))
+                Text(s.howToLogDialogBody(exercise.equipment.label), style = MaterialTheme.typography.bodyMedium)
             },
             confirmButton = {
                 Button(
@@ -916,7 +916,7 @@ fun ExerciseDetailScreen(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text(s.understandButton, fontWeight = FontWeight.Bold)
+                    Text(s.understandButton, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             }
         )

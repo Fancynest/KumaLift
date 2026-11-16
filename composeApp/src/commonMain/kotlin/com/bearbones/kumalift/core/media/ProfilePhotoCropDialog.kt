@@ -152,12 +152,12 @@ fun ProfilePhotoCropDialog(
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(text = s.save, fontWeight = FontWeight.Bold)
+                Text(text = s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text(text = s.cancel, color = colors.textSecondary)
+                Text(text = s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
             }
         }
     )

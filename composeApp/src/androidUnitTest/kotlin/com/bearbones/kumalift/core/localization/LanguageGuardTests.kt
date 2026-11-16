@@ -1,5 +1,8 @@
 package com.bearbones.kumalift.core.localization
 
+import com.bearbones.kumalift.data.local.ExerciseDataset
+import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.TrainingProgram
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -261,6 +264,238 @@ class LanguageGuardTests {
             identicalViolations.isEmpty(),
             "Found identical string properties between IdStrings and EnStrings without explicit allowlist:\n" +
                     identicalViolations.joinToString("\n")
+        )
+    }
+
+    @Test
+    fun testIdAndEnParameterizedFunctionsParityAndNoBlanks() {
+        val interfaceClass = AppStrings::class.java
+        val multiArgMethods = interfaceClass.methods
+            .filter { it.declaringClass == interfaceClass }
+            .filter { it.parameterCount > 0 }
+
+        val idInstance = IdStrings
+        val enInstance = EnStrings
+
+        val allowlistedIdenticalMethods = setOf(
+            "weightColumnHeader",         // "KG" / "LB"
+            "setTypeNormalBadge",         // "1", "2", "3"
+            "setTypeNormalMenuLabel",     // "Normal (1)"
+            "supersetBadge",              // "SUPERSET SS"
+            "volumeStatLabel",            // "Volume (kg)"
+            "recoveryStatusFormat"        // "$status ($pct%)"
+        )
+
+        val blankViolations = mutableListOf<String>()
+        val identicalViolations = mutableListOf<String>()
+
+        for (method in multiArgMethods) {
+            val name = method.name
+            val args = method.parameterTypes.map { type ->
+                when (type) {
+                    Int::class.java, java.lang.Integer.TYPE -> 1
+                    Long::class.java, java.lang.Long.TYPE -> 1L
+                    Float::class.java, java.lang.Float.TYPE -> 1.0f
+                    Double::class.java, java.lang.Double.TYPE -> 1.0
+                    Boolean::class.java, java.lang.Boolean.TYPE -> true
+                    String::class.java -> {
+                        // Use a valid code to trigger branches in when-expressions
+                        when (name) {
+                            "subMuscleLabel" -> "abs"
+                            "equipmentDetailLabel" -> "barbell"
+                            "secondaryMuscleDetailLabel" -> "glutes"
+                            "howToLogDialogBody" -> "barbell"
+                            "howToLogEquipmentTitle" -> "barbell"
+                            "howToLogDialogTitle" -> "barbell"
+                            else -> "Test"
+                        }
+                    }
+                    else -> "Test"
+                }
+            }.toTypedArray()
+
+            val idVal = method.invoke(idInstance, *args)
+            val enVal = method.invoke(enInstance, *args)
+
+            if (idVal is String && idVal.isBlank()) {
+                blankViolations.add("IdStrings.$name(...) is blank")
+            }
+            if (enVal is String && enVal.isBlank()) {
+                blankViolations.add("EnStrings.$name(...) is blank")
+            }
+
+            if (idVal is String && enVal is String && idVal == enVal) {
+                if (name !in allowlistedIdenticalMethods) {
+                    identicalViolations.add("Method '$name' returns identical output across languages: \"$idVal\"")
+                }
+            }
+        }
+
+        assertTrue(
+            blankViolations.isEmpty(),
+            "Found blank return values in parameterized AppStrings functions:\n" + blankViolations.joinToString("\n")
+        )
+
+        assertTrue(
+            identicalViolations.isEmpty(),
+            "Found identical parameterized function returns without allowlist:\n" +
+                    identicalViolations.joinToString("\n")
+        )
+    }
+
+    @Test
+    fun testNoHardcodedDisplayStringsInDomainAndData() {
+        val dirs = getSourceDirectories()
+        val ktFiles = dirs.flatMap { it.walkTopDown() }
+            .filter { it.extension == "kt" }
+            .filter { file ->
+                val p = file.absolutePath.replace('\\', '/')
+                (p.contains("/domain/") || p.contains("/data/")) &&
+                        !isExcludedFile(file) &&
+                        !p.contains("DatabaseDriverFactory") &&
+                        !p.contains("ExerciseDataset") &&
+                        !p.contains("DefaultExerciseDatabase")
+            }
+
+        val violations = mutableListOf<String>()
+        val forbiddenDisplayAssignmentRegex = Regex("""\b(?:displayName|uiTitle|displayMessage)\s*=\s*"([^"]+)"""")
+
+        for (file in ktFiles) {
+            file.useLines { lines ->
+                lines.forEachIndexed { index, line ->
+                    val trimmed = line.trim()
+                    if (!trimmed.startsWith("//") && !trimmed.startsWith("/*") && !trimmed.startsWith("*")) {
+                        if (forbiddenDisplayAssignmentRegex.containsMatchIn(line)) {
+                            violations.add("${file.name}:${index + 1}: $trimmed")
+                        }
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            violations.isEmpty(),
+            "Found forbidden display field assignments in domain/data layer:\n" +
+                    violations.joinToString("\n")
+        )
+    }
+
+    @Test
+    fun testNoRawExceptionMessageLeaksToUi() {
+        val dirs = getSourceDirectories()
+        val ktFiles = dirs.flatMap { it.walkTopDown() }
+            .filter { it.extension == "kt" && !isExcludedFile(it) }
+
+        val violations = mutableListOf<String>()
+        val exceptionStateLeakRegex = Regex("""\b(?:statusMessage|errorMessage|userMessage|errorText)\s*=\s*(?:e|ex|err|exception|throwable|t)\.(?:message|localizedMessage)\b""")
+        val exceptionUiCallLeakRegex = Regex("""\b(?:Text|Toast\.makeText|showSnackbar)\([^)]*\b(?:e|ex|err|exception|throwable|t)\.(?:message|localizedMessage)\b""")
+
+        for (file in ktFiles) {
+            file.useLines { lines ->
+                lines.forEachIndexed { index, line ->
+                    val trimmed = line.trim()
+                    if (!trimmed.startsWith("//") && !trimmed.startsWith("/*") && !trimmed.startsWith("*")) {
+                        if (exceptionStateLeakRegex.containsMatchIn(line) || exceptionUiCallLeakRegex.containsMatchIn(line)) {
+                            violations.add("${file.name}:${index + 1}: $trimmed")
+                        }
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            violations.isEmpty(),
+            "Found raw exception message leaked to user-visible state or UI component:\n" +
+                    violations.joinToString("\n")
+        )
+    }
+
+    @Test
+    fun testRoutineAndExerciseEntitiesUsePresetKeysAndCodes() {
+        // 1. Program seed must have a language-neutral presetKey
+        val defaultProgram = TrainingProgram.DEFAULT_HYPERTROPHY
+        assertEquals(
+            "program_hypertrophy",
+            defaultProgram.presetKey,
+            "Default training program must use language-neutral presetKey 'program_hypertrophy'"
+        )
+
+        // 2. Exercise dataset must use language-neutral uppercase category and equipment codes
+        val exercises = ExerciseDataset.allExercises
+        assertTrue(exercises.isNotEmpty(), "Exercise dataset must not be empty")
+
+        for (exercise in exercises) {
+            assertTrue(
+                exercise.primaryMuscle.name.matches(Regex("^[A-Z0-9_]+$")),
+                "Exercise primaryMuscle '${exercise.primaryMuscle.name}' in '${exercise.id}' must be an uppercase enum code"
+            )
+            assertTrue(
+                exercise.equipment.name.matches(Regex("^[A-Z0-9_]+$")),
+                "Exercise equipment '${exercise.equipment.name}' in '${exercise.id}' must be an uppercase enum code"
+            )
+            assertTrue(
+                exercise.movementType.name.matches(Regex("^[A-Z0-9_]+$")),
+                "Exercise movementType '${exercise.movementType.name}' in '${exercise.id}' must be an uppercase enum code"
+            )
+            for (sm in exercise.secondaryMuscles) {
+                assertTrue(
+                    sm.name.matches(Regex("^[A-Z0-9_]+$")),
+                    "Secondary muscle code '${sm.name}' in '${exercise.id}' must be an uppercase enum code, not translated text"
+                )
+            }
+        }
+    }
+
+    @Test
+    fun testNumberFormattingUsedForMetricsInUi() {
+        val dirs = getSourceDirectories()
+        val featureFiles = dirs.flatMap { it.walkTopDown() }
+            .filter { it.extension == "kt" && it.absolutePath.replace('\\', '/').contains("/features/") && !isExcludedFile(it) }
+
+        val violations = mutableListOf<String>()
+        val rawNumberFormatRegex = Regex("""(\.toString\(\)\s*\+\s*"(?:kg|lb|%)"|\$\{[^}]*(?:weight|volume|oneRm)[^}]*\}\s*(?:kg|lb|%)|String\.format\(|"%[0-9.]*f")""")
+
+        for (file in featureFiles) {
+            file.useLines { lines ->
+                lines.forEachIndexed { index, line ->
+                    val trimmed = line.trim()
+                    if (!trimmed.startsWith("//") && !trimmed.startsWith("/*") && !trimmed.startsWith("*")) {
+                        if (rawNumberFormatRegex.containsMatchIn(line)) {
+                            violations.add("${file.name}:${index + 1}: $trimmed")
+                        }
+                    }
+                }
+            }
+        }
+
+        assertTrue(
+            violations.isEmpty(),
+            "Found raw number formatting in UI instead of NumberFormatUtils:\n" +
+                    violations.joinToString("\n")
+        )
+    }
+
+    @Test
+    fun testTimeUtilsRespectsLanguage() {
+        val testEpoch = 1700000000000L
+        val idFormatted = com.bearbones.kumalift.core.util.formatEpochToDateString(testEpoch, AppLanguage.ID)
+        val enFormatted = com.bearbones.kumalift.core.util.formatEpochToDateString(testEpoch, AppLanguage.EN)
+
+        assertTrue(
+            idFormatted != enFormatted,
+            "formatEpochToDateString must produce distinct outputs for ID vs EN: '$idFormatted' vs '$enFormatted'"
+        )
+
+        // Indonesian uses dd/MM/yyyy format (contains /)
+        assertTrue(
+            idFormatted.contains("/"),
+            "Indonesian date format must use slashes (dd/MM/yyyy): '$idFormatted'"
+        )
+
+        // English uses yyyy-MM-dd format (contains -)
+        assertTrue(
+            enFormatted.contains("-"),
+            "English date format must use hyphens (yyyy-MM-dd): '$enFormatted'"
         )
     }
 }

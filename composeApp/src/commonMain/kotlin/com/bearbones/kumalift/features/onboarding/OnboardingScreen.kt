@@ -87,19 +87,19 @@ fun OnboardingScreen(
                     RoutineBlueprint(
                         id = "starter_push",
                         title = s.routinePushDayTitle,
-                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "PPL Split",
+                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "",
                         muscleFocus = s.muscleFocusPush,
                         estimatedDurationMinutes = 55,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "RPE 8–9" },
+                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
                         plannedSetsPerExercise = 3
                     ),
                     RoutineBlueprint(
                         id = "starter_pull",
                         title = s.routinePullDayTitle,
-                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "PPL Split",
+                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "",
                         muscleFocus = s.muscleFocusPull,
                         estimatedDurationMinutes = 50,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "RPE 8–9" },
+                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
                         plannedSetsPerExercise = 3
                     )
                 )
@@ -107,10 +107,10 @@ fun OnboardingScreen(
                     RoutineBlueprint(
                         id = "starter_strength_a",
                         title = s.routineFullBodyTitle,
-                        splitCategory = s.presetRoutineCategories.getOrElse(2) { "Full Body" },
+                        splitCategory = s.presetRoutineCategories.getOrElse(2) { "" },
                         muscleFocus = s.muscleFocusCompound,
                         estimatedDurationMinutes = 65,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "Heavy, RPE 8–9" },
+                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
                         plannedSetsPerExercise = 4
                     )
                 )
@@ -118,10 +118,10 @@ fun OnboardingScreen(
                     RoutineBlueprint(
                         id = "starter_general_full",
                         title = s.routineUpperLowerTitle,
-                        splitCategory = s.presetRoutineCategories.getOrElse(1) { "Upper / Lower" },
+                        splitCategory = s.presetRoutineCategories.getOrElse(1) { "" },
                         muscleFocus = s.muscleFocusConditioning,
                         estimatedDurationMinutes = 45,
-                        targetRpeTier = s.rpeTiers.getOrElse(1) { "Moderate, RPE 7–8" },
+                        targetRpeTier = s.rpeTiers.getOrElse(1) { "" },
                         plannedSetsPerExercise = 3
                     )
                 )

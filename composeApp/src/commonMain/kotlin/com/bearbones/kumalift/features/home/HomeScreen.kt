@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.domain.model.TrainingProgram
+import com.bearbones.kumalift.domain.model.localizedTitle
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -507,7 +508,7 @@ fun HomeScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                KumaBadge(text = program.name)
+                                                KumaBadge(text = program.localizedTitle(s))
                                                 if (todayScheduledPrograms.size == 1) {
                                                     Text(
                                                         text = s.todaysSchedule,
@@ -537,7 +538,7 @@ fun HomeScreen(
                                         Text(
                                             text = routine?.let {
                                                 s.routineSubtitle(it.exerciseTemplates.size, it.estimatedDurationMinutes)
-                                            } ?: s.createRoutineForProgramHint(program.name),
+                                            } ?: s.createRoutineForProgramHint(program.localizedTitle(s)),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = KumaColors.TextSecondary
                                         )
@@ -607,7 +608,7 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
 
                                 val restMessage = if (programs.size == 1) {
-                                    s.restDayProgramMessage(programs.first().name)
+                                    s.restDayProgramMessage(programs.first().localizedTitle(s))
                                 } else {
                                     s.restDayAllProgramsMessage
                                 }

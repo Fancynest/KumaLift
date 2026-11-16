@@ -108,7 +108,9 @@ fun CreateRoutineScreen(
     val s = LocalStrings.current
 
     var routineTitle by remember(routineToEdit) { mutableStateOf(routineToEdit?.title ?: "") }
-    var selectedCategory by remember(routineToEdit) { mutableStateOf(routineToEdit?.splitCategory ?: "PPL Split") }
+    var selectedCategory by remember(routineToEdit) {
+        mutableStateOf(routineToEdit?.splitCategory ?: s.presetRoutineCategories.firstOrNull() ?: "")
+    }
     var customCategory by remember(routineToEdit) { mutableStateOf("") }
     var selectedDays by remember(routineToEdit) {
         mutableStateOf(routineToEdit?.scheduledDays ?: emptyList())

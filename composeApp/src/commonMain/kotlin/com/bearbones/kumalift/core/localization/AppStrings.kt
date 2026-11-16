@@ -164,6 +164,7 @@ interface AppStrings {
     val weeklyAdherenceLabel: String
     val allProgramsCategory: String
     val programHypertrophy: String
+    val programHypertrophyDesc: String
     val programStrength: String
     val programGeneral: String
     fun adherenceProgress(current: Int, target: Int): String
@@ -334,6 +335,7 @@ interface AppStrings {
     val usePhotoButton: String
     val changePictureButton: String
     val publicProfileSection: String
+    val profileBioLabel: String
     val profileBioFieldPlaceholder: String
     val profileBioPlaceholder: String
     val privateProfileSection: String

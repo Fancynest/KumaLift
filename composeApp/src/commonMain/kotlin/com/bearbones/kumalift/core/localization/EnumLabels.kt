@@ -9,6 +9,20 @@ import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.SetType
+import com.bearbones.kumalift.domain.model.TrainingGoal
+
+fun TrainingGoal.label(s: AppStrings): String = when (this) {
+    TrainingGoal.HYPERTROPHY -> s.programHypertrophy
+    TrainingGoal.STRENGTH -> s.programStrength
+    TrainingGoal.ENDURANCE -> s.programEndurance
+    TrainingGoal.FAT_LOSS -> s.programFatLoss
+    TrainingGoal.GENERAL -> s.programGeneral
+}
+
+val TrainingGoal.label: String
+    @Composable
+    @ReadOnlyComposable
+    get() = label(LocalStrings.current)
 
 fun MuscleGroup.label(s: AppStrings): String = when (this) {
     MuscleGroup.CHEST -> s.muscleChest

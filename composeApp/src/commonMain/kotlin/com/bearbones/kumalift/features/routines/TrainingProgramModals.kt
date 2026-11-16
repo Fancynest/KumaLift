@@ -64,8 +64,11 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingProgram
+import com.bearbones.kumalift.domain.model.localizedTitle
+import com.bearbones.kumalift.domain.model.localizedDescription
 
 @Composable
 fun TrainingProgramSelectorModal(
@@ -206,7 +209,7 @@ private fun ProgramItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = program.name,
+                    text = program.localizedTitle(s),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = KumaColors.TextWhite
@@ -250,7 +253,7 @@ private fun ProgramItemCard(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = goalDisplayName(program.category),
+                        text = program.category.label(s),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = KumaColors.TextSecondary
@@ -378,8 +381,8 @@ fun CreateEditProgramModal(
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
 
-    var name by remember(programToEdit) { mutableStateOf(programToEdit?.name ?: "") }
-    var description by remember(programToEdit) { mutableStateOf(programToEdit?.description ?: "") }
+    var name by remember(programToEdit) { mutableStateOf(programToEdit?.localizedTitle(s) ?: "") }
+    var description by remember(programToEdit) { mutableStateOf(programToEdit?.localizedDescription(s) ?: "") }
     var category by remember(programToEdit) { mutableStateOf(programToEdit?.category ?: TrainingGoal.HYPERTROPHY) }
     var nameError by remember { mutableStateOf(false) }
 
@@ -510,7 +513,7 @@ fun CreateEditProgramModal(
                                     .padding(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Text(
-                                    text = goalDisplayName(goal),
+                                    text = goal.label(s),
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) colors.onAccentFill else KumaColors.TextWhite
@@ -602,7 +605,7 @@ fun DeleteProgramConfirmationDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = s.deleteProgramMessage(program.name, routineCount),
+                    text = s.deleteProgramMessage(program.localizedTitle(s), routineCount),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = KumaColors.TextSecondary
                     )
@@ -647,12 +650,4 @@ fun DeleteProgramConfirmationDialog(
     }
 }
 
-private fun goalDisplayName(goal: TrainingGoal): String {
-    return when (goal) {
-        TrainingGoal.HYPERTROPHY -> "Hypertrophy"
-        TrainingGoal.STRENGTH -> "Strength"
-        TrainingGoal.FAT_LOSS -> "Fat Loss"
-        TrainingGoal.ENDURANCE -> "Endurance"
-        TrainingGoal.GENERAL -> "General Fitness"
-    }
-}
+

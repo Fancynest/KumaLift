@@ -634,7 +634,7 @@ private fun ProfileSettingsPage(
 
                 item {
                     KumaInputField(
-                        label = "Bio",
+                        label = s.profileBioLabel,
                         value = bioInput,
                         onValueChange = { bioInput = it },
                         placeholder = s.profileBioPlaceholder

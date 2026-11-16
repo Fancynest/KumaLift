@@ -53,6 +53,7 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
@@ -62,6 +63,7 @@ import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingProgram
+import com.bearbones.kumalift.domain.model.localizedTitle
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -265,7 +267,7 @@ fun RoutinesScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = activeProgram.name,
+                                        text = activeProgram.localizedTitle(s),
                                         style = MaterialTheme.typography.headlineSmall.copy(
                                             fontSize = 22.sp,
                                             fontWeight = FontWeight.ExtraBold,
@@ -276,7 +278,7 @@ fun RoutinesScreen(
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "${formatGoalName(activeProgram.category)} · ${activeProgram.targetDaysPerWeek} ${s.daysPerWeek}",
+                                        text = "${activeProgram.category.label(s)} · ${activeProgram.targetDaysPerWeek} ${s.daysPerWeek}",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = KumaColors.TextSecondary
                                         )
@@ -402,7 +404,7 @@ fun RoutinesScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = s.createRoutineForProgramHint(activeProgram.name),
+                                text = s.createRoutineForProgramHint(activeProgram.localizedTitle(s)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = KumaColors.TextSecondary,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -723,12 +725,4 @@ fun RoutineCardItem(
     }
 }
 
-private fun formatGoalName(goal: TrainingGoal): String {
-    return when (goal) {
-        TrainingGoal.HYPERTROPHY -> "Hypertrophy"
-        TrainingGoal.STRENGTH -> "Strength"
-        TrainingGoal.FAT_LOSS -> "Fat Loss"
-        TrainingGoal.ENDURANCE -> "Endurance"
-        TrainingGoal.GENERAL -> "General Fitness"
-    }
-}
+

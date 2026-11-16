@@ -40,7 +40,7 @@ class LanguageGuardTests {
                 path.endsWith("ExerciseData.kt")
     }
 
-    private fun hasLettersOutsideInterpolation(literal: String): Boolean {
+    private fun getLettersOutsideInterpolation(literal: String): String {
         var cleaned = literal
         while (cleaned.contains("\${")) {
             val start = cleaned.indexOf("\${")
@@ -52,7 +52,15 @@ class LanguageGuardTests {
             }
         }
         cleaned = cleaned.replace(Regex("""\$[A-Za-z0-9_]+"""), "")
-        return cleaned.any { it.isLetter() }
+        return cleaned.filter { it.isLetter() }
+    }
+
+    private fun isDisallowedLiteral(literal: String, allowlist: Set<String>): Boolean {
+        if (literal in allowlist) return false
+        val letters = getLettersOutsideInterpolation(literal)
+        if (letters.isEmpty()) return false
+        if (letters in allowlist) return false
+        return true
     }
 
     @Test
@@ -128,23 +136,17 @@ class LanguageGuardTests {
         // 3. Android Notifications & Toasts
         val notifToastRegex = Regex("""(?:Toast\.makeText|setContentTitle|setContentText)\([^"]*"([^"]*[A-Za-z][^"]*)"|(?:contentDescription)\s*=\s*"([^"]*[A-Za-z][^"]*)"""")
 
-        // Explicit allowlist of technical strings with documentation
+        // Exact allowlist of strictly technical / brand non-translatable strings
         val allowlist = setOf(
             "KumaLift",                     // App brand name
             "v1.0.0",                       // Semantic version tag
-            "W", "D", "F",                  // Set-type badge glyphs
+            "W",                            // Set-type badge glyph (Warm-up)
+            "D",                            // Set-type badge glyph (Drop Set)
+            "F",                            // Set-type badge glyph (Failure Set)
             "RPE",                          // Universal exercise telemetry acronym
-            "SET",                          // Universal column header
+            "SET",                          // Universal athletic column header
             "P",                            // Progress chart period indicator prefix
-            "Bio",                          // Universal user profile field placeholder
             "DEL",                          // Numpad delete action key symbol
-            "PPL Split",                    // Global training taxonomy category
-            "Upper / Lower",                // Global training taxonomy category
-            "Full Body",                    // Global training taxonomy category
-            "starter_push",                 // Technical blueprint ID
-            "starter_pull",                 // Technical blueprint ID
-            "starter_strength_a",           // Technical blueprint ID
-            "starter_general_full",         // Technical blueprint ID
             "kumalift_rest_timer_ongoing",  // Android notification channel ID
             "kumalift_rest_timer_alert",    // Android notification channel ID
             "kuma_rest_timer_ongoing",      // Android notification channel ID
@@ -159,7 +161,7 @@ class LanguageGuardTests {
                         // Check Text(...) calls
                         for (match in textLiteralRegex.findAll(line)) {
                             val literal = match.groupValues[1]
-                            if (hasLettersOutsideInterpolation(literal) && literal !in allowlist && !allowlist.any { literal.startsWith(it) }) {
+                            if (isDisallowedLiteral(literal, allowlist)) {
                                 violations.add("${file.name}:${index + 1} [Text] \"$literal\" in: $trimmed")
                             }
                         }
@@ -167,7 +169,7 @@ class LanguageGuardTests {
                         // Check Named arguments
                         for (match in namedArgRegex.findAll(line)) {
                             val literal = match.groupValues[1]
-                            if (hasLettersOutsideInterpolation(literal) && literal !in allowlist && !allowlist.any { literal.startsWith(it) }) {
+                            if (isDisallowedLiteral(literal, allowlist)) {
                                 violations.add("${file.name}:${index + 1} [NamedArg] \"$literal\" in: $trimmed")
                             }
                         }
@@ -175,7 +177,7 @@ class LanguageGuardTests {
                         // Check Notifications & Toasts
                         for (match in notifToastRegex.findAll(line)) {
                             val literal = match.groupValues[1].ifEmpty { match.groupValues[2] }
-                            if (hasLettersOutsideInterpolation(literal) && literal !in allowlist) {
+                            if (isDisallowedLiteral(literal, allowlist)) {
                                 violations.add("${file.name}:${index + 1} [Notif/Toast] \"$literal\" in: $trimmed")
                             }
                         }
@@ -212,6 +214,7 @@ class LanguageGuardTests {
             "rpeColumnHeader",              // Universal exercise science acronym "RPE"
             "metricVolumeLabel",            // Universal athletic volume label "Volume"
             "profileBioFieldPlaceholder",   // Profile biography field "Bio"
+            "profileBioLabel",              // Profile biography label "Bio"
             "exerciseMediaAttributionTitle",// Legal copyright attribution notice
             "setTypeDrop",                  // Universal gym terminology "Drop Set"
             "supersetLabel",                // Universal gym terminology "Superset"

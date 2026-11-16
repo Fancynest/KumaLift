@@ -1,7 +1,13 @@
 package com.bearbones.kumalift.core.backup
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -9,12 +15,15 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.bearbones.kumalift.MainActivity
+import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.local.DatabaseDriverFactory
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.database.KumaDatabase
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.BackupFrequency
 import com.bearbones.kumalift.domain.model.UserSettings
 import kotlinx.coroutines.Dispatchers
@@ -134,11 +143,13 @@ class AutoBackupWorker(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        var userSettings: UserSettings? = null
         try {
             val driver = DatabaseDriverFactory(applicationContext).createDriver()
             val database = KumaDatabase(driver)
             val databaseRepo = KumaDatabaseRepository(database)
             val settings = databaseRepo.loadUserSettings() ?: return@withContext Result.failure()
+            userSettings = settings
 
             if (!settings.dataBackup.autoBackupEnabled) {
                 return@withContext Result.success()
@@ -148,11 +159,65 @@ class AutoBackupWorker(
             if (execution.success) {
                 Result.success()
             } else {
+                postBackupFailureNotification(applicationContext, settings.appearance.language)
                 Result.failure()
             }
         } catch (e: Exception) {
             KumaLogger.e("AutoBackupWorker", "Worker execution exception", e)
+            val lang = userSettings?.appearance?.language ?: AppLanguage.SYSTEM
+            postBackupFailureNotification(applicationContext, lang)
             Result.failure()
+        }
+    }
+
+    private fun postBackupFailureNotification(context: Context, language: AppLanguage) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            val strings = resolveAppStrings(language)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    "kumalift_backup_alerts",
+                    strings.autoBackupChannelName,
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = strings.autoBackupChannelDescription
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val openIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(context, "kumalift_backup_alerts")
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(context)
+            }
+
+            val appIconRes = context.applicationInfo.icon.let { if (it != 0) it else android.R.drawable.ic_dialog_info }
+            val notification = builder
+                .setSmallIcon(appIconRes)
+                .setContentTitle(strings.autoBackupFailureNotificationTitle)
+                .setContentText(strings.autoBackupFailureNotificationBody)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setShowWhen(true)
+                .build()
+
+            notificationManager.notify(3003, notification)
+        } catch (t: Throwable) {
+            KumaLogger.e("AutoBackupWorker", "Failed to post failure notification", t)
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.util
 
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.LengthUnit
 import com.bearbones.kumalift.domain.model.WeightUnit
 import kotlin.math.roundToInt
@@ -60,13 +61,9 @@ object UnitConverters {
     }
 
     /**
-     * Formats weight with unit label (e.g. "100.0 kg" or "220.5 lb").
+     * Formats weight with unit label (e.g. "100,0 kg" or "220.5 lb") following language formatting rules.
      */
-    fun formatWeight(weightKg: Double, unit: WeightUnit): String {
-        val display = toDisplayWeight(weightKg, unit)
-        return when (unit) {
-            WeightUnit.KG -> "$display kg"
-            WeightUnit.LB -> "$display lb"
-        }
+    fun formatWeight(weightKg: Double, unit: WeightUnit, language: AppLanguage = AppLanguage.EN): String {
+        return NumberFormatUtils.formatWeight(weightKg, unit, language)
     }
 }

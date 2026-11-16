@@ -44,6 +44,7 @@ import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.util.NumberFormatUtils
 import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.domain.model.WeightUnit
 import kotlin.math.roundToInt
@@ -99,7 +100,7 @@ fun WeightInputDialog(
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { input ->
-                        if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d*$"""))) {
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[,.]?\d*$"""))) {
                             textValue = input
                             errorMessage = null
                         }
@@ -137,7 +138,7 @@ fun WeightInputDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(KumaColors.SurfaceContainer)
                                 .clickable {
-                                    val current = textValue.toDoubleOrNull() ?: 0.0
+                                    val current = NumberFormatUtils.parseDecimalInput(textValue) ?: 0.0
                                     val updated = maxOf(0.0, current + delta)
                                     textValue = if (updated == updated.toLong().toDouble()) updated.toLong().toString() else updated.toString()
                                 }
@@ -179,7 +180,7 @@ fun WeightInputDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val weight = textValue.toDoubleOrNull() ?: 0.0
+                    val weight = NumberFormatUtils.parseDecimalInput(textValue) ?: 0.0
                     onConfirm(weight)
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -407,9 +408,9 @@ fun RpePickerDialog(
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { input ->
-                        if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d*$"""))) {
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[,.]?\d*$"""))) {
                             textValue = input
-                            val parsed = input.toDoubleOrNull()
+                            val parsed = NumberFormatUtils.parseDecimalInput(input)
                             selectedRpe = if (parsed != null && parsed in 1.0..10.0) parsed else null
                         }
                     },
@@ -508,7 +509,7 @@ fun PrevInputDialog(
                 OutlinedTextField(
                     value = weightText,
                     onValueChange = { input ->
-                        if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d*$"""))) {
+                        if (input.isEmpty() || input.matches(Regex("""^\d*[,.]?\d*$"""))) {
                             weightText = input
                         }
                     },
@@ -543,7 +544,7 @@ fun PrevInputDialog(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(KumaColors.SurfaceContainer)
                                 .clickable {
-                                    val current = weightText.toDoubleOrNull() ?: 0.0
+                                    val current = NumberFormatUtils.parseDecimalInput(weightText) ?: 0.0
                                     val updated = maxOf(0.0, current + delta)
                                     weightText = if (updated == updated.toLong().toDouble()) updated.toLong().toString() else updated.toString()
                                 }
@@ -627,7 +628,7 @@ fun PrevInputDialog(
                 }
                 Button(
                     onClick = {
-                        val parsedWeight = weightText.toDoubleOrNull()
+                        val parsedWeight = NumberFormatUtils.parseDecimalInput(weightText)
                         val weightKg = parsedWeight?.let { UnitConverters.toStorageWeightKg(it, unit) }
                         val reps = repsText.toIntOrNull()
                         onConfirm(weightKg, reps)

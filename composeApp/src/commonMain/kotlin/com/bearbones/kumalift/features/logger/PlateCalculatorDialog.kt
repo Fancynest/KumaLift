@@ -47,17 +47,20 @@ import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.PlateCalculator
 import com.bearbones.kumalift.domain.model.WeightUnit
 
-private fun formatWeightDisplay(weight: Double): String =
-    if (weight % 1.0 == 0.0) "${weight.toInt()}" else "$weight"
+private fun formatWeightDisplay(weight: Double, language: AppLanguage): String =
+    NumberFormatUtils.formatDecimal(weight, language, 1, trimTrailingZeros = true)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlateCalculatorDialog(
     initialWeightKg: Double,
     unit: WeightUnit = WeightUnit.KG,
+    language: AppLanguage = AppLanguage.SYSTEM,
     onDismiss: () -> Unit,
     onConfirm: (Double) -> Unit
 ) {
@@ -150,7 +153,7 @@ fun PlateCalculatorDialog(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "${formatWeightDisplay(targetWeight)} ${s.unitKg}",
+                                text = "${formatWeightDisplay(targetWeight, language)} ${s.unitKg}",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.accentText
@@ -367,7 +370,7 @@ fun PlateCalculatorDialog(
                                             .background(chipPlateColor)
                                     )
                                     Text(
-                                        text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg)} ${s.unitKg}",
+                                        text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg, language)} ${s.unitKg}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -382,7 +385,7 @@ fun PlateCalculatorDialog(
         },
         confirmButton = {
             KumaPrimaryButton(
-                text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg)} ${s.unitKg})",
+                text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg, language)} ${s.unitKg})",
                 onClick = {
                     onConfirm(calcResult.totalCalculatedWeightKg)
                     onDismiss()

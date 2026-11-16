@@ -115,6 +115,10 @@ fun App() {
         KumaLogger.isEnabled = settings.security.localLogging
     }
 
+    LaunchedEffect(settings.appearance.language) {
+        com.bearbones.kumalift.core.notification.syncPlatformNotificationChannels(settings.appearance.language)
+    }
+
     // Root back handler: Screen-specific sub-navigation handlers (e.g. ExerciseDetail,
     // CreateExercise, Settings sub-menus) register their own KumaBackHandler inside their
     // respective composables, which takes priority because they are deeper in the composition tree.

@@ -44,8 +44,11 @@ import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.notification.syncPlatformNotificationChannels
+import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.RpeTier
@@ -62,7 +65,19 @@ fun OnboardingScreen(
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
 
-    var currentStep by remember { mutableStateOf(1) } // 1: Goal, 2: Days, 3: Experience
+    val initialAppLanguage = settingsRepository.settings.value.appearance.language
+    val systemDefaultLang = remember {
+        if (initialAppLanguage != AppLanguage.SYSTEM) {
+            initialAppLanguage
+        } else if (resolveIsEnglish(AppLanguage.SYSTEM)) {
+            AppLanguage.EN
+        } else {
+            AppLanguage.ID
+        }
+    }
+    var selectedLanguage by remember { mutableStateOf(systemDefaultLang) }
+
+    var currentStep by remember { mutableStateOf(1) } // 1: Language, 2: Goal, 3: Days, 4: Experience
 
     var selectedGoal by remember { mutableStateOf(TrainingGoal.HYPERTROPHY) }
     var selectedDaysCount by remember { mutableStateOf(4) }
@@ -163,7 +178,7 @@ fun OnboardingScreen(
             ) {
                 // Step Indicator Pills
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(1, 2, 3).forEach { stepIndex ->
+                    listOf(1, 2, 3, 4).forEach { stepIndex ->
                         Box(
                             modifier = Modifier
                                 .width(if (stepIndex == currentStep) 28.dp else 10.dp)
@@ -202,7 +217,89 @@ fun OnboardingScreen(
             ) {
                 when (currentStep) {
                     1 -> {
-                        // Step 1: Training Goal
+                        // Step 1: Language Picker
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = s.onboardingStepLanguage,
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Text(
+                                text = s.onboardingLanguageDescription,
+                                style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.TextSecondary)
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            listOf(
+                                Triple(AppLanguage.ID, s.languageOptionIndonesian, "Bahasa Indonesia"),
+                                Triple(AppLanguage.EN, s.languageOptionEnglish, "English")
+                            ).forEach { (lang, title, subtitle) ->
+                                val isSelected = selectedLanguage == lang
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(if (isSelected) colors.accentFill.copy(alpha = 0.12f) else KumaColors.SurfaceContainer)
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) colors.accentFill else Color.Transparent,
+                                            shape = RoundedCornerShape(14.dp)
+                                        )
+                                        .clickable {
+                                            selectedLanguage = lang
+                                            settingsRepository.update { current ->
+                                                current.copy(appearance = current.appearance.copy(language = lang))
+                                            }
+                                            syncPlatformNotificationChannels(lang)
+                                        }
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = title,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isSelected) colors.accentText else colors.textPrimary
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = subtitle,
+                                                style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted)
+                                            )
+                                        }
+
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(colors.accentFill),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = colors.onAccentFill,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    2 -> {
+                        // Step 2: Training Goal
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = s.onboardingStepGoal,
@@ -221,27 +318,27 @@ fun OnboardingScreen(
                             listOf(
                                 TrainingGoal.HYPERTROPHY to Triple(
                                     s.programHypertrophy,
-                                    "8–12 Reps · Pembesaran massa otot & volume terarah",
-                                    "⚡ Populer"
+                                    s.onboardingHypertrophyDesc,
+                                    "⚡ ${s.popularBadge}"
                                 ),
                                 TrainingGoal.STRENGTH to Triple(
                                     s.programStrength,
-                                    "3–6 Reps · Kekuatan maksimal pada angkatan compound",
+                                    s.onboardingStrengthDesc,
                                     null
                                 ),
                                 TrainingGoal.ENDURANCE to Triple(
                                     s.programEndurance,
-                                    "15–20 Reps · Daya tahan otot, stamina & sirkuit",
+                                    s.onboardingEnduranceDesc,
                                     null
                                 ),
                                 TrainingGoal.FAT_LOSS to Triple(
                                     s.programFatLoss,
-                                    "10–15 Reps · Kepadatan latihan & pembakaran kalori",
+                                    s.onboardingFatLossDesc,
                                     null
                                 ),
                                 TrainingGoal.GENERAL to Triple(
                                     s.programGeneral,
-                                    "8–15 Reps · Kebugaran seimbang & mobilitas fisik",
+                                    s.onboardingGeneralDesc,
                                     null
                                 )
                             ).forEach { (goal, info) ->
@@ -322,8 +419,8 @@ fun OnboardingScreen(
                         }
                     }
 
-                    2 -> {
-                        // Step 2: Training Days
+                    3 -> {
+                        // Step 3: Training Days
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = s.onboardingStepDays,
@@ -389,7 +486,7 @@ fun OnboardingScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                val dayNames = listOf("Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min")
+                                val dayNames = s.dayNamesShort
                                 (1..7).forEach { dayNum ->
                                     val isPicked = selectedDays.contains(dayNum)
                                     Box(
@@ -397,14 +494,14 @@ fun OnboardingScreen(
                                             .size(42.dp)
                                             .clip(CircleShape)
                                             .background(if (isPicked) colors.accentFill else KumaColors.SurfaceContainer)
-                                            .clickable {
-                                                selectedDays = if (isPicked) {
-                                                    if (selectedDays.size > 1) selectedDays - dayNum else selectedDays
-                                                } else {
-                                                    (selectedDays + dayNum).sorted()
-                                                }
-                                                selectedDaysCount = selectedDays.size
-                                            },
+                                        .clickable {
+                                            selectedDays = if (isPicked) {
+                                                if (selectedDays.size > 1) selectedDays - dayNum else selectedDays
+                                            } else {
+                                                (selectedDays + dayNum).sorted()
+                                            }
+                                            selectedDaysCount = selectedDays.size
+                                        },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
@@ -420,8 +517,8 @@ fun OnboardingScreen(
                         }
                     }
 
-                    3 -> {
-                        // Step 3: Experience & Completion
+                    4 -> {
+                        // Step 4: Experience & Completion
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = s.onboardingStepExp,
@@ -441,17 +538,17 @@ fun OnboardingScreen(
                                 Triple(
                                     ExperienceLevel.BEGINNER,
                                     s.levelBeginner,
-                                    "${s.levelBeginner} · 0–1 yr"
+                                    "${s.levelBeginner} · ${s.onboardingExpBeginnerDesc}"
                                 ),
                                 Triple(
                                     ExperienceLevel.INTERMEDIATE,
                                     s.levelIntermediate,
-                                    "${s.levelIntermediate} · 1–3 yr"
+                                    "${s.levelIntermediate} · ${s.onboardingExpIntermediateDesc}"
                                 ),
                                 Triple(
                                     ExperienceLevel.ADVANCED,
                                     s.levelAdvanced,
-                                    "${s.levelAdvanced} · 3+ yr"
+                                    "${s.levelAdvanced} · ${s.onboardingExpAdvancedDesc}"
                                 )
                             ).forEach { (exp, title, desc) ->
                                 val isSelected = selectedExperience == exp
@@ -495,7 +592,7 @@ fun OnboardingScreen(
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
             ) {
-                if (currentStep < 3) {
+                if (currentStep < 4) {
                     KumaPrimaryButton(
                         text = s.onboardingNextStep(currentStep),
                         onClick = { currentStep += 1 }

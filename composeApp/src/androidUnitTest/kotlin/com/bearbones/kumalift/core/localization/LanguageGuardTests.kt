@@ -223,7 +223,9 @@ class LanguageGuardTests {
             "setTypeFailureBadge",          // Badge glyph "F"
             "setTypeDropMenuLabel",         // Drop set menu item "D · Drop Set"
             "targetLabel",                  // Universal word "Target"
-            "prBadge"                       // Universal athletic badge "PR"
+            "prBadge",                      // Universal athletic badge "PR"
+            "languageOptionIndonesian",     // Native autonym "Bahasa Indonesia"
+            "languageOptionEnglish"         // Native autonym "English"
         )
 
         val blankViolations = mutableListOf<String>()

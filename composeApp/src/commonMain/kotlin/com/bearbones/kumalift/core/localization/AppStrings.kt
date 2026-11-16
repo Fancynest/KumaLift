@@ -614,6 +614,10 @@ interface AppStrings {
     val recoveryDisclaimer: String
     val supersetLabel: String
     val onboardingSkip: String
+    val onboardingStepLanguage: String
+    val onboardingLanguageDescription: String
+    val languageOptionIndonesian: String
+    val languageOptionEnglish: String
     val onboardingStepGoal: String
     val onboardingStepDays: String
     val onboardingStepExp: String
@@ -638,6 +642,8 @@ interface AppStrings {
     fun autoBackupStatusOk(timestamp: String): String
     fun autoBackupStatusFailed(error: String): String
     val autoBackupNeedsAttention: String
+    val autoBackupChannelName: String
+    val autoBackupChannelDescription: String
     val autoBackupFailureNotificationTitle: String
     val autoBackupFailureNotificationBody: String
     val autoBackupRunNow: String
@@ -662,6 +668,15 @@ interface AppStrings {
     val onboardingDaysDescription: String
     val onboardingPickTrainingDays: String
     val onboardingExpDescription: String
+    val onboardingHypertrophyDesc: String
+    val onboardingStrengthDesc: String
+    val onboardingEnduranceDesc: String
+    val onboardingFatLossDesc: String
+    val onboardingGeneralDesc: String
+    val popularBadge: String
+    val onboardingExpBeginnerDesc: String
+    val onboardingExpIntermediateDesc: String
+    val onboardingExpAdvancedDesc: String
     fun onboardingNextStep(step: Int): String
     val routinePushDayTitle: String
     val routinePullDayTitle: String

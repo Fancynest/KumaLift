@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.util
 
+import com.bearbones.kumalift.domain.model.AppLanguage
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -7,7 +8,7 @@ import kotlinx.datetime.toLocalDateTime
 
 fun currentEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
-fun formatEpochToDateString(epochMs: Long): String {
+fun formatEpochToDateString(epochMs: Long, language: AppLanguage = AppLanguage.SYSTEM): String {
     val instant = Instant.fromEpochMilliseconds(epochMs)
     val tz = TimeZone.currentSystemDefault()
     val ldt = instant.toLocalDateTime(tz)
@@ -16,5 +17,10 @@ fun formatEpochToDateString(epochMs: Long): String {
     val day = ldt.dayOfMonth.toString().padStart(2, '0')
     val month = ldt.monthNumber.toString().padStart(2, '0')
     val year = ldt.year
-    return "$year-$month-$day $hour:$minute"
+    val followsEnglish = resolveIsEnglish(language)
+    return if (followsEnglish) {
+        "$year-$month-$day $hour:$minute"
+    } else {
+        "$day/$month/$year $hour:$minute"
+    }
 }

@@ -205,6 +205,8 @@ object EnStrings : AppStrings {
         "Maximal, RPE 9–10"
     )
     override val presetRoutineCategories = listOf("PPL Split", "Upper / Lower", "Full Body", "Custom")
+    override val routineActiveDaysLabel = "ACTIVE DAYS (SCHEDULE)"
+    override val routineActiveDaysSubtitle = "Select the day(s) this routine is scheduled"
 
     // Multi Training Programs
     override val trainingProgramsTitle = "Training Programs"

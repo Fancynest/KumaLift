@@ -198,6 +198,8 @@ interface AppStrings {
     fun exercisesFoundCount(count: Int): String
     val rpeTiers: List<String>
     val presetRoutineCategories: List<String>
+    val routineActiveDaysLabel: String
+    val routineActiveDaysSubtitle: String
 
     // Multi Training Programs
     val trainingProgramsTitle: String

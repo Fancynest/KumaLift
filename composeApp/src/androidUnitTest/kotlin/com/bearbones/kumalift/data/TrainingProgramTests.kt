@@ -263,4 +263,58 @@ class TrainingProgramTests {
         val sundayPrograms = allPrograms.filter { it.activeDays.contains(7) }
         assertTrue(sundayPrograms.isEmpty())
     }
+
+    @Test
+    fun routinesWithScheduledDaysAreMatchedForHomeSchedule() {
+        val programRepo = TrainingProgramRepository()
+        val routineRepo = RoutineRepository()
+
+        val hypertrophy = programRepo.activeProgram
+        val pushDay = RoutineBlueprint(
+            id = "r_push",
+            programId = hypertrophy.id,
+            title = "Push Day",
+            splitCategory = "PPL Split",
+            muscleFocus = "Chest",
+            scheduledDays = listOf(1, 4) // Monday and Thursday
+        )
+        val pullDay = RoutineBlueprint(
+            id = "r_pull",
+            programId = hypertrophy.id,
+            title = "Pull Day",
+            splitCategory = "PPL Split",
+            muscleFocus = "Back",
+            scheduledDays = listOf(3) // Wednesday
+        )
+        routineRepo.addRoutine(pushDay)
+        routineRepo.addRoutine(pullDay)
+
+        val fatLoss = programRepo.createProgram(name = "Fat Loss Program")
+        val fullBody = RoutineBlueprint(
+            id = "r_full",
+            programId = fatLoss.id,
+            title = "Full Body Circuit",
+            splitCategory = "Full Body",
+            muscleFocus = "Full Body",
+            scheduledDays = listOf(1) // Monday
+        )
+        routineRepo.addRoutine(fullBody)
+
+        val allRoutines = routineRepo.routines.value
+
+        // Monday (1): pushDay and fullBody match (2 routines across 2 programs)
+        val mondayRoutines = allRoutines.filter { it.scheduledDays.contains(1) }
+        assertEquals(2, mondayRoutines.size)
+        assertTrue(mondayRoutines.any { it.title == "Push Day" })
+        assertTrue(mondayRoutines.any { it.title == "Full Body Circuit" })
+
+        // Wednesday (3): only pullDay matches
+        val wednesdayRoutines = allRoutines.filter { it.scheduledDays.contains(3) }
+        assertEquals(1, wednesdayRoutines.size)
+        assertEquals("Pull Day", wednesdayRoutines.first().title)
+
+        // Sunday (7): no routines scheduled (Rest Day)
+        val sundayRoutines = allRoutines.filter { it.scheduledDays.contains(7) }
+        assertTrue(sundayRoutines.isEmpty())
+    }
 }

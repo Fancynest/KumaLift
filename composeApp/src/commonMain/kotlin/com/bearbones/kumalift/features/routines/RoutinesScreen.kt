@@ -536,20 +536,17 @@ fun RoutinesScreen(
             CreateEditProgramModal(
                 programToEdit = null,
                 onDismiss = { showCreateProgramModal = false },
-                onSave = { name, description, category, activeDays ->
+                onSave = { name, description, category ->
                     val created = trainingProgramRepository.createProgram(
                         name = name,
                         description = description,
-                        category = category,
-                        activeDays = activeDays,
-                        targetDaysPerWeek = activeDays.size
+                        category = category
                     )
                     trainingProgramRepository.setActiveProgramId(created.id)
                     settingsRepository?.updateProfile {
                         it.copy(
                             activeProgramId = created.id,
                             trainingDaysPerWeek = created.targetDaysPerWeek,
-                            selectedTrainingDays = created.activeDays,
                             goal = created.category
                         )
                     }
@@ -564,20 +561,17 @@ fun RoutinesScreen(
             CreateEditProgramModal(
                 programToEdit = prog,
                 onDismiss = { programBeingEdited = null },
-                onSave = { name, description, category, activeDays ->
+                onSave = { name, description, category ->
                     val updated = prog.copy(
                         name = name,
                         description = description,
-                        category = category,
-                        targetDaysPerWeek = activeDays.size,
-                        activeDays = activeDays
+                        category = category
                     )
                     trainingProgramRepository.updateProgram(updated)
                     if (activeProgram.id == updated.id) {
                         settingsRepository?.updateProfile {
                             it.copy(
                                 trainingDaysPerWeek = updated.targetDaysPerWeek,
-                                selectedTrainingDays = updated.activeDays,
                                 goal = updated.category
                             )
                         }
@@ -625,7 +619,29 @@ fun RoutineCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                KumaBadge(text = routine.splitCategory)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    KumaBadge(text = routine.splitCategory)
+                    if (routine.scheduledDays.isNotEmpty()) {
+                        val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(LocalKumaColors.current.accentTint)
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = dayLabels,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalKumaColors.current.accentText
+                                )
+                            )
+                        }
+                    }
+                }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

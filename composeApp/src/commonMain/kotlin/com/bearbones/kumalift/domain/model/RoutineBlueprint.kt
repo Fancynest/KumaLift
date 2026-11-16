@@ -24,7 +24,8 @@ data class RoutineBlueprint(
     val exerciseTemplates: List<Exercise> = emptyList(),
     val exerciseConfigs: List<RoutineExerciseConfig> = emptyList(),
     val plannedSetsPerExercise: Int = 3,
-    val lastPerformedDaysAgo: String? = null
+    val lastPerformedDaysAgo: String? = null,
+    val scheduledDays: List<Int> = emptyList() // 1 = Monday .. 7 = Sunday
 ) {
     /**
      * Resolves effective exercise configurations, ensuring backward compatibility with

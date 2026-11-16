@@ -48,5 +48,15 @@ actual class DatabaseDriverFactory {
         } catch (_: Exception) {
             // Column already exists
         }
+
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE routines ADD COLUMN scheduledDays TEXT NOT NULL DEFAULT '';",
+                0
+            )
+        } catch (_: Exception) {
+            // Column already exists
+        }
     }
 }

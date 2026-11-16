@@ -183,7 +183,29 @@ fun RoutineDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                KumaBadge(text = routine.splitCategory)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    KumaBadge(text = routine.splitCategory)
+                                    if (routine.scheduledDays.isNotEmpty()) {
+                                        val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(PillShape)
+                                                .background(LocalKumaColors.current.accentTint)
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = dayLabels,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = LocalKumaColors.current.accentText
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
                                     style = MaterialTheme.typography.labelSmall,

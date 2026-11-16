@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
+import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -99,17 +100,30 @@ fun HomeScreen(
     val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, ..., 7 = Sunday
 
     val todayScheduledPrograms = remember(programs, routines, todayDayOfWeek) {
-        val matchingPrograms = programs.filter { program ->
+        // 1. Routines explicitly scheduled for today via routine.scheduledDays
+        val routinesScheduledToday = routines.filter { routine ->
+            routine.scheduledDays.contains(todayDayOfWeek)
+        }
+        val routineScheduledItems = routinesScheduledToday.map { routine ->
+            val parentProgram = programs.find { it.id == routine.programId }
+                ?: programs.firstOrNull()
+                ?: TrainingProgram.DEFAULT_HYPERTROPHY
+            ScheduledProgramItem(program = parentProgram, scheduledRoutine = routine)
+        }
+
+        // 2. Programs marked active for today without specifically scheduled routines (e.g. newly created programs)
+        val includedProgramIds = routineScheduledItems.map { it.program.id }.toSet()
+        val otherActivePrograms = programs.filter { program ->
+            !includedProgramIds.contains(program.id) &&
             program.activeDays.contains(todayDayOfWeek)
-        }
-        matchingPrograms.map { program ->
+        }.map { program ->
             val programRoutines = routines.filter { it.programId == program.id }
-            val activeDayIndex = program.activeDays.sorted().indexOf(todayDayOfWeek)
-            val routine = if (programRoutines.isEmpty()) null
-            else if (activeDayIndex >= 0) programRoutines.getOrNull(activeDayIndex % programRoutines.size)
-            else programRoutines.firstOrNull()
-            ScheduledProgramItem(program, routine)
+            val routine = programRoutines.firstOrNull { it.scheduledDays.isEmpty() }
+                ?: programRoutines.firstOrNull()
+            ScheduledProgramItem(program = program, scheduledRoutine = routine)
         }
+
+        routineScheduledItems + otherActivePrograms
     }
 
     var showScheduleModal by remember { mutableStateOf(false) }
@@ -408,9 +422,14 @@ fun HomeScreen(
                                     }
                                 }
 
-                                val plannedDays = remember(programs, settings.profile.selectedTrainingDays) {
-                                    val allDays = programs.flatMap { it.activeDays }.toSet()
-                                    if (allDays.isNotEmpty()) allDays else settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) }.toSet()
+                                val plannedDays = remember(programs, routines, settings.profile.selectedTrainingDays) {
+                                    val routineDays = routines.flatMap { it.scheduledDays }.toSet()
+                                    if (routineDays.isNotEmpty()) {
+                                        routineDays
+                                    } else {
+                                        val allDays = programs.flatMap { it.activeDays }.toSet()
+                                        if (allDays.isNotEmpty()) allDays else settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) }.toSet()
+                                    }
                                 }
                                 Row(
                                     modifier = Modifier

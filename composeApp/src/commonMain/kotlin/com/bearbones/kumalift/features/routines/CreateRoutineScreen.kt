@@ -100,6 +100,9 @@ fun CreateRoutineScreen(
     var routineTitle by remember(routineToEdit) { mutableStateOf(routineToEdit?.title ?: "") }
     var selectedCategory by remember(routineToEdit) { mutableStateOf(routineToEdit?.splitCategory ?: "PPL Split") }
     var customCategory by remember(routineToEdit) { mutableStateOf("") }
+    var selectedDays by remember(routineToEdit) {
+        mutableStateOf(routineToEdit?.scheduledDays ?: emptyList())
+    }
     var selectedDurationMinutes by remember(routineToEdit) { mutableStateOf(routineToEdit?.estimatedDurationMinutes ?: 60) }
     var selectedRpeTier by remember(routineToEdit) { mutableStateOf(routineToEdit?.targetRpeTier ?: s.rpeTiers.getOrElse(2) { "RPE 8–9" }) }
     val selectedConfigs = remember(routineToEdit) {
@@ -195,7 +198,8 @@ fun CreateRoutineScreen(
                                 targetRpeTier = selectedRpeTier,
                                 exerciseTemplates = selectedConfigs.map { it.exercise },
                                 exerciseConfigs = selectedConfigs.toList(),
-                                plannedSetsPerExercise = selectedConfigs.firstOrNull()?.targetSets ?: 3
+                                plannedSetsPerExercise = selectedConfigs.firstOrNull()?.targetSets ?: 3,
+                                scheduledDays = selectedDays.sorted()
                             )
                             onSaveRoutine(newRoutine)
                         }
@@ -353,7 +357,93 @@ fun CreateRoutineScreen(
                     }
                 }
 
-                // Section 3: Target Duration
+                // Section 3: Active Days (Jadwal Hari Aktif)
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = s.routineActiveDaysLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.accentText,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.8.sp
+                            )
+                        )
+                        if (selectedDays.isNotEmpty()) {
+                            val countText = buildString {
+                                append(selectedDays.size)
+                                append(" ")
+                                append(s.daysPerWeek)
+                            }
+                            Text(
+                                text = countText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.accentText
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = s.routineActiveDaysSubtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = KumaColors.TextMuted,
+                            fontSize = 11.sp
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val allDays = (1..7).map { dayNum ->
+                        dayNum to (s.dayNamesShort.getOrNull(dayNum - 1) ?: "")
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        allDays.forEach { (dayNum, dayLabel) ->
+                            val isSelected = selectedDays.contains(dayNum)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) colors.accentFill else KumaColors.BorderDefault,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        selectedDays = if (isSelected) {
+                                            (selectedDays - dayNum).sorted()
+                                        } else {
+                                            (selectedDays + dayNum).sorted()
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = dayLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) colors.onAccentFill else KumaColors.TextWhite,
+                                        fontSize = 12.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Section 4: Target Duration
                 Column {
                     Text(
                         text = s.estimatedDurationLabel,

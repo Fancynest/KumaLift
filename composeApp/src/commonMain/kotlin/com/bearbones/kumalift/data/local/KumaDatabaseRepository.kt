@@ -323,6 +323,7 @@ class KumaDatabaseRepository(
                 )
             }
             val exercises = configs.map { it.exercise }
+            val scheduledDays = rRow.scheduledDays.split(",").mapNotNull { it.trim().toIntOrNull() }
 
             RoutineBlueprint(
                 id = rRow.id,
@@ -334,7 +335,8 @@ class KumaDatabaseRepository(
                 targetRpeTier = rRow.targetRpeTier,
                 exerciseTemplates = exercises,
                 exerciseConfigs = configs,
-                plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt()
+                plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
+                scheduledDays = scheduledDays
             )
         }
     }
@@ -356,6 +358,7 @@ class KumaDatabaseRepository(
                 )
             }
             val exercises = configs.map { it.exercise }
+            val scheduledDays = rRow.scheduledDays.split(",").mapNotNull { it.trim().toIntOrNull() }
 
             RoutineBlueprint(
                 id = rRow.id,
@@ -367,7 +370,8 @@ class KumaDatabaseRepository(
                 targetRpeTier = rRow.targetRpeTier,
                 exerciseTemplates = exercises,
                 exerciseConfigs = configs,
-                plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt()
+                plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
+                scheduledDays = scheduledDays
             )
         }
     }
@@ -384,7 +388,8 @@ class KumaDatabaseRepository(
                 targetRpeTier = routine.targetRpeTier,
                 plannedSetsPerExercise = routine.plannedSetsPerExercise.toLong(),
                 isCustom = 1L,
-                createdAtEpochMs = currentEpochMillis()
+                createdAtEpochMs = currentEpochMillis(),
+                scheduledDays = routine.scheduledDays.joinToString(",")
             )
 
             val configs = routine.effectiveConfigs

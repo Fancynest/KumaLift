@@ -373,7 +373,7 @@ private fun ProgramItemCard(
 fun CreateEditProgramModal(
     programToEdit: TrainingProgram? = null,
     onDismiss: () -> Unit,
-    onSave: (name: String, description: String, category: TrainingGoal, activeDays: List<Int>) -> Unit
+    onSave: (name: String, description: String, category: TrainingGoal) -> Unit
 ) {
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
@@ -381,11 +381,7 @@ fun CreateEditProgramModal(
     var name by remember(programToEdit) { mutableStateOf(programToEdit?.name ?: "") }
     var description by remember(programToEdit) { mutableStateOf(programToEdit?.description ?: "") }
     var category by remember(programToEdit) { mutableStateOf(programToEdit?.category ?: TrainingGoal.HYPERTROPHY) }
-    var selectedDays by remember(programToEdit) {
-        mutableStateOf(programToEdit?.activeDays?.filter { it in 1..7 }?.distinct()?.take(3)?.ifEmpty { listOf(1, 3, 5) } ?: listOf(1, 3, 5))
-    }
     var nameError by remember { mutableStateOf(false) }
-    var daysError by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -524,93 +520,6 @@ fun CreateEditProgramModal(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Active Days Selector (Max 3 days)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = s.programActiveDaysLabel,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = KumaColors.TextSecondary
-                            )
-                        )
-                        Text(
-                            text = "${selectedDays.size} / 3",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (selectedDays.size >= 3) colors.accentText else KumaColors.TextMuted
-                            )
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = s.maxDaysNotice,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = KumaColors.TextMuted,
-                            fontSize = 11.sp
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val allDays = (1..7).map { dayNum ->
-                        dayNum to (s.dayNamesShort.getOrNull(dayNum - 1) ?: "D$dayNum")
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        allDays.forEach { (dayNum, dayLabel) ->
-                            val isSelected = selectedDays.contains(dayNum)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) colors.accentFill else KumaColors.BorderDefault,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .clickable {
-                                        if (isSelected) {
-                                            selectedDays = (selectedDays - dayNum).sorted()
-                                        } else {
-                                            if (selectedDays.size < 3) {
-                                                selectedDays = (selectedDays + dayNum).sorted()
-                                                daysError = false
-                                            }
-                                        }
-                                    }
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = dayLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) colors.onAccentFill else KumaColors.TextWhite,
-                                        fontSize = 12.sp
-                                    )
-                                )
-                            }
-                        }
-                    }
-
-                    if (daysError) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = s.minDaysNotice,
-                            color = colors.error,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-
                     Spacer(modifier = Modifier.height(26.dp))
 
                     // Actions (Cancel / Save)
@@ -636,10 +545,8 @@ fun CreateEditProgramModal(
                             onClick = {
                                 if (name.isBlank()) {
                                     nameError = true
-                                } else if (selectedDays.isEmpty()) {
-                                    daysError = true
                                 } else {
-                                    onSave(name.trim(), description.trim(), category, selectedDays.sorted())
+                                    onSave(name.trim(), description.trim(), category)
                                 }
                             },
                             modifier = Modifier.weight(1f),
@@ -652,7 +559,8 @@ fun CreateEditProgramModal(
                             Text(
                                 text = s.save,
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onAccentFill
                                 )
                             )
                         }

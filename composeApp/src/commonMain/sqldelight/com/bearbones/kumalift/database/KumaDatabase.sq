@@ -99,7 +99,8 @@ CREATE TABLE routines (
     targetRpeTier TEXT NOT NULL,
     plannedSetsPerExercise INTEGER NOT NULL,
     isCustom INTEGER NOT NULL DEFAULT 1,
-    createdAtEpochMs INTEGER NOT NULL
+    createdAtEpochMs INTEGER NOT NULL,
+    scheduledDays TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE routine_exercises (
@@ -259,8 +260,8 @@ SELECT * FROM routines WHERE id = ?;
 
 insertRoutine:
 INSERT OR REPLACE INTO routines (
-    id, programId, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, programId, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs, scheduledDays
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteRoutine:
 DELETE FROM routines WHERE id = ?;

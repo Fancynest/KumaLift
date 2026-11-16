@@ -205,6 +205,8 @@ object IdStrings : AppStrings {
         "Maksimal, RPE 9–10"
     )
     override val presetRoutineCategories = listOf("PPL Split", "Upper / Lower", "Full Body", "Kustom")
+    override val routineActiveDaysLabel = "JADWAL HARI LATIHAN"
+    override val routineActiveDaysSubtitle = "Pilih hari latihan untuk routine ini"
 
     // Multi Training Programs
     override val trainingProgramsTitle = "Program Latihan"

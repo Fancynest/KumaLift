@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.documentfile.provider.DocumentFile
 import com.bearbones.kumalift.core.localization.AppStrings
+import com.bearbones.kumalift.core.logging.KumaLogger
 
 @Composable
 actual fun rememberDataExportLauncher(
@@ -35,9 +36,10 @@ actual fun rememberDataExportLauncher(
                     strings.backupFileSavedSuccess
                 )
             } catch (e: Exception) {
+                KumaLogger.e("DataExportLauncher", "Failed to write backup file: ${e.message}", e)
                 onExportResult(
                     false,
-                    strings.failedToWriteBackupFile(e.message ?: "")
+                    strings.backupErrorWriteFailed
                 )
             } finally {
                 pendingContent = null
@@ -57,10 +59,11 @@ actual fun rememberDataExportLauncher(
             try {
                 createDocLauncher.launch(fileName)
             } catch (e: Exception) {
+                KumaLogger.e("DataExportLauncher", "Failed to launch document picker: ${e.message}", e)
                 pendingContent = null
                 onExportResult(
                     false,
-                    strings.failedToOpenFilePicker(e.message ?: "")
+                    strings.backupErrorFolderInaccessible
                 )
             }
         }
@@ -152,7 +155,8 @@ actual fun rememberDataExportBytesLauncher(
                 }
                 onExportResult(true, strings.backupFileSavedSuccess)
             } catch (e: Exception) {
-                onExportResult(false, strings.failedToWriteBackupFile(e.message ?: ""))
+                KumaLogger.e("DataExportBytesLauncher", "Failed to write backup file: ${e.message}", e)
+                onExportResult(false, strings.backupErrorWriteFailed)
             } finally {
                 pendingBytes = null
             }
@@ -168,8 +172,9 @@ actual fun rememberDataExportBytesLauncher(
             try {
                 createDocLauncher.launch(fileName)
             } catch (e: Exception) {
+                KumaLogger.e("DataExportBytesLauncher", "Failed to launch document picker: ${e.message}", e)
                 pendingBytes = null
-                onExportResult(false, strings.failedToOpenFilePicker(e.message ?: ""))
+                onExportResult(false, strings.backupErrorFolderInaccessible)
             }
         }
     }

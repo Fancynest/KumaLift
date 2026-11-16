@@ -773,4 +773,14 @@ object IdStrings : AppStrings {
     override val customRestTimerMinutes = "Menit"
     override val customRestTimerSeconds = "Detik"
     override val deleteSetAction = "Hapus Set"
+
+    override val backupErrorFolderNotConfigured = "Folder pencadangan belum dikonfigurasi. Silakan pilih folder di Pengaturan."
+    override val backupErrorFolderInaccessible = "Folder pencadangan tidak dapat diakses. Silakan pilih ulang folder di Pengaturan."
+    override val backupErrorWriteFailed = "Gagal menulis file cadangan ke tujuan."
+    override val backupErrorWrongPasswordOrCorrupted = "Kata sandi salah atau file cadangan rusak."
+    override val backupErrorUnsupportedFormat = "Format cadangan tidak didukung atau tidak dikenali."
+    override val backupErrorInvalidFile = "File cadangan tidak valid atau rusak."
+    override val backupErrorPermissionLost = "Izin penyimpanan hilang. Silakan pilih ulang folder."
+    override val backupErrorUnknown = "Terjadi kesalahan tak terduga saat pencadangan."
+    override val backupFolderConfiguredSuccess = "Folder tujuan pencadangan berhasil diatur"
 }

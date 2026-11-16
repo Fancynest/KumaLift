@@ -2,6 +2,8 @@ package com.bearbones.kumalift.core.crypto
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import com.bearbones.kumalift.core.backup.BackupErrorCode
+import com.bearbones.kumalift.core.backup.BackupException
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -83,12 +85,12 @@ actual object BackupCrypto {
             if (inspection.type == BackupFileType.UNENCRYPTED_CONTAINER || inspection.type == BackupFileType.LEGACY_JSON) {
                 return unpackUnencryptedContainer(fileBytes)
             }
-            throw IllegalArgumentException("Unsupported or unrecognized encrypted backup format")
+            throw BackupException(BackupErrorCode.UNSUPPORTED_FORMAT, null, "Unsupported or unrecognized encrypted backup format")
         }
 
         val minExpectedSize = 6 + SALT_LENGTH_BYTES + IV_LENGTH_BYTES + 16 // 16 bytes auth tag minimum
         if (fileBytes.size < minExpectedSize) {
-            throw IllegalArgumentException("Incorrect password or corrupted backup file")
+            throw BackupException(BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED, null, "Incorrect password or corrupted backup file")
         }
 
         val salt = fileBytes.copyOfRange(6, 6 + SALT_LENGTH_BYTES)
@@ -103,7 +105,7 @@ actual object BackupCrypto {
             cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv))
             cipher.doFinal(ciphertext)
         } catch (e: Exception) {
-            throw IllegalArgumentException("Incorrect password or corrupted backup file", e)
+            throw BackupException(BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED, e, "Incorrect password or corrupted backup file")
         }
     }
 

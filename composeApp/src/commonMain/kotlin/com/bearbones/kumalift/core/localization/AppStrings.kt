@@ -737,4 +737,14 @@ interface AppStrings {
     val customRestTimerMinutes: String
     val customRestTimerSeconds: String
     val deleteSetAction: String
+
+    val backupErrorFolderNotConfigured: String
+    val backupErrorFolderInaccessible: String
+    val backupErrorWriteFailed: String
+    val backupErrorWrongPasswordOrCorrupted: String
+    val backupErrorUnsupportedFormat: String
+    val backupErrorInvalidFile: String
+    val backupErrorPermissionLost: String
+    val backupErrorUnknown: String
+    val backupFolderConfiguredSuccess: String
 }

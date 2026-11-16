@@ -6,7 +6,8 @@ import com.bearbones.kumalift.domain.model.UserSettings
 data class AutoBackupExecutionResult(
     val success: Boolean,
     val fileName: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val errorCode: BackupErrorCode? = null
 )
 
 expect object AutoBackupService {

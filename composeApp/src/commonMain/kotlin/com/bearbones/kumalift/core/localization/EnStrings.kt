@@ -773,4 +773,14 @@ object EnStrings : AppStrings {
     override val customRestTimerMinutes = "Minutes"
     override val customRestTimerSeconds = "Seconds"
     override val deleteSetAction = "Delete Set"
+
+    override val backupErrorFolderNotConfigured = "Backup folder is not configured. Please select a folder in Settings."
+    override val backupErrorFolderInaccessible = "Backup folder is inaccessible. Please re-select the folder in Settings."
+    override val backupErrorWriteFailed = "Failed to write backup file to destination."
+    override val backupErrorWrongPasswordOrCorrupted = "Incorrect password or corrupted backup file."
+    override val backupErrorUnsupportedFormat = "Unsupported or unrecognized backup format."
+    override val backupErrorInvalidFile = "Invalid or corrupted backup file."
+    override val backupErrorPermissionLost = "Storage permission lost. Please re-select the folder."
+    override val backupErrorUnknown = "An unexpected error occurred during backup."
+    override val backupFolderConfiguredSuccess = "Backup destination folder set"
 }

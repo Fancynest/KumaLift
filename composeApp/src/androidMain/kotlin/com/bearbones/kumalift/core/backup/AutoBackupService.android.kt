@@ -35,15 +35,15 @@ object AutoBackupRunner {
         val dataBackup = settings.dataBackup
         val folderUriStr = dataBackup.autoBackupFolderUri
         if (folderUriStr.isNullOrBlank()) {
-            val errorMsg = "Folder not configured"
+            val code = BackupErrorCode.FOLDER_NOT_CONFIGURED
             val updated = settings.copy(
                 dataBackup = dataBackup.copy(
                     lastBackupResultSuccess = false,
-                    lastBackupResultError = errorMsg
+                    lastBackupResultError = code.name
                 )
             )
             databaseRepo.saveUserSettings(updated)
-            return AutoBackupExecutionResult(false, null, errorMsg)
+            return AutoBackupExecutionResult(false, null, code.name, code)
         }
 
         val folderUri = Uri.parse(folderUriStr)
@@ -56,15 +56,15 @@ object AutoBackupRunner {
         }
 
         if (folderDoc == null) {
-            val errorMsg = "Folder inaccessible"
+            val code = BackupErrorCode.FOLDER_INACCESSIBLE
             val updated = settings.copy(
                 dataBackup = dataBackup.copy(
                     lastBackupResultSuccess = false,
-                    lastBackupResultError = errorMsg
+                    lastBackupResultError = code.name
                 )
             )
             databaseRepo.saveUserSettings(updated)
-            return AutoBackupExecutionResult(false, null, errorMsg)
+            return AutoBackupExecutionResult(false, null, code.name, code)
         }
 
         return try {
@@ -76,11 +76,11 @@ object AutoBackupRunner {
             val fileName = "KumaLift-backup-$timestampStr.kumalift"
 
             val fileDoc = folderDoc.createFile("application/octet-stream", fileName)
-                ?: throw IllegalStateException("Cannot create backup file in destination folder")
+                ?: throw BackupException(BackupErrorCode.WRITE_FAILED, null, "Cannot create backup file in destination folder")
 
             context.contentResolver.openOutputStream(fileDoc.uri)?.use { out ->
                 out.write(packageBytes)
-            } ?: throw IllegalStateException("Cannot write to destination backup file")
+            } ?: throw BackupException(BackupErrorCode.WRITE_FAILED, null, "Cannot write to destination backup file")
 
             // Pruning old backups past autoBackupKeepLast
             val keepLast = dataBackup.autoBackupKeepLast.coerceAtLeast(1)
@@ -112,18 +112,18 @@ object AutoBackupRunner {
             )
             databaseRepo.saveUserSettings(updated)
             KumaLogger.i(TAG, "Auto-backup succeeded: $fileName")
-            AutoBackupExecutionResult(true, fileName, null)
+            AutoBackupExecutionResult(true, fileName, null, null)
         } catch (e: Exception) {
-            val errorMsg = e.message ?: "Backup failed"
-            KumaLogger.e(TAG, "Auto-backup failed", e)
+            val code = (e as? BackupException)?.errorCode ?: BackupErrorCode.WRITE_FAILED
+            KumaLogger.e(TAG, "Auto-backup failed: ${e.message}", e)
             val updated = settings.copy(
                 dataBackup = dataBackup.copy(
                     lastBackupResultSuccess = false,
-                    lastBackupResultError = errorMsg
+                    lastBackupResultError = code.name
                 )
             )
             databaseRepo.saveUserSettings(updated)
-            AutoBackupExecutionResult(false, null, errorMsg)
+            AutoBackupExecutionResult(false, null, code.name, code)
         }
     }
 }
@@ -217,7 +217,7 @@ actual object AutoBackupService {
         settings: UserSettings
     ): AutoBackupExecutionResult = withContext(Dispatchers.IO) {
         val context = AndroidAppProvider.appContext
-            ?: return@withContext AutoBackupExecutionResult(false, null, "Application context unavailable")
+            ?: return@withContext AutoBackupExecutionResult(false, null, BackupErrorCode.UNKNOWN.name, BackupErrorCode.UNKNOWN)
         AutoBackupRunner.executeBackup(context, databaseRepo, settings)
     }
 }

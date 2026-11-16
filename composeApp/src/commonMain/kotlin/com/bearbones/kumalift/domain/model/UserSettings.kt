@@ -1,5 +1,7 @@
 package com.bearbones.kumalift.domain.model
 
+import com.bearbones.kumalift.core.backup.BackupErrorCode
+import com.bearbones.kumalift.core.localization.AppStrings
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -323,7 +325,12 @@ data class DataBackupSettings(
     val lastBackupResultSuccess: Boolean? = null,
     val lastBackupResultError: String? = null,
     val lastBackupFileName: String? = null
-)
+) {
+    fun localizedError(s: AppStrings): String? {
+        val err = lastBackupResultError ?: return null
+        return BackupErrorCode.fromCode(err).localizedMessage(s)
+    }
+}
 
 @Serializable
 data class SecuritySettings(

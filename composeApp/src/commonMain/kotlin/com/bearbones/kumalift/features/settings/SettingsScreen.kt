@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.bearbones.kumalift.core.backup.AutoBackupService
+import com.bearbones.kumalift.core.backup.BackupErrorCode
 import com.bearbones.kumalift.core.crypto.BackupCrypto
 import com.bearbones.kumalift.core.crypto.BackupFileType
 import com.bearbones.kumalift.core.data.rememberDataExportBytesLauncher
@@ -2509,7 +2510,7 @@ private fun ExportImportDataPage(
                     )
                 )
             }
-            statusMessage = "Backup destination folder set"
+            statusMessage = s.backupFolderConfiguredSuccess
         } else {
             if (settings.dataBackup.autoBackupFolderUri == null) {
                 settingsRepository.update { current ->
@@ -2651,7 +2652,7 @@ private fun ExportImportDataPage(
                         if (unpackResult?.isSuccess == true) {
                             pendingImportContent = unpackResult.getOrNull()
                         } else {
-                            statusMessage = s.backupInvalidJson(s.autoBackupStatusFailed("Incorrect password or corrupted file"))
+                            statusMessage = BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED.localizedMessage(s)
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
@@ -3116,7 +3117,8 @@ private fun ExportImportDataPage(
                                                 if (result.success) {
                                                     statusMessage = s.autoBackupStatusOk(result.fileName ?: "")
                                                 } else {
-                                                    statusMessage = s.autoBackupStatusFailed(result.errorMessage ?: s.autoBackupFolderInaccessible)
+                                                    val code = result.errorCode ?: BackupErrorCode.fromCode(result.errorMessage)
+                                                    statusMessage = s.autoBackupStatusFailed(code.localizedMessage(s))
                                                 }
                                             }
                                         }
@@ -3155,7 +3157,7 @@ private fun ExportImportDataPage(
                                             formatEpochToDateString(lastEpoch) + (lastFileName?.let { " ($it)" } ?: "")
                                         )
                                         lastSuccess == false -> s.autoBackupStatusFailed(
-                                            lastError ?: s.autoBackupFolderInaccessible
+                                            settings.dataBackup.localizedError(s) ?: s.backupErrorFolderInaccessible
                                         )
                                         else -> formatEpochToDateString(lastEpoch)
                                     },

@@ -10,6 +10,6 @@ actual object AutoBackupService {
         databaseRepo: KumaDatabaseRepository,
         settings: UserSettings
     ): AutoBackupExecutionResult {
-        return AutoBackupExecutionResult(false, null, "Not supported on iOS")
+        return AutoBackupExecutionResult(false, null, BackupErrorCode.UNSUPPORTED_FORMAT.name, BackupErrorCode.UNSUPPORTED_FORMAT)
     }
 }

@@ -1,5 +1,7 @@
 package com.bearbones.kumalift.data.export
 
+import com.bearbones.kumalift.core.backup.BackupErrorCode
+import com.bearbones.kumalift.core.backup.BackupException
 import com.bearbones.kumalift.core.crypto.BackupCrypto
 import com.bearbones.kumalift.core.crypto.BackupFileType
 import com.bearbones.kumalift.core.crypto.BackupInspection
@@ -158,7 +160,7 @@ class DataBackupManager(
             when (inspection.type) {
                 BackupFileType.PASSWORD_ENCRYPTED -> {
                     if (password.isNullOrBlank()) {
-                        Result.failure(IllegalArgumentException("Password required to decrypt backup"))
+                        Result.failure(BackupException(BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED, null, "Password required to decrypt backup"))
                     } else {
                         val decrypted = BackupCrypto.decryptWithPassword(fileBytes, password)
                         Result.success(decrypted.decodeToString())
@@ -180,12 +182,16 @@ class DataBackupManager(
                     if (str.trimStart().startsWith("{")) {
                         Result.success(str)
                     } else {
-                        Result.failure(IllegalArgumentException("Unrecognized backup file format"))
+                        Result.failure(BackupException(BackupErrorCode.UNSUPPORTED_FORMAT, null, "Unrecognized backup file format"))
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: BackupException) {
+            KumaLogger.e("DataBackupManager", "Unpack failed: ${e.message}", e)
             Result.failure(e)
+        } catch (e: Exception) {
+            KumaLogger.e("DataBackupManager", "Unpack failed: ${e.message}", e)
+            Result.failure(BackupException(BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED, e, e.message))
         }
     }
 
@@ -199,10 +205,11 @@ class DataBackupManager(
     ): ImportResult {
         val unpackResult = unpackBackupPayload(fileBytes, password)
         if (unpackResult.isFailure) {
-            val err = unpackResult.exceptionOrNull()?.message ?: "Corrupted or invalid backup file"
+            val ex = unpackResult.exceptionOrNull()
+            val errorCode = (ex as? BackupException)?.errorCode ?: BackupErrorCode.INVALID_FILE
             return ImportResult(
                 success = false,
-                message = strings.backupInvalidJson(err)
+                message = errorCode.localizedMessage(strings)
             )
         }
         val jsonString = unpackResult.getOrThrow()
@@ -222,7 +229,7 @@ class DataBackupManager(
             KumaLogger.e("DataBackup", "Failed to decode backup JSON: ${e.message}", e)
             return ImportResult(
                 success = false,
-                message = strings.backupInvalidJson(e.message ?: "")
+                message = strings.backupInvalidJson(BackupErrorCode.INVALID_FILE.localizedMessage(strings))
             )
         }
 

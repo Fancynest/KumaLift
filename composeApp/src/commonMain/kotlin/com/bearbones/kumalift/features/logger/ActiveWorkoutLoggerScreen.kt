@@ -505,6 +505,12 @@ fun ActiveWorkoutLoggerScreen(
                             onUpdateSetRpe = { setId, rpe ->
                                 workoutRepository.updateSetRpe(we.id, setId, rpe)
                             },
+                            onUpdateSetPrevious = { setId, prevW, prevR ->
+                                workoutRepository.updateSetPrevious(we.id, setId, prevW, prevR)
+                            },
+                            onUpdateRestTimer = { newRest ->
+                                workoutRepository.updateExerciseRestTimer(we.id, newRest)
+                            },
                             onAddSet = {
                                 workoutRepository.addSetToExercise(we.id)
                             },
@@ -628,6 +634,10 @@ fun ActiveWorkoutLoggerScreen(
                 subtractStepSec = settings.logging.restTimerSubtractStepSec,
                 onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
                 onMinus = { restTimer.addSeconds(-settings.logging.restTimerSubtractStepSec) },
+                onCustomTimer = { customSec ->
+                    restTimer.reset()
+                    restTimer.start(customSec)
+                },
                 onDismiss = {
                     showRestTimerBar = false
                     restTimer.reset()
@@ -800,6 +810,8 @@ fun ExerciseLoggingCard(
     onUpdateSet: (String, Double, Int) -> Unit,
     onUpdateSetType: (String, SetType) -> Unit,
     onUpdateSetRpe: (String, Double?) -> Unit,
+    onUpdateSetPrevious: (String, Double?, Int?) -> Unit = { _, _, _ -> },
+    onUpdateRestTimer: (Int) -> Unit = {},
     onAddSet: () -> Unit,
     onRemoveLastSet: () -> Unit = {},
     onRemoveExercise: () -> Unit = {},
@@ -812,6 +824,18 @@ fun ExerciseLoggingCard(
     val s = LocalStrings.current
     var showMenu by remember { mutableStateOf(false) }
     var showPlateCalcModal by remember { mutableStateOf(false) }
+    var showRestTimerModal by remember { mutableStateOf(false) }
+
+    if (showRestTimerModal) {
+        CustomRestTimerDialog(
+            initialSeconds = workoutExercise.restTimerSeconds,
+            onDismiss = { showRestTimerModal = false },
+            onConfirm = { newSec ->
+                onUpdateRestTimer(newSec)
+                showRestTimerModal = false
+            }
+        )
+    }
 
     val currentTopWeight = workoutExercise.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg ?: 60.0
 
@@ -945,6 +969,16 @@ fun ExerciseLoggingCard(
                                     contentDescription = null,
                                     tint = LocalKumaColors.current.info
                                 )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(s.customRestTimerTitle, style = MaterialTheme.typography.bodyMedium) },
+                            onClick = {
+                                showMenu = false
+                                showRestTimerModal = true
+                            },
+                            leadingIcon = {
+                                Text("⏱", fontSize = 16.sp)
                             }
                         )
                         DropdownMenuItem(
@@ -1109,7 +1143,8 @@ fun ExerciseLoggingCard(
                     onWeightChange = { newWeight -> onUpdateSet(set.id, newWeight, set.reps) },
                     onRepsChange = { newReps -> onUpdateSet(set.id, set.weightKg, newReps) },
                     onSetTypeChange = { newType -> onUpdateSetType(set.id, newType) },
-                    onRpeChange = { newRpe -> onUpdateSetRpe(set.id, newRpe) }
+                    onRpeChange = { newRpe -> onUpdateSetRpe(set.id, newRpe) },
+                    onPreviousChange = { prevW, prevR -> onUpdateSetPrevious(set.id, prevW, prevR) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -1215,7 +1250,8 @@ fun SetRowItem(
     onWeightChange: (Double) -> Unit,
     onRepsChange: (Int) -> Unit,
     onSetTypeChange: (SetType) -> Unit,
-    onRpeChange: (Double?) -> Unit
+    onRpeChange: (Double?) -> Unit,
+    onPreviousChange: (Double?, Int?) -> Unit = { _, _ -> }
 ) {
     val s = LocalStrings.current
     val bg = if (set.isCompleted) KumaColors.SurfaceContainer.copy(alpha = 0.5f) else KumaColors.SurfaceContainer
@@ -1225,6 +1261,32 @@ fun SetRowItem(
     var showWeightDialog by remember { mutableStateOf(false) }
     var showRepsDialog by remember { mutableStateOf(false) }
     var showTypeMenu by remember { mutableStateOf(false) }
+    var showPrevDialog by remember { mutableStateOf(false) }
+    var showRpeDialog by remember { mutableStateOf(false) }
+
+    if (showPrevDialog) {
+        PrevInputDialog(
+            initialWeightKg = set.previousWeightKg,
+            initialReps = set.previousReps,
+            unit = unit,
+            onDismiss = { showPrevDialog = false },
+            onConfirm = { prevWeight, prevReps ->
+                onPreviousChange(prevWeight, prevReps)
+                showPrevDialog = false
+            }
+        )
+    }
+
+    if (showRpeDialog) {
+        RpePickerDialog(
+            initialRpe = set.rpe,
+            onDismiss = { showRpeDialog = false },
+            onConfirm = { newRpe ->
+                onRpeChange(newRpe)
+                showRpeDialog = false
+            }
+        )
+    }
 
     if (showWeightDialog) {
         WeightInputDialog(
@@ -1327,7 +1389,13 @@ fun SetRowItem(
         // Previous & Set Heart Rate (respects showPreviousColumn)
         if (settings.logging.showPreviousColumn) {
             Box(
-                modifier = Modifier.weight(1.1f),
+                modifier = Modifier
+                    .weight(1.1f)
+                    .padding(horizontal = 2.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(KumaColors.SurfaceContainerHigh)
+                    .clickable { showPrevDialog = true },
                 contentAlignment = Alignment.Center
             ) {
                 val prevText = if (set.previousWeightKg != null && set.previousReps != null) {
@@ -1338,8 +1406,9 @@ fun SetRowItem(
                     Text(
                         text = prevText,
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            color = KumaColors.TextMuted,
-                            fontSize = 13.sp
+                            color = if (prevText == "-") KumaColors.TextMuted else KumaColors.TextWhite,
+                            fontSize = 12.sp,
+                            fontWeight = if (prevText == "-") FontWeight.Normal else FontWeight.SemiBold
                         ),
                         textAlign = TextAlign.Center
                     )
@@ -1412,7 +1481,9 @@ fun SetRowItem(
             val intensityText = if (isRir) {
                 if (set.rpe == null) "—" else "${maxOf(0, (10 - set.rpe.roundToInt()))}"
             } else {
-                if (set.rpe == null) "—" else "${set.rpe}"
+                if (set.rpe == null) "—" else {
+                    if (set.rpe == set.rpe.toLong().toDouble()) set.rpe.toLong().toString() else "${set.rpe}"
+                }
             }
 
             Box(
@@ -1422,29 +1493,7 @@ fun SetRowItem(
                     .height(44.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(KumaColors.SurfaceContainerHigh)
-                    .clickable {
-                        val newRpe = if (isRir) {
-                            when (set.rpe) {
-                                null -> 10.0 // 0 RIR
-                                10.0 -> 9.0  // 1 RIR
-                                9.0 -> 8.0   // 2 RIR
-                                8.0 -> 7.0   // 3 RIR
-                                else -> null
-                            }
-                        } else {
-                            when (set.rpe) {
-                                null -> 7.0
-                                7.0 -> 7.5
-                                7.5 -> 8.0
-                                8.0 -> 8.5
-                                8.5 -> 9.0
-                                9.0 -> 9.5
-                                9.5 -> 10.0
-                                else -> null
-                            }
-                        }
-                        onRpeChange(newRpe)
-                    },
+                    .clickable { showRpeDialog = true },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1471,299 +1520,29 @@ fun SetRowItem(
 }
 
 @Composable
-fun WeightInputDialog(
-    initialWeight: Double,
-    unit: WeightUnit,
-    onDismiss: () -> Unit,
-    onConfirm: (Double) -> Unit
-) {
-    val s = LocalStrings.current
-    val colors = LocalKumaColors.current
-    val initialStr = if (initialWeight > 0.0) {
-        if (initialWeight == initialWeight.toLong().toDouble()) initialWeight.toLong().toString() else initialWeight.toString()
-    } else ""
-    var textValue by remember { mutableStateOf(initialStr) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var showPlateCalcModal by remember { mutableStateOf(false) }
-
-    if (showPlateCalcModal) {
-        PlateCalculatorDialog(
-            initialWeightKg = textValue.toDoubleOrNull() ?: initialWeight,
-            unit = unit,
-            onDismiss = { showPlateCalcModal = false },
-            onConfirm = { calculatedWeight ->
-                textValue = calculatedWeight.toString().removeSuffix(".0")
-                showPlateCalcModal = false
-            }
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.imePadding(),
-        containerColor = KumaColors.SurfaceContainerLow,
-        title = {
-            Text(
-                text = "${s.editWeightTitle} (${if (unit == WeightUnit.LB) s.unitLb else s.unitKg})",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp)
-            ) {
-                OutlinedTextField(
-                    value = textValue,
-                    onValueChange = { input ->
-                        if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d*$"""))) {
-                            textValue = input
-                            errorMessage = null
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("0.0", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    isError = errorMessage != null,
-                    supportingText = {
-                        if (errorMessage != null) {
-                            Text(errorMessage!!, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.ErrorRed))
-                        } else {
-                            Text(s.enterValidWeightHint, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted))
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedBorderColor = colors.accentFill,
-                        unfocusedBorderColor = KumaColors.BorderDefault
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(-5.0, -1.0, 1.0, 5.0).forEach { delta ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(KumaColors.SurfaceContainer)
-                                .clickable {
-                                    val curr = textValue.toDoubleOrNull() ?: 0.0
-                                    val next = maxOf(0.0, curr + delta)
-                                    textValue = if (next == next.toLong().toDouble()) next.toLong().toString() else next.toString()
-                                    errorMessage = null
-                                }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (if (delta > 0) "+$delta" else "$delta").removeSuffix(".0"),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (delta > 0) colors.accentText else colors.textSecondary
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(KumaColors.SurfaceContainer)
-                        .clickable { showPlateCalcModal = true }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint = colors.accentText,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = s.plateCalculatorTitle,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentText
-                        )
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val parsed = textValue.toDoubleOrNull()
-                    if (parsed == null || parsed < 0.0 || parsed > 999.9) {
-                        errorMessage = s.enterValidWeightHint
-                    } else {
-                        onConfirm(parsed)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accentFill,
-                    contentColor = colors.onAccentFill
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
-            }
-        }
-    )
-}
-
-@Composable
-fun RepsInputDialog(
-    initialReps: Int,
-    onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
-) {
-    val s = LocalStrings.current
-    val colors = LocalKumaColors.current
-    var textValue by remember { mutableStateOf(if (initialReps > 0) initialReps.toString() else "") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.imePadding(),
-        containerColor = KumaColors.SurfaceContainerLow,
-        title = {
-            Text(
-                text = s.editRepsTitle,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp)
-            ) {
-                OutlinedTextField(
-                    value = textValue,
-                    onValueChange = { input ->
-                        if (input.isEmpty() || input.all { it.isDigit() }) {
-                            textValue = input
-                            errorMessage = null
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("10", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    isError = errorMessage != null,
-                    supportingText = {
-                        if (errorMessage != null) {
-                            Text(errorMessage!!, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.ErrorRed))
-                        } else {
-                            Text(s.enterValidRepsHint, style = MaterialTheme.typography.bodySmall.copy(color = KumaColors.TextMuted))
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedBorderColor = colors.accentFill,
-                        unfocusedBorderColor = KumaColors.BorderDefault
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(-5, -1, 1, 5).forEach { delta ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(KumaColors.SurfaceContainer)
-                                .clickable {
-                                    val curr = textValue.toIntOrNull() ?: 0
-                                    val next = maxOf(1, curr + delta)
-                                    textValue = next.toString()
-                                    errorMessage = null
-                                }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (if (delta > 0) "+$delta" else "$delta"),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (delta > 0) colors.accentText else colors.textSecondary
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val parsed = textValue.toIntOrNull()
-                    if (parsed == null || parsed < 1 || parsed > 999) {
-                        errorMessage = s.enterValidRepsHint
-                    } else {
-                        onConfirm(parsed)
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.accentFill,
-                    contentColor = colors.onAccentFill
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
-            }
-        }
-    )
-}
-
-@Composable
 fun FloatingRestTimerCard(
     timerState: com.bearbones.kumalift.core.timer.RestTimerState,
     addStepSec: Int = 30,
     subtractStepSec: Int = 15,
     onAdd: () -> Unit,
     onMinus: () -> Unit,
+    onCustomTimer: ((Int) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
+    var showCustomDialog by remember { mutableStateOf(false) }
+
+    if (showCustomDialog && onCustomTimer != null) {
+        CustomRestTimerDialog(
+            initialSeconds = timerState.remainingSeconds,
+            onDismiss = { showCustomDialog = false },
+            onConfirm = { newSeconds ->
+                onCustomTimer(newSeconds)
+                showCustomDialog = false
+            }
+        )
+    }
     Row(
         modifier = Modifier
             .clip(PillShape)
@@ -1777,7 +1556,10 @@ fun FloatingRestTimerCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.clickable { showCustomDialog = true },
+            contentAlignment = Alignment.Center
+        ) {
             CircularProgressIndicator(
                 progress = { timerState.progressFraction },
                 modifier = Modifier.size(32.dp),
@@ -1792,7 +1574,9 @@ fun FloatingRestTimerCard(
             )
         }
 
-        Column {
+        Column(
+            modifier = Modifier.clickable { showCustomDialog = true }
+        ) {
             Text(
                 text = s.restTimerHeader,
                 style = MaterialTheme.typography.labelSmall.copy(

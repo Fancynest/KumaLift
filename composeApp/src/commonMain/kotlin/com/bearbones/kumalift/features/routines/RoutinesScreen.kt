@@ -478,10 +478,13 @@ fun RoutinesScreen(
 
         // Create / Edit Routine Screen Overlay
         if (showCreateRoutineScreen) {
+            val userSettingsState = settingsRepository?.settings?.collectAsState()
+            val currentWeightUnit = userSettingsState?.value?.units?.weightUnit ?: com.bearbones.kumalift.domain.model.WeightUnit.KG
             CreateRoutineScreen(
                 exerciseRepository = exerciseRepository,
                 routineToEdit = routineBeingEdited,
                 currentProgramId = activeProgram.id,
+                weightUnit = currentWeightUnit,
                 onNavigateBack = {
                     showCreateRoutineScreen = false
                     routineBeingEdited = null

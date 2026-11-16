@@ -58,5 +58,25 @@ actual class DatabaseDriverFactory {
         } catch (_: Exception) {
             // Column already exists
         }
+
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE routine_exercises ADD COLUMN restTimerSeconds INTEGER NOT NULL DEFAULT 90;",
+                0
+            )
+        } catch (_: Exception) {
+            // Column already exists
+        }
+
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE routine_exercises ADD COLUMN setConfigsJson TEXT NOT NULL DEFAULT '';",
+                0
+            )
+        } catch (_: Exception) {
+            // Column already exists
+        }
     }
 }

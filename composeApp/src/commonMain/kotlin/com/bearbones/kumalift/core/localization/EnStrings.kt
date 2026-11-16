@@ -759,4 +759,16 @@ object EnStrings : AppStrings {
     override val guidelineFatLoss = "Combine compound resistance training with dynamic tempo and short rest to keep heart rate elevated."
     override val progressionGeneral = "Holistic fitness balanced across strength, mobility, and cardiovascular health."
     override val guidelineGeneral = "Full body balanced training to maintain daily vitality, functional posture, and joint mobility."
+
+    override val customRestTimerTitle = "Custom Rest Timer"
+    override val setTimerButton = "Set Timer"
+    override val editPreviousTitle = "Edit Previous Performance"
+    override val previousWeightLabel = "Previous Weight"
+    override val previousRepsLabel = "Previous Reps"
+    override val selectRpeTitle = "Select RPE / Intensity"
+    override val rpeScaleHint = "Rating of Perceived Exertion (6–10)"
+    override val clearValueButton = "Clear"
+    override val customRestTimerMinutes = "Minutes"
+    override val customRestTimerSeconds = "Seconds"
+    override val deleteSetAction = "Delete Set"
 }

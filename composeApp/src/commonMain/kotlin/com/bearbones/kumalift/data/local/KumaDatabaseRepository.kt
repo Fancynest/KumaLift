@@ -10,6 +10,7 @@ import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
+import com.bearbones.kumalift.domain.model.RoutineSetConfig
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.TrainingGoal
@@ -313,13 +314,21 @@ class KumaDatabaseRepository(
             val configs = reRows.mapNotNull { reRow ->
                 val ex = exerciseLookup(reRow.exerciseId) ?: return@mapNotNull null
                 val ssId = if (reRow.id.contains("__SS_")) reRow.id.substringAfter("__SS_") else null
+                val sets: List<RoutineSetConfig> = try {
+                    if (reRow.setConfigsJson.isNotBlank()) {
+                        json.decodeFromString(reRow.setConfigsJson)
+                    } else emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
                 RoutineExerciseConfig(
                     exercise = ex,
                     targetSets = reRow.targetSets.toInt(),
                     targetReps = reRow.targetReps.toInt(),
                     targetWeightKg = reRow.targetWeightKg,
-                    restTimerSeconds = 90,
-                    supersetGroupId = ssId
+                    restTimerSeconds = reRow.restTimerSeconds.toInt(),
+                    supersetGroupId = ssId,
+                    setConfigs = sets
                 )
             }
             val exercises = configs.map { it.exercise }
@@ -348,13 +357,21 @@ class KumaDatabaseRepository(
             val configs = reRows.mapNotNull { reRow ->
                 val ex = exerciseLookup(reRow.exerciseId) ?: return@mapNotNull null
                 val ssId = if (reRow.id.contains("__SS_")) reRow.id.substringAfter("__SS_") else null
+                val sets: List<RoutineSetConfig> = try {
+                    if (reRow.setConfigsJson.isNotBlank()) {
+                        json.decodeFromString(reRow.setConfigsJson)
+                    } else emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
                 RoutineExerciseConfig(
                     exercise = ex,
                     targetSets = reRow.targetSets.toInt(),
                     targetReps = reRow.targetReps.toInt(),
                     targetWeightKg = reRow.targetWeightKg,
-                    restTimerSeconds = 90,
-                    supersetGroupId = ssId
+                    restTimerSeconds = reRow.restTimerSeconds.toInt(),
+                    supersetGroupId = ssId,
+                    setConfigs = sets
                 )
             }
             val exercises = configs.map { it.exercise }
@@ -396,14 +413,21 @@ class KumaDatabaseRepository(
             queries.deleteRoutineExercises(routine.id)
             configs.forEachIndexed { orderIndex, cfg ->
                 val ssSuffix = if (cfg.supersetGroupId != null) "__SS_${cfg.supersetGroupId}" else ""
+                val setsJson = try {
+                    json.encodeToString(cfg.effectiveSets)
+                } catch (_: Exception) {
+                    ""
+                }
                 queries.insertRoutineExercise(
                     id = "${routine.id}_${cfg.exercise.id}_${orderIndex}$ssSuffix",
                     routineId = routine.id,
                     exerciseId = cfg.exercise.id,
                     orderIndex = orderIndex.toLong(),
-                    targetSets = cfg.targetSets.toLong(),
+                    targetSets = cfg.effectiveSets.size.toLong(),
                     targetReps = cfg.targetReps.toLong(),
-                    targetWeightKg = cfg.targetWeightKg
+                    targetWeightKg = cfg.targetWeightKg,
+                    restTimerSeconds = cfg.restTimerSeconds.toLong(),
+                    setConfigsJson = setsJson
                 )
             }
         }

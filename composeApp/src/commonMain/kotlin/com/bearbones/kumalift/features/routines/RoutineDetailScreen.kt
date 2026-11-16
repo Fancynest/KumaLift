@@ -399,12 +399,23 @@ private fun RoutineExerciseDetailCard(config: RoutineExerciseConfig) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                val effectiveSets = config.effectiveSets
+                val repsLabel = if (config.setConfigs.isNotEmpty()) {
+                    val repsList = config.setConfigs.map { it.targetReps }
+                    if (repsList.distinct().size == 1) {
+                        "${repsList.first()} ${s.repsAbbrev}"
+                    } else {
+                        "${repsList.joinToString("-")} ${s.repsAbbrev}"
+                    }
+                } else {
+                    "${config.targetReps} ${s.repsAbbrev}"
+                }
                 ConfigBadge(
-                    label = "${config.targetSets} ${s.setsAbbrev}",
+                    label = "${effectiveSets.size} ${s.setsAbbrev}",
                     containerColor = KumaColors.SurfaceContainer
                 )
                 ConfigBadge(
-                    label = "${config.targetReps} ${s.repsAbbrev}",
+                    label = repsLabel,
                     containerColor = KumaColors.SurfaceContainer
                 )
                 if (config.targetWeightKg != null && config.targetWeightKg > 0) {

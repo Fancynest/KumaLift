@@ -111,6 +111,8 @@ CREATE TABLE routine_exercises (
     targetSets INTEGER NOT NULL DEFAULT 3,
     targetReps INTEGER NOT NULL DEFAULT 8,
     targetWeightKg REAL,
+    restTimerSeconds INTEGER NOT NULL DEFAULT 90,
+    setConfigsJson TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (routineId) REFERENCES routines(id) ON DELETE CASCADE
 );
 
@@ -275,8 +277,8 @@ SELECT * FROM routine_exercises WHERE routineId = ? ORDER BY orderIndex ASC;
 
 insertRoutineExercise:
 INSERT OR REPLACE INTO routine_exercises (
-    id, routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg
-) VALUES (?, ?, ?, ?, ?, ?, ?);
+    id, routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg, restTimerSeconds, setConfigsJson
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteRoutineExercises:
 DELETE FROM routine_exercises WHERE routineId = ?;

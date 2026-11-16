@@ -3,14 +3,43 @@ package com.bearbones.kumalift.domain.model
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class RoutineSetConfig(
+    val setNumber: Int = 1,
+    val targetReps: Int = 8,
+    val targetWeightKg: Double? = null,
+    val targetRpe: Double? = null,
+    val previousWeightKg: Double? = null,
+    val previousReps: Int? = null,
+    val previousPerformance: String? = null
+)
+
+@Serializable
 data class RoutineExerciseConfig(
     val exercise: Exercise,
     val targetSets: Int = 3,
     val targetReps: Int = 8,
     val targetWeightKg: Double? = null,
     val restTimerSeconds: Int = 90,
-    val supersetGroupId: String? = null
-)
+    val supersetGroupId: String? = null,
+    val setConfigs: List<RoutineSetConfig> = emptyList()
+) {
+    val effectiveSets: List<RoutineSetConfig>
+        get() {
+            if (setConfigs.isNotEmpty()) return setConfigs
+            val count = maxOf(1, targetSets)
+            return (1..count).map { idx ->
+                RoutineSetConfig(
+                    setNumber = idx,
+                    targetReps = targetReps,
+                    targetWeightKg = targetWeightKg,
+                    targetRpe = null,
+                    previousWeightKg = null,
+                    previousReps = null,
+                    previousPerformance = null
+                )
+            }
+        }
+}
 
 @Serializable
 data class RoutineBlueprint(

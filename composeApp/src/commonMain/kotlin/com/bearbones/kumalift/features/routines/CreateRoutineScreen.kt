@@ -80,10 +80,19 @@ import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.media.ExerciseThumbnailMedia
+import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.RoutineSetConfig
+import com.bearbones.kumalift.domain.model.WeightUnit
+import com.bearbones.kumalift.features.logger.CustomRestTimerDialog
+import com.bearbones.kumalift.features.logger.PrevInputDialog
+import com.bearbones.kumalift.features.logger.RepsInputDialog
+import com.bearbones.kumalift.features.logger.RpePickerDialog
+import com.bearbones.kumalift.features.logger.WeightInputDialog
+import androidx.compose.ui.text.style.TextAlign
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -91,6 +100,7 @@ fun CreateRoutineScreen(
     exerciseRepository: ExerciseRepository,
     routineToEdit: RoutineBlueprint? = null,
     currentProgramId: String = com.bearbones.kumalift.domain.model.DEFAULT_PROGRAM_ID,
+    weightUnit: WeightUnit = WeightUnit.KG,
     onNavigateBack: () -> Unit,
     onSaveRoutine: (RoutineBlueprint) -> Unit
 ) {
@@ -678,14 +688,9 @@ fun CreateRoutineScreen(
                                         draggingIndex = null
                                         dragOffsetY = 0f
                                     },
-                                    onSetsChange = { newSets ->
-                                        selectedConfigs[index] = config.copy(targetSets = newSets)
-                                    },
-                                    onRepsChange = { newReps ->
-                                        selectedConfigs[index] = config.copy(targetReps = newReps)
-                                    },
-                                    onRestChange = { newRest ->
-                                        selectedConfigs[index] = config.copy(restTimerSeconds = newRest)
+                                    unit = weightUnit,
+                                    onConfigChange = { updatedConfig ->
+                                        selectedConfigs[index] = updatedConfig
                                     },
                                     onSupersetChange = { newSs ->
                                         selectedConfigs[index] = config.copy(supersetGroupId = newSs)
@@ -736,12 +741,19 @@ fun CreateRoutineScreen(
                 selectedIds = selectedConfigs.map { it.exercise.id }.toSet(),
                 onAddExercise = { ex ->
                     if (!selectedConfigs.any { it.exercise.id == ex.id }) {
+                        val initialSets = (1..3).map { setNum ->
+                            RoutineSetConfig(
+                                setNumber = setNum,
+                                targetReps = 8
+                            )
+                        }
                         selectedConfigs.add(
                             RoutineExerciseConfig(
                                 exercise = ex,
                                 targetSets = 3,
                                 targetReps = 8,
-                                restTimerSeconds = 90
+                                restTimerSeconds = 90,
+                                setConfigs = initialSets
                             )
                         )
                     }
@@ -762,15 +774,120 @@ private fun SelectedExerciseRow(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
-    onSetsChange: (Int) -> Unit,
-    onRepsChange: (Int) -> Unit,
-    onRestChange: (Int) -> Unit,
+    unit: WeightUnit = WeightUnit.KG,
+    onConfigChange: (RoutineExerciseConfig) -> Unit,
     onSupersetChange: (String?) -> Unit,
     onRemove: () -> Unit
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     val exercise = config.exercise
+    val effectiveSets = config.effectiveSets
+
+    var activeDialogSetIndex by remember { mutableStateOf<Int?>(null) }
+    var showWeightDialogForSet by remember { mutableStateOf(false) }
+    var showRepsDialogForSet by remember { mutableStateOf(false) }
+    var showRpeDialogForSet by remember { mutableStateOf(false) }
+    var showPrevDialogForSet by remember { mutableStateOf(false) }
+    var showCustomRestTimerDialog by remember { mutableStateOf(false) }
+
+    // Weight Dialog
+    if (showWeightDialogForSet && activeDialogSetIndex != null && activeDialogSetIndex!! < effectiveSets.size) {
+        val targetSet = effectiveSets[activeDialogSetIndex!!]
+        val displayWeight = targetSet.targetWeightKg?.let { UnitConverters.toDisplayWeight(it, unit) } ?: 0.0
+        WeightInputDialog(
+            initialWeight = displayWeight,
+            unit = unit,
+            onDismiss = {
+                showWeightDialogForSet = false
+                activeDialogSetIndex = null
+            },
+            onConfirm = { newWeight ->
+                val newStorageKg = UnitConverters.toStorageWeightKg(newWeight, unit)
+                val sets = effectiveSets.toMutableList()
+                sets[activeDialogSetIndex!!] = sets[activeDialogSetIndex!!].copy(
+                    targetWeightKg = if (newStorageKg > 0.0) newStorageKg else null
+                )
+                onConfigChange(config.copy(targetSets = sets.size, setConfigs = sets))
+                showWeightDialogForSet = false
+                activeDialogSetIndex = null
+            }
+        )
+    }
+
+    // Reps Dialog
+    if (showRepsDialogForSet && activeDialogSetIndex != null && activeDialogSetIndex!! < effectiveSets.size) {
+        val targetSet = effectiveSets[activeDialogSetIndex!!]
+        RepsInputDialog(
+            initialReps = targetSet.targetReps,
+            onDismiss = {
+                showRepsDialogForSet = false
+                activeDialogSetIndex = null
+            },
+            onConfirm = { newReps ->
+                val sets = effectiveSets.toMutableList()
+                sets[activeDialogSetIndex!!] = sets[activeDialogSetIndex!!].copy(targetReps = newReps)
+                onConfigChange(config.copy(targetSets = sets.size, setConfigs = sets))
+                showRepsDialogForSet = false
+                activeDialogSetIndex = null
+            }
+        )
+    }
+
+    // RPE Dialog
+    if (showRpeDialogForSet && activeDialogSetIndex != null && activeDialogSetIndex!! < effectiveSets.size) {
+        val targetSet = effectiveSets[activeDialogSetIndex!!]
+        RpePickerDialog(
+            initialRpe = targetSet.targetRpe,
+            onDismiss = {
+                showRpeDialogForSet = false
+                activeDialogSetIndex = null
+            },
+            onConfirm = { newRpe ->
+                val sets = effectiveSets.toMutableList()
+                sets[activeDialogSetIndex!!] = sets[activeDialogSetIndex!!].copy(targetRpe = newRpe)
+                onConfigChange(config.copy(targetSets = sets.size, setConfigs = sets))
+                showRpeDialogForSet = false
+                activeDialogSetIndex = null
+            }
+        )
+    }
+
+    // Previous Dialog
+    if (showPrevDialogForSet && activeDialogSetIndex != null && activeDialogSetIndex!! < effectiveSets.size) {
+        val targetSet = effectiveSets[activeDialogSetIndex!!]
+        PrevInputDialog(
+            initialWeightKg = targetSet.previousWeightKg,
+            initialReps = targetSet.previousReps,
+            unit = unit,
+            onDismiss = {
+                showPrevDialogForSet = false
+                activeDialogSetIndex = null
+            },
+            onConfirm = { prevWeightKg, prevReps ->
+                val sets = effectiveSets.toMutableList()
+                sets[activeDialogSetIndex!!] = sets[activeDialogSetIndex!!].copy(
+                    previousWeightKg = prevWeightKg,
+                    previousReps = prevReps
+                )
+                onConfigChange(config.copy(targetSets = sets.size, setConfigs = sets))
+                showPrevDialogForSet = false
+                activeDialogSetIndex = null
+            }
+        )
+    }
+
+    // Custom Rest Timer Dialog
+    if (showCustomRestTimerDialog) {
+        CustomRestTimerDialog(
+            initialSeconds = config.restTimerSeconds,
+            onDismiss = { showCustomRestTimerDialog = false },
+            onConfirm = { newRest ->
+                onConfigChange(config.copy(restTimerSeconds = newRest))
+                showCustomRestTimerDialog = false
+            }
+        )
+    }
 
     val cardBorder = when {
         isDragging -> Modifier.border(2.dp, colors.accentFill, RoundedCornerShape(14.dp))
@@ -801,6 +918,7 @@ private fun SelectedExerciseRow(
             cornerRadius = 14.dp
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
+                // Exercise Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -832,9 +950,9 @@ private fun SelectedExerciseRow(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
-                    // Index number
+                    // Index number badge
                     Box(
                         modifier = Modifier
                             .size(26.dp)
@@ -947,97 +1065,286 @@ private fun SelectedExerciseRow(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Sets Table Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = s.setColumnHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(32.dp)
+                    )
+                    Text(
+                        text = s.prevColumnHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1.1f)
+                    )
+                    Text(
+                        text = if (unit == WeightUnit.LB) s.unitLb.uppercase() else s.unitKg.uppercase(),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1.1f).padding(horizontal = 2.dp)
+                    )
+                    Text(
+                        text = s.repsColumnHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1.0f).padding(horizontal = 2.dp)
+                    )
+                    Text(
+                        text = s.rpeColumnHeader,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = KumaColors.TextMuted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(0.9f).padding(horizontal = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(32.dp))
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Set Rows
+                effectiveSets.forEachIndexed { sIndex, setCfg ->
+                    val prevDisplay = if (setCfg.previousWeightKg != null && setCfg.previousReps != null) {
+                        val dispW = UnitConverters.toDisplayWeight(setCfg.previousWeightKg, unit)
+                        "$dispW × ${setCfg.previousReps}"
+                    } else setCfg.previousPerformance ?: "—"
+
+                    val weightDisplay = if (setCfg.targetWeightKg != null && setCfg.targetWeightKg > 0.0) {
+                        UnitConverters.toDisplayWeight(setCfg.targetWeightKg, unit).toString().removeSuffix(".0")
+                    } else "—"
+
+                    val rpeDisplay = if (setCfg.targetRpe != null) {
+                        if (setCfg.targetRpe == setCfg.targetRpe.toLong().toDouble()) setCfg.targetRpe.toLong().toString() else "${setCfg.targetRpe}"
+                    } else "—"
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Set Number
+                        Text(
+                            text = "${setCfg.setNumber}",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary
+                            ),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.width(32.dp)
+                        )
+
+                        // PREV Cell
+                        Box(
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .padding(horizontal = 2.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    activeDialogSetIndex = sIndex
+                                    showPrevDialogForSet = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = prevDisplay,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = if (prevDisplay == "—") FontWeight.Normal else FontWeight.SemiBold,
+                                    color = if (prevDisplay == "—") KumaColors.TextMuted else colors.textPrimary
+                                ),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // KG Cell
+                        Box(
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .padding(horizontal = 2.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    activeDialogSetIndex = sIndex
+                                    showWeightDialogForSet = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = weightDisplay,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (weightDisplay == "—") KumaColors.TextMuted else colors.textPrimary
+                                )
+                            )
+                        }
+
+                        // REPS Cell
+                        Box(
+                            modifier = Modifier
+                                .weight(1.0f)
+                                .padding(horizontal = 2.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    activeDialogSetIndex = sIndex
+                                    showRepsDialogForSet = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${setCfg.targetReps}",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                        }
+
+                        // RPE Cell
+                        Box(
+                            modifier = Modifier
+                                .weight(0.9f)
+                                .padding(horizontal = 2.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable {
+                                    activeDialogSetIndex = sIndex
+                                    showRpeDialogForSet = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = rpeDisplay,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (rpeDisplay == "—") KumaColors.TextMuted else colors.accentText
+                                )
+                            )
+                        }
+
+                        // Delete Set button
+                        if (effectiveSets.size > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        val currentSets = effectiveSets.toMutableList()
+                                        currentSets.removeAt(sIndex)
+                                        val renumbered = currentSets.mapIndexed { i, sCfg -> sCfg.copy(setNumber = i + 1) }
+                                        onConfigChange(config.copy(targetSets = renumbered.size, setConfigs = renumbered))
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = s.deleteSetAction,
+                                    tint = colors.textSecondary.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.width(32.dp))
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Configuration Steppers (Sets, Reps, Rest)
+                // Bottom actions: Add Set & Custom Rest Timer
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Sets stepper
-                    MiniStepper(
-                        modifier = Modifier.weight(1f),
-                        label = "${config.targetSets} ${s.setsAbbrev}",
-                        onMinus = { onSetsChange(maxOf(1, config.targetSets - 1)) },
-                        onPlus = { onSetsChange(minOf(20, config.targetSets + 1)) }
-                    )
+                    // + Add Set Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .border(1.dp, colors.accentFill.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                            .clickable {
+                                val lastSet = effectiveSets.lastOrNull()
+                                val nextNum = effectiveSets.size + 1
+                                val newSet = RoutineSetConfig(
+                                    setNumber = nextNum,
+                                    targetReps = lastSet?.targetReps ?: 8,
+                                    targetWeightKg = lastSet?.targetWeightKg,
+                                    targetRpe = lastSet?.targetRpe,
+                                    previousWeightKg = lastSet?.previousWeightKg,
+                                    previousReps = lastSet?.previousReps
+                                )
+                                val updatedSets = effectiveSets + newSet
+                                onConfigChange(config.copy(targetSets = updatedSets.size, setConfigs = updatedSets))
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = s.addSetButton,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accentText
+                                )
+                            )
+                        }
+                    }
 
-                    // Reps stepper
-                    MiniStepper(
-                        modifier = Modifier.weight(1.1f),
-                        label = "${config.targetReps} ${s.repsAbbrev}",
-                        onMinus = { onRepsChange(maxOf(1, config.targetReps - 1)) },
-                        onPlus = { onRepsChange(minOf(100, config.targetReps + 1)) }
-                    )
-
-                    // Rest stepper
-                    MiniStepper(
-                        modifier = Modifier.weight(1.2f),
-                        label = s.secondsRestLabel(config.restTimerSeconds),
-                        onMinus = { onRestChange(maxOf(15, config.restTimerSeconds - 15)) },
-                        onPlus = { onRestChange(minOf(300, config.restTimerSeconds + 15)) }
-                    )
+                    // Custom Rest Timer Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(KumaColors.SurfaceContainer)
+                            .clickable { showCustomRestTimerDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Text("⏱", fontSize = 11.sp)
+                            Text(
+                                text = s.secondsRestLabel(config.restTimerSeconds),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                        }
+                    }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun MiniStepper(
-    modifier: Modifier = Modifier,
-    label: String,
-    onMinus: () -> Unit,
-    onPlus: () -> Unit
-) {
-    val colors = LocalKumaColors.current
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(KumaColors.SurfaceContainer)
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(KumaColors.SurfaceContainerHigh)
-                .clickable(onClick = onMinus),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Remove,
-                contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary,
-                fontSize = 12.sp
-            )
-        )
-
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(KumaColors.SurfaceContainerHigh)
-                .clickable(onClick = onPlus),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = colors.textPrimary,
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }

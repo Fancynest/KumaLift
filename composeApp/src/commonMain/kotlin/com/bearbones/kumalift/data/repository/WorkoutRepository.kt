@@ -416,18 +416,23 @@ class WorkoutRepository(
             val defaultReps = if (config.targetReps > 0) config.targetReps else (previousSet?.reps ?: 8)
             val setsCount = maxOf(1, config.targetSets)
 
-            val sets = (1..setsCount).map { setIndex ->
+            val sets = config.effectiveSets.mapIndexed { setIndex, setConfig ->
+                val targetWeight = setConfig.targetWeightKg ?: defaultWeight
+                val targetReps = if (setConfig.targetReps > 0) setConfig.targetReps else defaultReps
+                val prevWeight = setConfig.previousWeightKg ?: previousSet?.weightKg
+                val prevReps = setConfig.previousReps ?: previousSet?.reps
                 SetLog(
-                    id = IdGenerator.setId(exercise.id, setIndex),
-                    setNumber = setIndex,
+                    id = IdGenerator.setId(exercise.id, setIndex + 1),
+                    setNumber = setIndex + 1,
                     setType = SetType.NORMAL,
-                    weightKg = defaultWeight,
-                    reps = defaultReps,
+                    weightKg = targetWeight,
+                    reps = targetReps,
+                    rpe = setConfig.targetRpe,
                     isCompleted = false,
-                    targetWeightKg = defaultWeight,
-                    targetReps = defaultReps,
-                    previousWeightKg = previousSet?.weightKg,
-                    previousReps = previousSet?.reps
+                    targetWeightKg = targetWeight,
+                    targetReps = targetReps,
+                    previousWeightKg = prevWeight,
+                    previousReps = prevReps
                 )
             }
             WorkoutExercise(
@@ -605,6 +610,39 @@ class WorkoutRepository(
                         if (set.id == setId) set.copy(rpe = rpe) else set
                     }
                     we.copy(sets = updatedSets)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun updateSetPrevious(exerciseId: String, setId: String, previousWeightKg: Double?, previousReps: Int?) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    val updatedSets = we.sets.map { set ->
+                        if (set.id == setId) set.copy(previousWeightKg = previousWeightKg, previousReps = previousReps) else set
+                    }
+                    we.copy(sets = updatedSets)
+                } else we
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    fun updateExerciseRestTimer(exerciseId: String, restTimerSeconds: Int) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
+                if (isMatch) {
+                    we.copy(restTimerSeconds = restTimerSeconds)
                 } else we
             }
             currentWorkout.copy(exercises = updatedExercises)

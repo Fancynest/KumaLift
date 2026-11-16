@@ -759,4 +759,16 @@ object IdStrings : AppStrings {
     override val guidelineFatLoss = "Kombinasi compound resistance training dengan tempo dinamis dan istirahat singkat untuk menjaga denyut jantung tinggi dan membakar lemak optimal."
     override val progressionGeneral = "Kebugaran holistik seimbang antara kekuatan, mobilitas, dan daya tahan tubuh."
     override val guidelineGeneral = "Latihan seimbang seluruh tubuh (Full Body) untuk menjaga stamina harian, postur sehat, dan mobilitas sendi."
+
+    override val customRestTimerTitle = "Atur Timer Istirahat"
+    override val setTimerButton = "Pasang Timer"
+    override val editPreviousTitle = "Edit Catatan Sebelumnya"
+    override val previousWeightLabel = "Beban Sebelumnya"
+    override val previousRepsLabel = "Repetisi Sebelumnya"
+    override val selectRpeTitle = "Pilih RPE / Intensitas"
+    override val rpeScaleHint = "Tingkat Persepsi Beban Latihan (6–10)"
+    override val clearValueButton = "Hapus"
+    override val customRestTimerMinutes = "Menit"
+    override val customRestTimerSeconds = "Detik"
+    override val deleteSetAction = "Hapus Set"
 }

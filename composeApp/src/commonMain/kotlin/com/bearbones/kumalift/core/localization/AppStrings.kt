@@ -723,4 +723,16 @@ interface AppStrings {
     val guidelineFatLoss: String
     val progressionGeneral: String
     val guidelineGeneral: String
+
+    val customRestTimerTitle: String
+    val setTimerButton: String
+    val editPreviousTitle: String
+    val previousWeightLabel: String
+    val previousRepsLabel: String
+    val selectRpeTitle: String
+    val rpeScaleHint: String
+    val clearValueButton: String
+    val customRestTimerMinutes: String
+    val customRestTimerSeconds: String
+    val deleteSetAction: String
 }

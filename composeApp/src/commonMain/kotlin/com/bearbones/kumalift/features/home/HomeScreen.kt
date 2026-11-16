@@ -62,9 +62,15 @@ import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
+import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+private data class ScheduledProgramItem(
+    val program: com.bearbones.kumalift.domain.model.TrainingProgram,
+    val scheduledRoutine: RoutineBlueprint?
+)
 
 @Composable
 fun HomeScreen(
@@ -78,6 +84,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
+    val colors = LocalKumaColors.current
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val prList by (personalRecordRepository?.personalRecords ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val routines by (routineRepository?.routines ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
@@ -90,18 +97,19 @@ fun HomeScreen(
     val nowInstant = remember { Clock.System.now() }
     val nowDt = remember(nowInstant) { nowInstant.toLocalDateTime(TimeZone.currentSystemDefault()) }
     val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, ..., 7 = Sunday
-    val isTodayProgramDay = activeProgram.activeDays.contains(todayDayOfWeek)
 
-    val activeProgramRoutines = remember(routines, activeProgram.id) {
-        routines.filter { it.programId == activeProgram.id }
-    }
-    val activeDayIndex = remember(activeProgram.activeDays, todayDayOfWeek) {
-        activeProgram.activeDays.sorted().indexOf(todayDayOfWeek)
-    }
-    val scheduledRoutine = remember(activeProgramRoutines, activeDayIndex) {
-        if (activeProgramRoutines.isEmpty()) null
-        else if (activeDayIndex >= 0) activeProgramRoutines.getOrNull(activeDayIndex % activeProgramRoutines.size)
-        else activeProgramRoutines.firstOrNull()
+    val todayScheduledPrograms = remember(programs, routines, todayDayOfWeek) {
+        val matchingPrograms = programs.filter { program ->
+            program.activeDays.contains(todayDayOfWeek)
+        }
+        matchingPrograms.map { program ->
+            val programRoutines = routines.filter { it.programId == program.id }
+            val activeDayIndex = program.activeDays.sorted().indexOf(todayDayOfWeek)
+            val routine = if (programRoutines.isEmpty()) null
+            else if (activeDayIndex >= 0) programRoutines.getOrNull(activeDayIndex % programRoutines.size)
+            else programRoutines.firstOrNull()
+            ScheduledProgramItem(program, routine)
+        }
     }
 
     var showScheduleModal by remember { mutableStateOf(false) }
@@ -360,8 +368,12 @@ fun HomeScreen(
                                             )
                                             .padding(horizontal = 12.dp, vertical = 3.dp)
                                     ) {
+                                        val targetWeeklyDays = remember(programs, settings.profile.trainingDaysPerWeek) {
+                                            val totalScheduledDays = programs.flatMap { it.activeDays }.toSet().size
+                                            if (totalScheduledDays > 0) totalScheduledDays else settings.profile.trainingDaysPerWeek
+                                        }
                                         Text(
-                                            text = s.workoutsTargetCount(weekWorkoutsCount, settings.profile.trainingDaysPerWeek),
+                                            text = s.workoutsTargetCount(weekWorkoutsCount, targetWeeklyDays),
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = KumaColors.OnElectricLime,
                                                 fontWeight = FontWeight.Bold
@@ -396,7 +408,10 @@ fun HomeScreen(
                                     }
                                 }
 
-                                val plannedDays = activeProgram.activeDays.ifEmpty { settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) } }
+                                val plannedDays = remember(programs, settings.profile.selectedTrainingDays) {
+                                    val allDays = programs.flatMap { it.activeDays }.toSet()
+                                    if (allDays.isNotEmpty()) allDays else settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) }.toSet()
+                                }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -420,78 +435,128 @@ fun HomeScreen(
                     }
                 }
 
-                // 3. Today's Workout Card (Hero)
+                // 3. Today's Workout Card(s) (Hero)
                 item {
-                    if (isTodayProgramDay) {
-                        KumaCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = KumaColors.SurfaceContainerLow,
-                            cornerRadius = 18.dp
-                        ) {
-                            Column(modifier = Modifier.padding(20.dp)) {
+                    if (todayScheduledPrograms.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            if (todayScheduledPrograms.size > 1) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    KumaBadge(text = s.todaysSchedule)
                                     Text(
-                                        text = scheduledRoutine?.targetRpeTier ?: s.readyToTrain,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = KumaColors.TextMuted
+                                        text = s.todaysSchedule,
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
                                     )
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Text(
-                                    text = scheduledRoutine?.title ?: s.customRoutine,
-                                    style = MaterialTheme.typography.headlineLarge.copy(
-                                        fontSize = 28.sp
-                                    )
-                                )
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Text(
-                                    text = scheduledRoutine?.let {
-                                        s.routineSubtitle(it.exerciseTemplates.size, it.estimatedDurationMinutes)
-                                    } ?: s.startEmptyOrPickHint,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = KumaColors.TextSecondary
-                                )
-
-                                if (scheduledRoutine != null && scheduledRoutine.exerciseTemplates.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Exercise Preview Chips
-                                    LazyRow(
-                                        modifier = Modifier.isolateHorizontalScroll(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(LocalKumaColors.current.accentTint)
+                                            .padding(horizontal = 10.dp, vertical = 3.dp)
                                     ) {
-                                        items(scheduledRoutine.exerciseTemplates.take(4)) { ex ->
-                                            KumaBadge(text = ex.name)
-                                        }
+                                        val countLabel = "${todayScheduledPrograms.size} ${s.trainingProgramsTitle}"
+                                        Text(
+                                            text = countLabel,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = LocalKumaColors.current.accentText
+                                            )
+                                        )
                                     }
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(20.dp))
-
-                                KumaPrimaryButton(
-                                    text = s.startWorkoutButton,
-                                    onClick = {
-                                        if (scheduledRoutine != null) {
-                                            workoutRepository.startWorkoutFromRoutine(scheduledRoutine)
-                                        } else {
-                                            workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                            todayScheduledPrograms.forEach { item ->
+                                val program = item.program
+                                val routine = item.scheduledRoutine
+                                KumaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    backgroundColor = KumaColors.SurfaceContainerLow,
+                                    cornerRadius = 18.dp
+                                ) {
+                                    Column(modifier = Modifier.padding(20.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                KumaBadge(text = program.name)
+                                                if (todayScheduledPrograms.size == 1) {
+                                                    Text(
+                                                        text = s.todaysSchedule,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = LocalKumaColors.current.accentText
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = routine?.targetRpeTier ?: s.readyToTrain,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = KumaColors.TextMuted
+                                            )
                                         }
-                                        onStartWorkout()
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        Text(
+                                            text = routine?.title ?: s.noRoutinesInProgramYet,
+                                            style = MaterialTheme.typography.headlineLarge.copy(
+                                                fontSize = 28.sp
+                                            )
+                                        )
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Text(
+                                            text = routine?.let {
+                                                s.routineSubtitle(it.exerciseTemplates.size, it.estimatedDurationMinutes)
+                                            } ?: s.createRoutineForProgramHint(program.name),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = KumaColors.TextSecondary
+                                        )
+
+                                        if (routine != null && routine.exerciseTemplates.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+
+                                            // Exercise Preview Chips
+                                            LazyRow(
+                                                modifier = Modifier.isolateHorizontalScroll(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                items(routine.exerciseTemplates.take(4)) { ex ->
+                                                    KumaBadge(text = ex.name)
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(20.dp))
+
+                                        KumaPrimaryButton(
+                                            text = if (routine != null) s.startWorkoutButton else s.freestyleWorkoutCardTitle,
+                                            onClick = {
+                                                trainingProgramRepository?.setActiveProgramId(program.id)
+                                                if (routine != null) {
+                                                    workoutRepository.startWorkoutFromRoutine(routine)
+                                                } else {
+                                                    workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                                                }
+                                                onStartWorkout()
+                                            }
+                                        )
                                     }
-                                )
+                                }
                             }
                         }
                     } else {
-                        // Rest Day Card (Program is not scheduled today)
+                        // Empty State / Rest Day Card (No program is scheduled today)
                         KumaCard(
                             modifier = Modifier.fillMaxWidth(),
                             backgroundColor = KumaColors.SurfaceContainerLow,
@@ -505,7 +570,7 @@ fun HomeScreen(
                                 ) {
                                     KumaBadge(text = s.restDayTitle)
                                     Text(
-                                        text = activeProgram.name,
+                                        text = s.trainingProgramsTitle,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = KumaColors.TextMuted
                                     )
@@ -522,8 +587,13 @@ fun HomeScreen(
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
+                                val restMessage = if (programs.size == 1) {
+                                    s.restDayProgramMessage(programs.first().name)
+                                } else {
+                                    s.restDayAllProgramsMessage
+                                }
                                 Text(
-                                    text = s.restDayProgramMessage(activeProgram.name),
+                                    text = restMessage,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = KumaColors.TextSecondary
                                 )

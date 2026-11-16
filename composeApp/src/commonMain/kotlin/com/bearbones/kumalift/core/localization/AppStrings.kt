@@ -225,7 +225,9 @@ interface AppStrings {
     fun createRoutineForProgramHint(name: String): String
     val programActiveDaysLabel: String
     val maxDaysNotice: String
+    val minDaysNotice: String
     val restDayTitle: String
+    val restDayAllProgramsMessage: String
     fun restDayProgramMessage(name: String): String
 
     // Active Workout Logger

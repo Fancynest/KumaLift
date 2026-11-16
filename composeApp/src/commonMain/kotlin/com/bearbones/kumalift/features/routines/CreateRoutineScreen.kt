@@ -173,7 +173,7 @@ fun CreateRoutineScreen(
 
                     Text(
                         text = screenTitle,
-                        style = MaterialTheme.typography.titleMedium.copy(
+                        style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
                         )

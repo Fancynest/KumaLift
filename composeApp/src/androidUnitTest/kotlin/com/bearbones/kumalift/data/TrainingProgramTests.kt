@@ -221,4 +221,46 @@ class TrainingProgramTests {
         )
         assertEquals(DEFAULT_PROGRAM_ID, legacyRoutine.programId)
     }
+
+    @Test
+    fun programsCanShareSameActiveDaySchedule() {
+        val repo = TrainingProgramRepository()
+        // Default Hypertrophy is Mon (1), Wed (3), Fri (5)
+
+        val fatLoss = repo.createProgram(
+            name = "Fat Loss Program",
+            category = TrainingGoal.FAT_LOSS,
+            activeDays = listOf(1, 2, 4) // Mon, Tue, Thu
+        )
+
+        val strength = repo.createProgram(
+            name = "Strength Program",
+            category = TrainingGoal.STRENGTH,
+            activeDays = listOf(1, 3, 6) // Mon, Wed, Sat
+        )
+
+        val allPrograms = repo.programs.value
+
+        // Monday (1) should match Hypertrophy, Fat Loss, and Strength (3 programs)
+        val mondayPrograms = allPrograms.filter { it.activeDays.contains(1) }
+        assertEquals(3, mondayPrograms.size)
+        assertTrue(mondayPrograms.any { it.name == "Hypertrophy Program" })
+        assertTrue(mondayPrograms.any { it.name == "Fat Loss Program" })
+        assertTrue(mondayPrograms.any { it.name == "Strength Program" })
+
+        // Tuesday (2) should only match Fat Loss (1 program)
+        val tuesdayPrograms = allPrograms.filter { it.activeDays.contains(2) }
+        assertEquals(1, tuesdayPrograms.size)
+        assertEquals("Fat Loss Program", tuesdayPrograms.first().name)
+
+        // Wednesday (3) should match Hypertrophy and Strength (2 programs)
+        val wednesdayPrograms = allPrograms.filter { it.activeDays.contains(3) }
+        assertEquals(2, wednesdayPrograms.size)
+        assertTrue(wednesdayPrograms.any { it.name == "Hypertrophy Program" })
+        assertTrue(wednesdayPrograms.any { it.name == "Strength Program" })
+
+        // Sunday (7) has no programs scheduled (Rest Day / Empty State)
+        val sundayPrograms = allPrograms.filter { it.activeDays.contains(7) }
+        assertTrue(sundayPrograms.isEmpty())
+    }
 }

@@ -233,7 +233,9 @@ object EnStrings : AppStrings {
     override fun createRoutineForProgramHint(name: String) = "Create a routine to start building $name"
     override val programActiveDaysLabel = "Active Days (Max 3)"
     override val maxDaysNotice = "Maximum 3 days per week"
+    override val minDaysNotice = "Select at least 1 training day."
     override val restDayTitle = "Rest Day"
+    override val restDayAllProgramsMessage = "No workouts scheduled today across your training programs. Take time to recover or start a freestyle session."
     override fun restDayProgramMessage(name: String) = "No workout scheduled today for $name. Take time to recover or start a freestyle session."
 
     // Active Workout Logger

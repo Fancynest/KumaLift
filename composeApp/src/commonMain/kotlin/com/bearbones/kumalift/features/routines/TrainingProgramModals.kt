@@ -385,6 +385,7 @@ fun CreateEditProgramModal(
         mutableStateOf(programToEdit?.activeDays?.filter { it in 1..7 }?.distinct()?.take(3)?.ifEmpty { listOf(1, 3, 5) } ?: listOf(1, 3, 5))
     }
     var nameError by remember { mutableStateOf(false) }
+    var daysError by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -578,12 +579,11 @@ fun CreateEditProgramModal(
                                     )
                                     .clickable {
                                         if (isSelected) {
-                                            if (selectedDays.size > 1) {
-                                                selectedDays = (selectedDays - dayNum).sorted()
-                                            }
+                                            selectedDays = (selectedDays - dayNum).sorted()
                                         } else {
                                             if (selectedDays.size < 3) {
                                                 selectedDays = (selectedDays + dayNum).sorted()
+                                                daysError = false
                                             }
                                         }
                                     }
@@ -600,6 +600,15 @@ fun CreateEditProgramModal(
                                 )
                             }
                         }
+                    }
+
+                    if (daysError) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = s.minDaysNotice,
+                            color = colors.error,
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(26.dp))
@@ -627,6 +636,8 @@ fun CreateEditProgramModal(
                             onClick = {
                                 if (name.isBlank()) {
                                     nameError = true
+                                } else if (selectedDays.isEmpty()) {
+                                    daysError = true
                                 } else {
                                     onSave(name.trim(), description.trim(), category, selectedDays.sorted())
                                 }

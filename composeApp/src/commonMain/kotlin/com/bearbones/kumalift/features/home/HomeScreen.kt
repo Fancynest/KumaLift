@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.localizedTitle
+import com.bearbones.kumalift.domain.model.localizedRpeTier
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -518,7 +519,7 @@ fun HomeScreen(
                                                 }
                                             }
                                             Text(
-                                                text = routine?.targetRpeTier ?: s.readyToTrain,
+                                                text = routine?.localizedRpeTier(s) ?: s.readyToTrain,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = KumaColors.TextMuted
                                             )
@@ -527,7 +528,7 @@ fun HomeScreen(
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         Text(
-                                            text = routine?.title ?: s.noRoutinesInProgramYet,
+                                            text = routine?.localizedTitle(s) ?: s.noRoutinesInProgramYet,
                                             style = MaterialTheme.typography.headlineLarge.copy(
                                                 fontSize = 28.sp
                                             )

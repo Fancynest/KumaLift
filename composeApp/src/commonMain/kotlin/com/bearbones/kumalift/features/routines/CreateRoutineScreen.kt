@@ -85,6 +85,10 @@ import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.RpeTier
+import com.bearbones.kumalift.domain.model.localizedTitle
+import com.bearbones.kumalift.domain.model.localizedRpeTier
+import com.bearbones.kumalift.domain.model.localizedSplitCategory
 import com.bearbones.kumalift.domain.model.RoutineSetConfig
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.features.logger.CustomRestTimerDialog
@@ -107,16 +111,16 @@ fun CreateRoutineScreen(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
 
-    var routineTitle by remember(routineToEdit) { mutableStateOf(routineToEdit?.title ?: "") }
+    var routineTitle by remember(routineToEdit) { mutableStateOf(routineToEdit?.localizedTitle(s) ?: "") }
     var selectedCategory by remember(routineToEdit) {
-        mutableStateOf(routineToEdit?.splitCategory ?: s.presetRoutineCategories.firstOrNull() ?: "")
+        mutableStateOf(routineToEdit?.localizedSplitCategory(s) ?: s.presetRoutineCategories.firstOrNull() ?: "")
     }
     var customCategory by remember(routineToEdit) { mutableStateOf("") }
     var selectedDays by remember(routineToEdit) {
         mutableStateOf(routineToEdit?.scheduledDays ?: emptyList())
     }
     var selectedDurationMinutes by remember(routineToEdit) { mutableStateOf(routineToEdit?.estimatedDurationMinutes ?: 60) }
-    var selectedRpeTier by remember(routineToEdit) { mutableStateOf(routineToEdit?.targetRpeTier ?: s.rpeTiers.getOrElse(2) { "RPE 8–9" }) }
+    var selectedRpeTier by remember(routineToEdit) { mutableStateOf(routineToEdit?.localizedRpeTier(s) ?: s.rpeTiers.getOrElse(2) { "Heavy, RPE 8–9" }) }
     val selectedConfigs = remember(routineToEdit) {
         mutableStateListOf<RoutineExerciseConfig>().apply {
             if (routineToEdit != null) {
@@ -200,18 +204,31 @@ fun CreateRoutineScreen(
                         hasAttemptedSubmit = true
                         if (isFormValid) {
                             val routineId = routineToEdit?.id ?: com.bearbones.kumalift.core.util.IdGenerator.routineId(routineTitle.trim())
+                            val muscleCodes = selectedConfigs.map { it.exercise.primaryMuscle.name }.distinct().joinToString(",")
+                            val rpeTierCode = RpeTier.fromValue(selectedRpeTier).code
+                            val isRenamed = if (routineToEdit != null) {
+                                if (routineToEdit.presetKey != null) {
+                                    routineTitle.trim() != routineToEdit.localizedTitle(s) || routineToEdit.isUserRenamed
+                                } else {
+                                    routineToEdit.isUserRenamed
+                                }
+                            } else {
+                                false
+                            }
                             val newRoutine = RoutineBlueprint(
                                 id = routineId,
                                 programId = routineToEdit?.programId ?: currentProgramId,
                                 title = routineTitle.trim(),
                                 splitCategory = finalCategory,
-                                muscleFocus = autoMuscleFocus,
+                                muscleFocus = muscleCodes.ifEmpty { "FULL_BODY" },
                                 estimatedDurationMinutes = selectedDurationMinutes,
-                                targetRpeTier = selectedRpeTier,
+                                targetRpeTier = rpeTierCode,
                                 exerciseTemplates = selectedConfigs.map { it.exercise },
                                 exerciseConfigs = selectedConfigs.toList(),
                                 plannedSetsPerExercise = selectedConfigs.firstOrNull()?.targetSets ?: 3,
-                                scheduledDays = selectedDays.sorted()
+                                scheduledDays = selectedDays.sorted(),
+                                presetKey = routineToEdit?.presetKey,
+                                isUserRenamed = isRenamed
                             )
                             onSaveRoutine(newRoutine)
                         }

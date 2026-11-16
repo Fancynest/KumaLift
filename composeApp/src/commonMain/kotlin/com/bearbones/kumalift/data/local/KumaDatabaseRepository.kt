@@ -345,7 +345,9 @@ class KumaDatabaseRepository(
                 exerciseTemplates = exercises,
                 exerciseConfigs = configs,
                 plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
-                scheduledDays = scheduledDays
+                scheduledDays = scheduledDays,
+                presetKey = rRow.presetKey,
+                isUserRenamed = rRow.isUserRenamed == 1L
             )
         }
     }
@@ -388,7 +390,9 @@ class KumaDatabaseRepository(
                 exerciseTemplates = exercises,
                 exerciseConfigs = configs,
                 plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
-                scheduledDays = scheduledDays
+                scheduledDays = scheduledDays,
+                presetKey = rRow.presetKey,
+                isUserRenamed = rRow.isUserRenamed == 1L
             )
         }
     }
@@ -406,7 +410,9 @@ class KumaDatabaseRepository(
                 plannedSetsPerExercise = routine.plannedSetsPerExercise.toLong(),
                 isCustom = 1L,
                 createdAtEpochMs = currentEpochMillis(),
-                scheduledDays = routine.scheduledDays.joinToString(",")
+                scheduledDays = routine.scheduledDays.joinToString(","),
+                presetKey = routine.presetKey,
+                isUserRenamed = if (routine.isUserRenamed) 1L else 0L
             )
 
             val configs = routine.effectiveConfigs
@@ -498,7 +504,9 @@ class KumaDatabaseRepository(
                 targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
                 activeDays = parseActiveDays(row.activeDays),
                 isDefault = row.isDefault == 1L,
-                createdAtEpochMs = row.createdAtEpochMs
+                createdAtEpochMs = row.createdAtEpochMs,
+                presetKey = row.presetKey,
+                isUserRenamed = row.isUserRenamed == 1L
             )
         }
     }
@@ -518,7 +526,9 @@ class KumaDatabaseRepository(
             targetDaysPerWeek = row.targetDaysPerWeek.toInt(),
             activeDays = parseActiveDays(row.activeDays),
             isDefault = row.isDefault == 1L,
-            createdAtEpochMs = row.createdAtEpochMs
+            createdAtEpochMs = row.createdAtEpochMs,
+            presetKey = row.presetKey,
+            isUserRenamed = row.isUserRenamed == 1L
         )
     }
 
@@ -531,7 +541,9 @@ class KumaDatabaseRepository(
             targetDaysPerWeek = program.targetDaysPerWeek.toLong(),
             activeDays = formatActiveDays(program.activeDays),
             isDefault = if (program.isDefault) 1L else 0L,
-            createdAtEpochMs = if (program.createdAtEpochMs > 0L) program.createdAtEpochMs else currentEpochMillis()
+            createdAtEpochMs = if (program.createdAtEpochMs > 0L) program.createdAtEpochMs else currentEpochMillis(),
+            presetKey = program.presetKey,
+            isUserRenamed = if (program.isUserRenamed) 1L else 0L
         )
     }
 

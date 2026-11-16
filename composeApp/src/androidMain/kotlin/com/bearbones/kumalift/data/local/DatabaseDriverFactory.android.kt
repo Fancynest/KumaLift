@@ -79,5 +79,49 @@ actual class DatabaseDriverFactory(private val context: Context) {
         } catch (_: Exception) {
             // Column already exists
         }
+
+        try {
+            driver.execute(null, "ALTER TABLE training_programs ADD COLUMN presetKey TEXT DEFAULT NULL;", 0)
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(null, "ALTER TABLE training_programs ADD COLUMN isUserRenamed INTEGER NOT NULL DEFAULT 0;", 0)
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(null, "ALTER TABLE routines ADD COLUMN presetKey TEXT DEFAULT NULL;", 0)
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(null, "ALTER TABLE routines ADD COLUMN isUserRenamed INTEGER NOT NULL DEFAULT 0;", 0)
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                "UPDATE training_programs SET presetKey = 'program_hypertrophy' WHERE id = 'program_hypertrophy_default' AND (presetKey IS NULL OR presetKey = '');",
+                0
+            )
+            driver.execute(
+                null,
+                "UPDATE routines SET presetKey = 'starter_push' WHERE id = 'starter_push' AND (presetKey IS NULL OR presetKey = '');",
+                0
+            )
+            driver.execute(
+                null,
+                "UPDATE routines SET presetKey = 'starter_pull' WHERE id = 'starter_pull' AND (presetKey IS NULL OR presetKey = '');",
+                0
+            )
+            driver.execute(
+                null,
+                "UPDATE routines SET presetKey = 'starter_strength_a' WHERE id = 'starter_strength_a' AND (presetKey IS NULL OR presetKey = '');",
+                0
+            )
+            driver.execute(
+                null,
+                "UPDATE routines SET presetKey = 'starter_general_full' WHERE id = 'starter_general_full' AND (presetKey IS NULL OR presetKey = '');",
+                0
+            )
+        } catch (_: Exception) {}
     }
 }

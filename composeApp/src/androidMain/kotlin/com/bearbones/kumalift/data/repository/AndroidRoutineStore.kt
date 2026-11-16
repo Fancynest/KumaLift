@@ -41,6 +41,9 @@ class AndroidRoutineStore(
                     }
                 }
 
+                val presetKey = if (obj.has("presetKey")) obj.optString("presetKey").takeIf { it.isNotBlank() } else null
+                val isUserRenamed = obj.optBoolean("isUserRenamed", false)
+
                 list.add(
                     RoutineBlueprint(
                         id = id,
@@ -50,7 +53,9 @@ class AndroidRoutineStore(
                         estimatedDurationMinutes = duration,
                         targetRpeTier = rpeTier,
                         exerciseTemplates = exercises,
-                        plannedSetsPerExercise = plannedSets
+                        plannedSetsPerExercise = plannedSets,
+                        presetKey = presetKey,
+                        isUserRenamed = isUserRenamed
                     )
                 )
             }
@@ -73,6 +78,8 @@ class AndroidRoutineStore(
                     put("estimatedDurationMinutes", rt.estimatedDurationMinutes)
                     put("targetRpeTier", rt.targetRpeTier)
                     put("plannedSetsPerExercise", rt.plannedSetsPerExercise)
+                    if (rt.presetKey != null) put("presetKey", rt.presetKey)
+                    put("isUserRenamed", rt.isUserRenamed)
                     val exIds = JSONArray()
                     rt.exerciseTemplates.forEach { exIds.put(it.id) }
                     put("exerciseIds", exIds)

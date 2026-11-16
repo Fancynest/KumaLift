@@ -48,6 +48,7 @@ import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.RpeTier
 import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingGoalConfig
@@ -87,42 +88,50 @@ fun OnboardingScreen(
                     RoutineBlueprint(
                         id = "starter_push",
                         title = s.routinePushDayTitle,
-                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "",
-                        muscleFocus = s.muscleFocusPush,
+                        splitCategory = "PPL Split",
+                        muscleFocus = "focus_push",
                         estimatedDurationMinutes = 55,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
-                        plannedSetsPerExercise = 3
+                        targetRpeTier = RpeTier.HEAVY.code,
+                        plannedSetsPerExercise = 3,
+                        presetKey = "starter_push",
+                        isUserRenamed = false
                     ),
                     RoutineBlueprint(
                         id = "starter_pull",
                         title = s.routinePullDayTitle,
-                        splitCategory = s.presetRoutineCategories.firstOrNull() ?: "",
-                        muscleFocus = s.muscleFocusPull,
+                        splitCategory = "PPL Split",
+                        muscleFocus = "focus_pull",
                         estimatedDurationMinutes = 50,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
-                        plannedSetsPerExercise = 3
+                        targetRpeTier = RpeTier.HEAVY.code,
+                        plannedSetsPerExercise = 3,
+                        presetKey = "starter_pull",
+                        isUserRenamed = false
                     )
                 )
                 TrainingGoal.STRENGTH -> listOf(
                     RoutineBlueprint(
                         id = "starter_strength_a",
                         title = s.routineFullBodyTitle,
-                        splitCategory = s.presetRoutineCategories.getOrElse(2) { "" },
-                        muscleFocus = s.muscleFocusCompound,
+                        splitCategory = "Full Body",
+                        muscleFocus = "focus_compound",
                         estimatedDurationMinutes = 65,
-                        targetRpeTier = s.rpeTiers.getOrElse(2) { "" },
-                        plannedSetsPerExercise = 4
+                        targetRpeTier = RpeTier.HEAVY.code,
+                        plannedSetsPerExercise = 4,
+                        presetKey = "starter_strength_a",
+                        isUserRenamed = false
                     )
                 )
                 else -> listOf(
                     RoutineBlueprint(
                         id = "starter_general_full",
                         title = s.routineUpperLowerTitle,
-                        splitCategory = s.presetRoutineCategories.getOrElse(1) { "" },
-                        muscleFocus = s.muscleFocusConditioning,
+                        splitCategory = "Upper / Lower",
+                        muscleFocus = "focus_conditioning",
                         estimatedDurationMinutes = 45,
-                        targetRpeTier = s.rpeTiers.getOrElse(1) { "" },
-                        plannedSetsPerExercise = 3
+                        targetRpeTier = RpeTier.MODERATE.code,
+                        plannedSetsPerExercise = 3,
+                        presetKey = "starter_general_full",
+                        isUserRenamed = false
                     )
                 )
             }

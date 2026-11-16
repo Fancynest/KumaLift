@@ -1,11 +1,19 @@
 package com.bearbones.kumalift.data
 
+import com.bearbones.kumalift.core.localization.EnStrings
+import com.bearbones.kumalift.core.localization.IdStrings
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.TrainingProgramRepository
 import com.bearbones.kumalift.domain.model.DEFAULT_PROGRAM_ID
+import com.bearbones.kumalift.domain.model.RpeTier
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingProgram
+import com.bearbones.kumalift.domain.model.localizedDescription
+import com.bearbones.kumalift.domain.model.localizedMuscleFocus
+import com.bearbones.kumalift.domain.model.localizedRpeTier
+import com.bearbones.kumalift.domain.model.localizedSplitCategory
+import com.bearbones.kumalift.domain.model.localizedTitle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -316,5 +324,79 @@ class TrainingProgramTests {
         // Sunday (7): no routines scheduled (Rest Day)
         val sundayRoutines = allRoutines.filter { it.scheduledDays.contains(7) }
         assertTrue(sundayRoutines.isEmpty())
+    }
+
+    @Test
+    fun testPresetProgramLocalizationDynamic() {
+        val program = TrainingProgram.DEFAULT_HYPERTROPHY
+        assertEquals("Hypertrophy Program", program.localizedTitle(EnStrings))
+        assertEquals("Program Hipertrofi", program.localizedTitle(IdStrings))
+        assertEquals("Focused on muscle hypertrophy and progressive overload.", program.localizedDescription(EnStrings))
+        assertEquals("Fokus pada hipertrofi otot dan beban bertahap (progressive overload).", program.localizedDescription(IdStrings))
+
+        // When user renames it, custom name should be respected
+        val renamed = program.copy(name = "My Custom Mass", isUserRenamed = true)
+        assertEquals("My Custom Mass", renamed.localizedTitle(EnStrings))
+        assertEquals("My Custom Mass", renamed.localizedTitle(IdStrings))
+    }
+
+    @Test
+    fun testPresetRoutineLocalizationDynamic() {
+        val pushRoutine = RoutineBlueprint(
+            id = "starter_push",
+            title = "Push Day",
+            splitCategory = "PPL Split",
+            muscleFocus = "focus_push",
+            targetRpeTier = "heavy",
+            presetKey = "starter_push",
+            isUserRenamed = false
+        )
+
+        assertEquals(EnStrings.routinePushDayTitle, pushRoutine.localizedTitle(EnStrings))
+        assertEquals(IdStrings.routinePushDayTitle, pushRoutine.localizedTitle(IdStrings))
+
+        assertEquals(EnStrings.muscleFocusPush, pushRoutine.localizedMuscleFocus(EnStrings))
+        assertEquals(IdStrings.muscleFocusPush, pushRoutine.localizedMuscleFocus(IdStrings))
+
+        assertEquals("Heavy, RPE 8–9", pushRoutine.localizedRpeTier(EnStrings))
+        assertEquals("Berat, RPE 8–9", pushRoutine.localizedRpeTier(IdStrings))
+
+        // User custom renamed routine
+        val userCustom = pushRoutine.copy(title = "Heavy Push Monday", isUserRenamed = true)
+        assertEquals("Heavy Push Monday", userCustom.localizedTitle(EnStrings))
+        assertEquals("Heavy Push Monday", userCustom.localizedTitle(IdStrings))
+    }
+
+    @Test
+    fun testRpeTierEnumAndLabelParity() {
+        assertEquals(RpeTier.LIGHT, RpeTier.fromValue("light"))
+        assertEquals(RpeTier.LIGHT, RpeTier.fromValue("Light, RPE 6–7"))
+        assertEquals(RpeTier.LIGHT, RpeTier.fromValue("Ringan, RPE 6–7"))
+
+        assertEquals(RpeTier.MODERATE, RpeTier.fromValue("moderate"))
+        assertEquals(RpeTier.MODERATE, RpeTier.fromValue("Moderate, RPE 7–8"))
+        assertEquals(RpeTier.MODERATE, RpeTier.fromValue("Sedang, RPE 7–8"))
+
+        assertEquals(RpeTier.HEAVY, RpeTier.fromValue("heavy"))
+        assertEquals(RpeTier.HEAVY, RpeTier.fromValue("Heavy, RPE 8–9"))
+        assertEquals(RpeTier.HEAVY, RpeTier.fromValue("Berat, RPE 8–9"))
+
+        assertEquals(RpeTier.MAXIMAL, RpeTier.fromValue("maximal"))
+        assertEquals(RpeTier.MAXIMAL, RpeTier.fromValue("Maximal, RPE 9–10"))
+        assertEquals(RpeTier.MAXIMAL, RpeTier.fromValue("Maksimal, RPE 9–10"))
+    }
+
+    @Test
+    fun testLocalizedMuscleFocusResolvesCodesAndLegacyStrings() {
+        val legacyIndoRoutine = RoutineBlueprint(
+            id = "test_legacy",
+            title = "Test",
+            splitCategory = "PPL Split",
+            muscleFocus = "Dada · Bahu · Triceps"
+        )
+        // Should resolve cleanly to English when viewed in English!
+        assertEquals(EnStrings.muscleFocusPush, legacyIndoRoutine.localizedMuscleFocus(EnStrings))
+        // And Indonesian in Indonesian
+        assertEquals(IdStrings.muscleFocusPush, legacyIndoRoutine.localizedMuscleFocus(IdStrings))
     }
 }

@@ -64,6 +64,9 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.localizedTitle
+import com.bearbones.kumalift.domain.model.localizedMuscleFocus
+import com.bearbones.kumalift.domain.model.localizedRpeTier
+import com.bearbones.kumalift.domain.model.localizedSplitCategory
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -628,7 +631,7 @@ fun RoutineCardItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    KumaBadge(text = routine.splitCategory)
+                    KumaBadge(text = routine.localizedSplitCategory(s))
                     if (routine.scheduledDays.isNotEmpty()) {
                         val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
                         Box(
@@ -672,7 +675,7 @@ fun RoutineCardItem(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = routine.title,
+                text = routine.localizedTitle(s),
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
@@ -682,7 +685,7 @@ fun RoutineCardItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "${routine.muscleFocus} · ${routine.estimatedDurationMinutes} ${s.minAbbrev} · ${routine.targetRpeTier}",
+                text = "${routine.localizedMuscleFocus(s)} · ${routine.estimatedDurationMinutes} ${s.minAbbrev} · ${routine.localizedRpeTier(s)}",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = KumaColors.TextSecondary,
                     fontSize = 13.sp

@@ -883,4 +883,47 @@ object IdStrings : AppStrings {
     override val backupErrorPermissionLost = "Izin penyimpanan hilang. Silakan pilih ulang folder."
     override val backupErrorUnknown = "Terjadi kesalahan tak terduga saat pencadangan."
     override val backupFolderConfiguredSuccess = "Folder tujuan pencadangan berhasil diatur"
+
+    // Sound & Notification Identity
+    override val soundProfileTitle = "Profil Suara"
+    override val soundProfileSubtitle = "Gaya pemberitahuan untuk timer istirahat dan pengingat"
+    override val soundProfileKuma = "Kuma (Suara & Getar)"
+    override val soundProfileSilentVibrate = "Hanya Getar"
+    override val soundProfileSilent = "Hening"
+
+    override val soundVolumeTitle = "Volume Suara Aplikasi"
+    override val soundVolumeSubtitle = "Volume suara timer dan penyelesaian latihan di aplikasi"
+    override val soundVolumeLow = "Rendah (35%)"
+    override val soundVolumeMedium = "Sedang (60%)"
+    override val soundVolumeNormal = "Standar (100%)"
+
+    override val countdownTicksTitle = "Detik pada 3 detik terakhir"
+    override val countdownTicksSubtitle = "Suara detikan halus saat hitung mundur 3, 2, 1"
+
+    override val ongoingWorkoutNotifTitle = "Notifikasi Latihan Berjalan"
+    override val ongoingWorkoutNotifSubtitle = "Tampilkan status latihan dan timer di bilah notifikasi"
+
+    override val inAppSoundAlertsTitle = "Umpan Balik Audio Aplikasi"
+    override val inAppSoundAlertsSubtitle = "Putar suara saat set selesai, rekor PR, dan latihan selesai"
+
+    override val previewSoundsTitle = "Pratinjau Suara"
+    override val previewSoundsSubtitle = "Ketuk untuk mendengarkan efek suara KumaLift"
+    override val soundPreviewRestEnd = "Istirahat Selesai"
+    override val soundPreviewTick = "Detik"
+    override val soundPreviewSetDone = "Set Selesai"
+    override val soundPreviewPr = "Rekor PR"
+    override val soundPreviewWorkoutDone = "Latihan Selesai"
+    override val soundPreviewReminder = "Pengingat"
+    override val soundPreviewError = "Kesalahan"
+
+    override val restTimerActionAdd15 = "+15dtk"
+
+    override val channelRestTimerAlertName = "Pemberitahuan Timer Istirahat"
+    override val channelRestTimerAlertDesc = "Pemberitahuan saat jeda istirahat selesai"
+    override val channelWorkoutReminderName = "Pengingat Latihan"
+    override val channelWorkoutReminderDesc = "Pemberitahuan pengingat jadwal latihan"
+    override val channelBackupErrorName = "Pemberitahuan Pencadangan"
+    override val channelBackupErrorDesc = "Pemberitahuan kendala pencadangan otomatis"
+    override val channelRestTimerOngoingName = "Timer Istirahat Berjalan"
+    override val channelRestTimerOngoingDesc = "Hitung mundur berkelanjutan selama istirahat latihan"
 }

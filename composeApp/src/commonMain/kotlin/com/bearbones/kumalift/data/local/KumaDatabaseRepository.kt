@@ -565,7 +565,8 @@ class KumaDatabaseRepository(
     fun loadUserSettings(): UserSettings? {
         val row = queries.selectUserSettings().executeAsOneOrNull() ?: return null
         return try {
-            json.decodeFromString<UserSettings>(row.settingsJson)
+            val migrated = SettingsMigration.migrateJson(row.settingsJson)
+            json.decodeFromString<UserSettings>(migrated)
         } catch (_: Exception) {
             null
         }

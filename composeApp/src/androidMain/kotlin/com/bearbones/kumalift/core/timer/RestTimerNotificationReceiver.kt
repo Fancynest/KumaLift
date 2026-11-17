@@ -7,6 +7,9 @@ import android.content.Intent
 class RestTimerNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
+            ACTION_REST_TIMER_ADD_15 -> {
+                RestTimerCoordinator.addSeconds(15)
+            }
             ACTION_REST_TIMER_ADD_30 -> {
                 RestTimerCoordinator.addSeconds(30)
             }
@@ -17,6 +20,7 @@ class RestTimerNotificationReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        const val ACTION_REST_TIMER_ADD_15 = "com.bearbones.kumalift.ACTION_REST_TIMER_ADD_15"
         const val ACTION_REST_TIMER_ADD_30 = "com.bearbones.kumalift.ACTION_REST_TIMER_ADD_30"
         const val ACTION_REST_TIMER_SKIP = "com.bearbones.kumalift.ACTION_REST_TIMER_SKIP"
     }

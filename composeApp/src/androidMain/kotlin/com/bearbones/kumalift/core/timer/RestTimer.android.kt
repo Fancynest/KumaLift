@@ -1,31 +1,29 @@
 package com.bearbones.kumalift.core.timer
 
 import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import com.bearbones.kumalift.MainActivity
-import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_30
-import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
 import com.bearbones.kumalift.core.localization.AppStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
+import com.bearbones.kumalift.core.notification.PlatformNotificationChannels
+import com.bearbones.kumalift.core.sound.PlatformSoundPlayer
+import com.bearbones.kumalift.core.sound.SoundEvent
+import com.bearbones.kumalift.core.sound.SoundManager
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_15
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.UserSettings
 
 object AndroidAppProvider {
     @Volatile
     var appContext: Context? = null
 }
 
-private const val CHANNEL_ONGOING_ID = "kuma_rest_timer_ongoing"
-private const val CHANNEL_ALERT_ID = "kuma_rest_timer_alert"
 private const val NOTIF_ID_ONGOING = 2002
-private const val NOTIF_ID_ALERT = 2003
 
 private var lastOngoingExerciseName: String? = null
 
@@ -40,46 +38,32 @@ private fun getStrings(context: Context): AppStrings {
     return resolveAppStrings(appLanguage)
 }
 
-private fun ensureNotificationChannels(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        val strings = getStrings(context)
-
-        val ongoingChannel = NotificationChannel(
-            CHANNEL_ONGOING_ID,
-            strings.restTimerChannelName,
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = strings.restTimerChannelDescription
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            setSound(null, null)
-            enableVibration(false)
-        }
-
-        val alertChannel = NotificationChannel(
-            CHANNEL_ALERT_ID,
-            strings.restTimerNotificationTitle,
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = strings.restTimerChannelDescription
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            enableVibration(true)
-        }
-
-        manager.createNotificationChannel(ongoingChannel)
-        manager.createNotificationChannel(alertChannel)
-    }
+private fun getUserSettings(): UserSettings {
+    RestTimerCoordinator.userSettingsProvider?.invoke()?.let { return it }
+    return UserSettings()
 }
 
 actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?) {
     val context = AndroidAppProvider.appContext ?: return
     lastOngoingExerciseName = exerciseName
-    updateOngoingNotification(context, targetEndEpochMs, exerciseName)
+    PlatformSoundPlayer.cancelRestFinishedNotification()
+
+    val settings = getUserSettings()
+    if (settings.notifications.ongoingWorkout) {
+        updateOngoingNotification(context, targetEndEpochMs, exerciseName)
+    } else {
+        notifyRestTimerStopped()
+    }
 }
 
 actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int) {
     val context = AndroidAppProvider.appContext ?: return
-    updateOngoingNotification(context, targetEndEpochMs, lastOngoingExerciseName)
+    val settings = getUserSettings()
+    if (settings.notifications.ongoingWorkout) {
+        updateOngoingNotification(context, targetEndEpochMs, lastOngoingExerciseName)
+    } else {
+        notifyRestTimerStopped()
+    }
 }
 
 actual fun notifyRestTimerStopped() {
@@ -92,7 +76,15 @@ actual fun notifyRestTimerStopped() {
 
 private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, exerciseName: String?) {
     try {
-        ensureNotificationChannels(context)
+        val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+        val langStr = prefs.getString("language_code", null)
+        val appLanguage = try {
+            if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
+        } catch (_: Exception) {
+            AppLanguage.SYSTEM
+        }
+        PlatformNotificationChannels.ensureChannels(context, appLanguage)
+
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
         val appIconRes = context.applicationInfo.icon.let { if (it != 0) it else android.R.drawable.ic_dialog_info }
@@ -107,12 +99,12 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 1: +30s
-        val add30Intent = PendingIntent.getBroadcast(
+        // Action 1: +15s
+        val add15Intent = PendingIntent.getBroadcast(
             context,
             101,
             Intent(context, RestTimerNotificationReceiver::class.java).apply {
-                action = ACTION_REST_TIMER_ADD_30
+                action = ACTION_REST_TIMER_ADD_15
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -132,7 +124,7 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
         val subtitle = strings.restTimerRestingSubtitle
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(context, CHANNEL_ONGOING_ID)
+            Notification.Builder(context, PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING)
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(context)
@@ -156,8 +148,8 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
             val addAction = Notification.Action.Builder(
                 null,
-                strings.restTimerActionAdd30,
-                add30Intent
+                strings.restTimerActionAdd15,
+                add15Intent
             ).build()
 
             val skipAction = Notification.Action.Builder(
@@ -176,59 +168,13 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
     }
 }
 
+actual fun playTimerTickFeedback(secondsRemaining: Int) {
+    val settings = getUserSettings()
+    SoundManager.trigger(SoundEvent.TICK, settings, secondsRemaining)
+}
+
 actual fun playTimerCompletionFeedback() {
-    val context = AndroidAppProvider.appContext ?: return
-    try {
-        notifyRestTimerStopped()
-
-        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            vibratorManager?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        }
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 200, 100, 300), -1))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(500)
-            }
-        }
-
-        ensureNotificationChannels(context)
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        val appIconRes = context.applicationInfo.icon.let { if (it != 0) it else android.R.drawable.ic_dialog_info }
-
-        val openIntent = PendingIntent.getActivity(
-            context,
-            105,
-            Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val alertBuilder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(context, CHANNEL_ALERT_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(context)
-        }
-
-        val alertStrings = getStrings(context)
-        val alertNotification = alertBuilder
-            .setSmallIcon(appIconRes)
-            .setContentTitle(alertStrings.restTimerNotificationTitle)
-            .setContentText(alertStrings.restTimerNotificationText)
-            .setContentIntent(openIntent)
-            .setAutoCancel(true)
-            .setShowWhen(true)
-            .build()
-
-        manager.notify(NOTIF_ID_ALERT, alertNotification)
-    } catch (_: Throwable) {
-        // Safe fallback
-    }
+    notifyRestTimerStopped()
+    val settings = getUserSettings()
+    SoundManager.trigger(SoundEvent.REST_END, settings)
 }

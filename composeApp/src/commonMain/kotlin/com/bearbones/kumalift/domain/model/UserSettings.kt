@@ -99,11 +99,17 @@ data class PlateItem(
 )
 
 @Serializable
-enum class AlertSound {
-    DEFAULT,
-    SOFT,
-    BEEP,
-    NONE
+enum class SoundProfile {
+    KUMA,
+    SILENT_VIBRATE,
+    SILENT
+}
+
+@Serializable
+enum class SoundVolume(val multiplier: Float) {
+    LOW(0.35f),
+    MEDIUM(0.60f),
+    NORMAL(1.00f)
 }
 
 @Serializable
@@ -231,8 +237,7 @@ data class LoggingSettings(
     val staleWorkoutHours: Int = 6,
     val soundAlerts: Boolean = true,
     val plateCalculatorEnabled: Boolean = true,
-    val smartSupersetScrolling: Boolean = false,
-    val inlineTimer: Boolean = true
+    val smartSupersetScrolling: Boolean = false
 )
 
 @Serializable
@@ -267,9 +272,9 @@ data class EquipmentSettings(
 
 @Serializable
 data class NotificationSettings(
+    val soundProfile: SoundProfile = SoundProfile.KUMA,
+    val soundVolume: SoundVolume = SoundVolume.MEDIUM,
     val restTimerAlert: Boolean = true,
-    val restTimerSound: AlertSound = AlertSound.DEFAULT,
-    val restTimerVibrate: Boolean = true,
     val countdownBeeps: Boolean = false,
     val ongoingWorkout: Boolean = true,
     val workoutReminders: Boolean = false,
@@ -279,8 +284,7 @@ data class NotificationSettings(
     val streakReminderTime: String = "20:00",
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: String = "22:00",
-    val quietHoursEnd: String = "06:00",
-    val monthlyReport: Boolean = true
+    val quietHoursEnd: String = "06:00"
 )
 
 @Serializable

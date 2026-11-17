@@ -883,4 +883,47 @@ object EnStrings : AppStrings {
     override val backupErrorPermissionLost = "Storage permission lost. Please re-select the folder."
     override val backupErrorUnknown = "An unexpected error occurred during backup."
     override val backupFolderConfiguredSuccess = "Backup destination folder set"
+
+    // Sound & Notification Identity
+    override val soundProfileTitle = "Sound Profile"
+    override val soundProfileSubtitle = "Alert style for rest timer and reminder notifications"
+    override val soundProfileKuma = "Kuma (Sound & Vibrate)"
+    override val soundProfileSilentVibrate = "Vibrate Only"
+    override val soundProfileSilent = "Silent"
+
+    override val soundVolumeTitle = "In-App Sound Volume"
+    override val soundVolumeSubtitle = "Volume for timers and workout completion sounds"
+    override val soundVolumeLow = "Low (35%)"
+    override val soundVolumeMedium = "Medium (60%)"
+    override val soundVolumeNormal = "Normal (100%)"
+
+    override val countdownTicksTitle = "Tick during last 3 seconds"
+    override val countdownTicksSubtitle = "Subtle tick sound counting down 3, 2, 1"
+
+    override val ongoingWorkoutNotifTitle = "Ongoing Workout Notification"
+    override val ongoingWorkoutNotifSubtitle = "Show active workout and rest timer in notification shade"
+
+    override val inAppSoundAlertsTitle = "In-App Audio Feedback"
+    override val inAppSoundAlertsSubtitle = "Play audio for set completion, PR record, and workout finish"
+
+    override val previewSoundsTitle = "Preview Sounds"
+    override val previewSoundsSubtitle = "Tap to listen to KumaLift audio identity sounds"
+    override val soundPreviewRestEnd = "Rest Finished"
+    override val soundPreviewTick = "Tick"
+    override val soundPreviewSetDone = "Set Done"
+    override val soundPreviewPr = "PR Record"
+    override val soundPreviewWorkoutDone = "Workout Done"
+    override val soundPreviewReminder = "Reminder"
+    override val soundPreviewError = "Error"
+
+    override val restTimerActionAdd15 = "+15s"
+
+    override val channelRestTimerAlertName = "Rest Timer Alerts"
+    override val channelRestTimerAlertDesc = "Alert notifications when rest intervals finish"
+    override val channelWorkoutReminderName = "Workout Reminders"
+    override val channelWorkoutReminderDesc = "Scheduled workout reminder notifications"
+    override val channelBackupErrorName = "Backup Alerts"
+    override val channelBackupErrorDesc = "Notifications for automatic backup issues"
+    override val channelRestTimerOngoingName = "Rest Timer Ongoing"
+    override val channelRestTimerOngoingDesc = "Continuous countdown during workout rest"
 }

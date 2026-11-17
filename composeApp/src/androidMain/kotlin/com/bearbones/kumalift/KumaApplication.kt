@@ -8,12 +8,19 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.bearbones.kumalift.core.notification.PlatformNotificationChannels
+import com.bearbones.kumalift.core.sound.AppForegroundTracker
+import com.bearbones.kumalift.core.sound.KumaSoundPlayer
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
+import com.bearbones.kumalift.domain.model.AppLanguage
 
 class KumaApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         AndroidAppProvider.appContext = this
+        AppForegroundTracker.register(this)
+        KumaSoundPlayer.initialize(this)
+        PlatformNotificationChannels.ensureChannels(this, AppLanguage.SYSTEM)
     }
 
     override fun newImageLoader(): ImageLoader {

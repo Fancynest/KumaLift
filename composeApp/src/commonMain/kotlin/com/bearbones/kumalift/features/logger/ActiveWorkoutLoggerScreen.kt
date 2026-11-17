@@ -75,6 +75,9 @@ import com.bearbones.kumalift.core.designsystem.KeepScreenOn
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.sound.SoundEvent
+import com.bearbones.kumalift.core.sound.SoundManager
+import com.bearbones.kumalift.core.timer.RestTimerCoordinator
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaSetCheckbox
 import com.bearbones.kumalift.core.designsystem.PillShape
@@ -137,6 +140,10 @@ fun ActiveWorkoutLoggerScreen(
 
     val workout = activeWorkout
 
+    LaunchedEffect(settings) {
+        RestTimerCoordinator.userSettingsProvider = { settings }
+    }
+
     // T4: Wire keepScreenOn setting to real behavior
     KeepScreenOn(keepOn = workout != null && settings.logging.keepScreenOn)
 
@@ -145,6 +152,7 @@ fun ActiveWorkoutLoggerScreen(
             workoutRepository.finishWorkout(
                 sessionRpe = 8.5
             )
+            SoundManager.trigger(SoundEvent.WORKOUT_DONE, settings)
             onFinishWorkout()
         }
     }
@@ -481,22 +489,33 @@ fun ActiveWorkoutLoggerScreen(
                                     exerciseId = we.id,
                                     setId = setId
                                 ) { completed ->
-                                    if (completed && settings.logging.restTimerAutoStart) {
-                                        showRestTimerBar = true
-                                        val completedSet = we.sets.firstOrNull { it.id == setId }
-                                        val durationSec = completedSet?.restTimerSeconds
-                                            ?: if (we.restTimerSeconds > 0) {
-                                                we.restTimerSeconds
-                                            } else if (settings.logging.restTimerSeparateByType) {
-                                                if (we.exercise.movementType == MovementType.COMPOUND) {
-                                                    settings.logging.restTimerCompoundSec
+                                    if (completed) {
+                                        val updatedSet = workoutRepository.activeWorkout.value?.exercises
+                                            ?.find { it.id == we.id || it.exercise.id == we.exercise.id }
+                                            ?.sets?.find { it.id == setId }
+                                        val isPr = updatedSet?.isPr == true
+                                        SoundManager.trigger(
+                                            if (isPr) SoundEvent.PR else SoundEvent.SET_DONE,
+                                            settings
+                                        )
+
+                                        if (settings.logging.restTimerAutoStart) {
+                                            showRestTimerBar = true
+                                            val completedSet = we.sets.firstOrNull { it.id == setId }
+                                            val durationSec = completedSet?.restTimerSeconds
+                                                ?: if (we.restTimerSeconds > 0) {
+                                                    we.restTimerSeconds
+                                                } else if (settings.logging.restTimerSeparateByType) {
+                                                    if (we.exercise.movementType == MovementType.COMPOUND) {
+                                                        settings.logging.restTimerCompoundSec
+                                                    } else {
+                                                        settings.logging.restTimerIsolationSec
+                                                    }
                                                 } else {
-                                                    settings.logging.restTimerIsolationSec
+                                                    settings.logging.restTimerDefaultSec
                                                 }
-                                            } else {
-                                                settings.logging.restTimerDefaultSec
-                                            }
-                                        restTimer.start(durationSec, we.exercise.name)
+                                            restTimer.start(durationSec, we.exercise.name)
+                                        }
                                     }
                                 }
                             },

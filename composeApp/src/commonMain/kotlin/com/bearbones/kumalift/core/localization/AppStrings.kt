@@ -775,4 +775,47 @@ interface AppStrings {
     val backupErrorPermissionLost: String
     val backupErrorUnknown: String
     val backupFolderConfiguredSuccess: String
+
+    // Sound & Notification Identity
+    val soundProfileTitle: String
+    val soundProfileSubtitle: String
+    val soundProfileKuma: String
+    val soundProfileSilentVibrate: String
+    val soundProfileSilent: String
+
+    val soundVolumeTitle: String
+    val soundVolumeSubtitle: String
+    val soundVolumeLow: String
+    val soundVolumeMedium: String
+    val soundVolumeNormal: String
+
+    val countdownTicksTitle: String
+    val countdownTicksSubtitle: String
+
+    val ongoingWorkoutNotifTitle: String
+    val ongoingWorkoutNotifSubtitle: String
+
+    val inAppSoundAlertsTitle: String
+    val inAppSoundAlertsSubtitle: String
+
+    val previewSoundsTitle: String
+    val previewSoundsSubtitle: String
+    val soundPreviewRestEnd: String
+    val soundPreviewTick: String
+    val soundPreviewSetDone: String
+    val soundPreviewPr: String
+    val soundPreviewWorkoutDone: String
+    val soundPreviewReminder: String
+    val soundPreviewError: String
+
+    val restTimerActionAdd15: String
+
+    val channelRestTimerAlertName: String
+    val channelRestTimerAlertDesc: String
+    val channelWorkoutReminderName: String
+    val channelWorkoutReminderDesc: String
+    val channelBackupErrorName: String
+    val channelBackupErrorDesc: String
+    val channelRestTimerOngoingName: String
+    val channelRestTimerOngoingDesc: String
 }

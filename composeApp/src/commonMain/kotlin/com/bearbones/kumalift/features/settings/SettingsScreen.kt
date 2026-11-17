@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -124,6 +125,10 @@ import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.OneRepMaxFormula
 import com.bearbones.kumalift.domain.model.TrainingGoal
+import com.bearbones.kumalift.core.sound.SoundEvent
+import com.bearbones.kumalift.core.sound.SoundManager
+import com.bearbones.kumalift.domain.model.SoundProfile
+import com.bearbones.kumalift.domain.model.SoundVolume
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.UserSettings
 
@@ -975,6 +980,7 @@ private fun ChangeUsernamePage(
 /**
  * Push Notifications Page matching notifcation.jpg + Workout Reminders & Battery Optimization
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun NotificationSettingsPage(
     settingsRepository: SettingsRepository,
@@ -1071,20 +1077,108 @@ private fun NotificationSettingsPage(
 
                 item {
                     KumaCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            // Rest Timer
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // 1. Sound Profile Selector
+                            UnitOptionGroup(
+                                title = s.soundProfileTitle,
+                                options = listOf(
+                                    SoundProfile.KUMA to s.soundProfileKuma,
+                                    SoundProfile.SILENT_VIBRATE to s.soundProfileSilentVibrate,
+                                    SoundProfile.SILENT to s.soundProfileSilent
+                                ),
+                                selected = settings.notifications.soundProfile,
+                                onSelect = { profile ->
+                                    settingsRepository.update {
+                                        it.copy(notifications = it.notifications.copy(soundProfile = profile))
+                                    }
+                                    workoutReminderManager.syncSettings(
+                                        settings.notifications.copy(soundProfile = profile),
+                                        settings.appearance.language
+                                    )
+                                }
+                            )
+
+                            SettingsDivider()
+
+                            // 2. In-App Sound Volume Selector
+                            UnitOptionGroup(
+                                title = s.soundVolumeTitle,
+                                options = listOf(
+                                    SoundVolume.LOW to s.soundVolumeLow,
+                                    SoundVolume.MEDIUM to s.soundVolumeMedium,
+                                    SoundVolume.NORMAL to s.soundVolumeNormal
+                                ),
+                                selected = settings.notifications.soundVolume,
+                                onSelect = { vol ->
+                                    settingsRepository.update {
+                                        it.copy(notifications = it.notifications.copy(soundVolume = vol))
+                                    }
+                                }
+                            )
+
+                            SettingsDivider()
+
+                            // 3. In-App Audio Feedback switch
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = s.restTimerHeader,
-                                    style = MaterialTheme.typography.bodyLarge.copy(
-                                        color = colors.textPrimary,
-                                        fontWeight = FontWeight.Medium
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = s.inAppSoundAlertsTitle,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    )
+                                    Text(
+                                        text = s.inAppSoundAlertsSubtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
+                                }
+                                Switch(
+                                    checked = settings.logging.soundAlerts,
+                                    onCheckedChange = { checked ->
+                                        settingsRepository.update {
+                                            it.copy(logging = it.logging.copy(soundAlerts = checked))
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = colors.accentText,
+                                        checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
                                     )
                                 )
+                            }
+
+                            SettingsDivider()
+
+                            // 4. Rest Timer Notification in Background switch
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = s.restTimerHeader,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    )
+                                    Text(
+                                        text = s.restTimerChannelDescription,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
+                                }
                                 Switch(
                                     checked = settings.notifications.restTimerAlert,
                                     onCheckedChange = { checked ->
@@ -1099,11 +1193,9 @@ private fun NotificationSettingsPage(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
                             SettingsDivider()
-                            Spacer(modifier = Modifier.height(14.dp))
 
-                            // Monthly Report
+                            // 5. Tick during last 3 seconds switch
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1111,24 +1203,24 @@ private fun NotificationSettingsPage(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = s.monthlyReportTitle,
+                                        text = s.countdownTicksTitle,
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             color = colors.textPrimary,
                                             fontWeight = FontWeight.Medium
                                         )
                                     )
                                     Text(
-                                        text = s.monthlyReportSubtitle,
+                                        text = s.countdownTicksSubtitle,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary
                                         )
                                     )
                                 }
                                 Switch(
-                                    checked = settings.notifications.monthlyReport,
+                                    checked = settings.notifications.countdownBeeps,
                                     onCheckedChange = { checked ->
                                         settingsRepository.update {
-                                            it.copy(notifications = it.notifications.copy(monthlyReport = checked))
+                                            it.copy(notifications = it.notifications.copy(countdownBeeps = checked))
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
@@ -1136,6 +1228,108 @@ private fun NotificationSettingsPage(
                                         checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
                                     )
                                 )
+                            }
+
+                            SettingsDivider()
+
+                            // 6. Ongoing Workout Notification switch
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = s.ongoingWorkoutNotifTitle,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    )
+                                    Text(
+                                        text = s.ongoingWorkoutNotifSubtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
+                                }
+                                Switch(
+                                    checked = settings.notifications.ongoingWorkout,
+                                    onCheckedChange = { checked ->
+                                        settingsRepository.update {
+                                            it.copy(notifications = it.notifications.copy(ongoingWorkout = checked))
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = colors.accentText,
+                                        checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
+                                    )
+                                )
+                            }
+
+                            SettingsDivider()
+
+                            // 7. Preview Sounds Row
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = s.previewSoundsTitle,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        color = colors.textPrimary,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = s.previewSoundsSubtitle,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = colors.textSecondary
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                val previewSoundsList = listOf(
+                                    s.soundPreviewRestEnd to SoundEvent.REST_END,
+                                    s.soundPreviewTick to SoundEvent.TICK,
+                                    s.soundPreviewSetDone to SoundEvent.SET_DONE,
+                                    s.soundPreviewPr to SoundEvent.PR,
+                                    s.soundPreviewWorkoutDone to SoundEvent.WORKOUT_DONE,
+                                    s.soundPreviewReminder to SoundEvent.REMINDER,
+                                    s.soundPreviewError to SoundEvent.ERROR
+                                )
+
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    previewSoundsList.forEach { (label, event) ->
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(KumaColors.SurfaceDim)
+                                                .clickable {
+                                                    SoundManager.previewSound(event, settings.notifications.soundVolume)
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = label,
+                                                tint = colors.accentText,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    color = colors.textPrimary,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1855,21 +2049,6 @@ private fun WorkoutSettingsPage(
                                 }
                             )
 
-                            Spacer(modifier = Modifier.height(14.dp))
-                            SettingsDivider()
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Inline Timer
-                            WorkoutSettingToggle(
-                                title = s.inlineTimerTitle,
-                                description = s.inlineTimerSubtitle,
-                                isChecked = settings.logging.inlineTimer,
-                                onCheckedChange = { chk ->
-                                    settingsRepository.update {
-                                        it.copy(logging = it.logging.copy(inlineTimer = chk))
-                                    }
-                                }
-                            )
 
                             // Auto-start Rest Timer
                             Spacer(modifier = Modifier.height(14.dp))
@@ -2174,7 +2353,7 @@ private fun UnitsSettingsPage(
 }
 
 @Composable
-private fun <T> UnitOptionGroup(
+fun <T> UnitOptionGroup(
     title: String,
     options: List<Pair<T, String>>,
     selected: T,

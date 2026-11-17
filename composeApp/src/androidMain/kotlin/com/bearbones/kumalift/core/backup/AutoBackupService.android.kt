@@ -175,18 +175,7 @@ class AutoBackupWorker(
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
             val strings = resolveAppStrings(language)
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    "kumalift_backup_alerts",
-                    strings.autoBackupChannelName,
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = strings.autoBackupChannelDescription
-                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                    enableVibration(true)
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
+            com.bearbones.kumalift.core.notification.PlatformNotificationChannels.ensureChannels(context, language)
 
             val openIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -199,7 +188,7 @@ class AutoBackupWorker(
             )
 
             val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Notification.Builder(context, "kumalift_backup_alerts")
+                Notification.Builder(context, com.bearbones.kumalift.core.notification.PlatformNotificationChannels.CHANNEL_BACKUP_ERROR)
             } else {
                 @Suppress("DEPRECATION")
                 Notification.Builder(context)

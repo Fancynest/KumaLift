@@ -4,6 +4,10 @@ actual fun playTimerCompletionFeedback() {
     // iOS platform timer feedback
 }
 
+actual fun playTimerTickFeedback(secondsRemaining: Int) {
+    // iOS platform timer tick
+}
+
 actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?) {
     // iOS Live Activity / Dynamic Island placeholder
 }

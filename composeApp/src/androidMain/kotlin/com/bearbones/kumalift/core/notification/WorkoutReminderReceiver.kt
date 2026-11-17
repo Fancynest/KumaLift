@@ -48,41 +48,42 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
             strings.notifReminderTitle to strings.notifReminderBody
         }
 
+        val profileStr = prefs.getString("sound_profile", com.bearbones.kumalift.domain.model.SoundProfile.KUMA.name)
+        val profile = try {
+            if (profileStr != null) com.bearbones.kumalift.domain.model.SoundProfile.valueOf(profileStr) else com.bearbones.kumalift.domain.model.SoundProfile.KUMA
+        } catch (_: Exception) {
+            com.bearbones.kumalift.domain.model.SoundProfile.KUMA
+        }
+
         showReminderNotification(
             context = context,
             title = selectedVariation.first,
             message = selectedVariation.second,
-            channelName = strings.notifChannelName,
-            channelDesc = strings.notifChannelDescription
+            profile = profile,
+            appLanguage = appLanguage
         )
         // Automatically schedule the next reminder
         AndroidWorkoutReminderScheduler.scheduleNext(context)
     }
 
     companion object {
-        const val CHANNEL_ID = "workout_reminders"
         const val NOTIFICATION_ID = 1001
 
         fun showReminderNotification(
             context: Context,
             title: String,
             message: String,
-            channelName: String = "Workout Reminders",
-            channelDesc: String = "KumaLift workout session reminder notifications"
+            profile: com.bearbones.kumalift.domain.model.SoundProfile = com.bearbones.kumalift.domain.model.SoundProfile.KUMA,
+            appLanguage: AppLanguage = AppLanguage.SYSTEM
         ) {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    channelName,
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = channelDesc
-                    enableVibration(true)
-                    enableLights(true)
-                }
-                notificationManager.createNotificationChannel(channel)
+            PlatformNotificationChannels.ensureChannels(context, appLanguage)
+
+            val channelId = when (profile) {
+                com.bearbones.kumalift.domain.model.SoundProfile.KUMA -> PlatformNotificationChannels.CHANNEL_WORKOUT_REMINDER_KUMA
+                com.bearbones.kumalift.domain.model.SoundProfile.SILENT_VIBRATE -> PlatformNotificationChannels.CHANNEL_WORKOUT_REMINDER_VIBRATE
+                com.bearbones.kumalift.domain.model.SoundProfile.SILENT -> PlatformNotificationChannels.CHANNEL_WORKOUT_REMINDER_SILENT
             }
 
             val openIntent = Intent(context, MainActivity::class.java).apply {
@@ -96,7 +97,7 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
             )
 
             val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Notification.Builder(context, CHANNEL_ID)
+                Notification.Builder(context, channelId)
             } else {
                 @Suppress("DEPRECATION")
                 Notification.Builder(context)

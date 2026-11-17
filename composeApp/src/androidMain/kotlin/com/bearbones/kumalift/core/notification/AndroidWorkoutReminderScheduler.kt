@@ -25,6 +25,7 @@ object AndroidWorkoutReminderScheduler {
             .putString(KEY_TIME, settings.reminderTime)
             .putString(KEY_DAYS, settings.reminderDays.joinToString(","))
             .putString(KEY_LANG, language.name)
+            .putString("sound_profile", settings.soundProfile.name)
             .apply()
 
         if (settings.workoutReminders) {

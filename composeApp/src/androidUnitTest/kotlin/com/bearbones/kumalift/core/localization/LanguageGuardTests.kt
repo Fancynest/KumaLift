@@ -153,7 +153,17 @@ class LanguageGuardTests {
             "kumalift_rest_timer_ongoing",  // Android notification channel ID
             "kumalift_rest_timer_alert",    // Android notification channel ID
             "kuma_rest_timer_ongoing",      // Android notification channel ID
-            "kuma_rest_timer_alert"         // Android notification channel ID
+            "kuma_rest_timer_alert",        // Android notification channel ID
+            "workout_reminders",            // Android notification channel ID (legacy)
+            "kumalift_backup_alerts",       // Android notification channel ID (legacy)
+            "rest_timer_ongoing_v2",        // Android notification channel ID
+            "rest_timer_alert_kuma_v2",     // Android notification channel ID
+            "rest_timer_alert_vibrate_v2",  // Android notification channel ID
+            "rest_timer_alert_silent_v2",   // Android notification channel ID
+            "workout_reminder_kuma_v2",     // Android notification channel ID
+            "workout_reminder_vibrate_v2",  // Android notification channel ID
+            "workout_reminder_silent_v2",   // Android notification channel ID
+            "backup_error_v2"               // Android notification channel ID
         )
 
         for (file in ktFiles) {

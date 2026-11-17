@@ -78,10 +78,10 @@ class SoundPolicy(
             SoundEvent.REST_END -> {
                 if (isForegroundAndInteractive) {
                     // Rule 1: In foreground and interactive -> in-app sound + light haptic, NO sounding notification
-                    if (soundProfile == SoundProfile.KUMA && ringerMode == RingerMode.NORMAL && !doNotDisturbActive) {
+                    if (restTimerAlert && soundProfile == SoundProfile.KUMA && ringerMode == RingerMode.NORMAL && !doNotDisturbActive) {
                         shouldPlaySound = true
                     }
-                    if (soundProfile != SoundProfile.SILENT && ringerMode != RingerMode.SILENT && !doNotDisturbActive) {
+                    if (restTimerAlert && soundProfile != SoundProfile.SILENT && ringerMode != RingerMode.SILENT && !doNotDisturbActive) {
                         shouldVibrate = true
                     }
                     shouldPostNotif = false
@@ -118,10 +118,10 @@ class SoundPolicy(
             }
 
             SoundEvent.SET_DONE, SoundEvent.PR, SoundEvent.WORKOUT_DONE -> {
-                // Rule 4: In-app feedback: only soundAlerts true, profile != SILENT, foreground + interactive, ringer NORMAL, not DND.
+                // Rule 4: In-app feedback: only soundAlerts true, profile == KUMA, foreground + interactive, ringer NORMAL, not DND.
                 // Haptic (light) only if profile != SILENT and not (ringer SILENT) and not DND.
                 if (isForegroundAndInteractive) {
-                    if (soundAlerts && soundProfile != SoundProfile.SILENT && ringerMode == RingerMode.NORMAL && !doNotDisturbActive) {
+                    if (soundAlerts && soundProfile == SoundProfile.KUMA && ringerMode == RingerMode.NORMAL && !doNotDisturbActive) {
                         shouldPlaySound = true
                     }
                     if (soundProfile != SoundProfile.SILENT && ringerMode != RingerMode.SILENT && !doNotDisturbActive) {

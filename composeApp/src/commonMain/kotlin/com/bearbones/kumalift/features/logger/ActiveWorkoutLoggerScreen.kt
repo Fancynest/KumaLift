@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
@@ -115,10 +116,10 @@ fun ActiveWorkoutLoggerScreen(
     val s = LocalStrings.current
     val isLb = settings.units.weightUnit == WeightUnit.LB
     val scope = rememberCoroutineScope()
-    val restTimer = remember { RestTimer(scope) }
+    val restTimer = remember { RestTimerCoordinator.activeRestTimer ?: RestTimer(scope) }
     val timerState by restTimer.state.collectAsState()
 
-    var showRestTimerBar by remember { mutableStateOf(false) }
+    var showRestTimerBar by remember { mutableStateOf(restTimer.state.value.isVisible) }
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
     var showLeaveLoggerDialog by remember { mutableStateOf(false) }
     var showCancelWorkoutDialog by remember { mutableStateOf(false) }
@@ -149,6 +150,8 @@ fun ActiveWorkoutLoggerScreen(
 
     val doFinishWorkout = {
         if (workout != null) {
+            showRestTimerBar = false
+            restTimer.dismiss()
             workoutRepository.finishWorkout(
                 sessionRpe = 8.5
             )
@@ -651,7 +654,7 @@ fun ActiveWorkoutLoggerScreen(
 
         // Persistent Floating Rest Timer Pill
         AnimatedVisibility(
-            visible = showRestTimerBar && timerState.remainingSeconds > 0,
+            visible = showRestTimerBar && timerState.isVisible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -664,12 +667,11 @@ fun ActiveWorkoutLoggerScreen(
                 onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
                 onMinus = { restTimer.addSeconds(-settings.logging.restTimerSubtractStepSec) },
                 onCustomTimer = { customSec ->
-                    restTimer.reset()
                     restTimer.start(customSec)
                 },
                 onDismiss = {
                     showRestTimerBar = false
-                    restTimer.reset()
+                    restTimer.dismiss()
                 }
             )
         }
@@ -780,6 +782,8 @@ fun ActiveWorkoutLoggerScreen(
                     TextButton(
                         onClick = {
                             showCancelWorkoutDialog = false
+                            showRestTimerBar = false
+                            restTimer.dismiss()
                             workoutRepository.cancelWorkout()
                             onNavigateBack()
                         }
@@ -1613,10 +1617,11 @@ fun FloatingRestTimerCard(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     var showCustomDialog by remember { mutableStateOf(false) }
+    val isCompleted = timerState.status == com.bearbones.kumalift.core.timer.TimerStatus.COMPLETED
 
     if (showCustomDialog && onCustomTimer != null) {
         CustomRestTimerDialog(
-            initialSeconds = timerState.remainingSeconds,
+            initialSeconds = if (timerState.remainingSeconds > 0) timerState.remainingSeconds else timerState.totalSeconds,
             onDismiss = { showCustomDialog = false },
             onConfirm = { newSeconds ->
                 onCustomTimer(newSeconds)
@@ -1630,7 +1635,7 @@ fun FloatingRestTimerCard(
             .background(colors.surfaceBright)
             .border(
                 1.5.dp,
-                if (colors.isDark) colors.accentFill else colors.accentChart,
+                if (isCompleted) colors.accentFill else if (colors.isDark) colors.accentFill else colors.accentChart,
                 PillShape
             )
             .padding(horizontal = 18.dp, vertical = 12.dp),
@@ -1642,13 +1647,13 @@ fun FloatingRestTimerCard(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
-                progress = { timerState.progressFraction },
+                progress = { if (isCompleted) 1f else timerState.progressFraction },
                 modifier = Modifier.size(32.dp),
                 color = colors.accentChart,
                 trackColor = colors.surfaceVariant
             )
             Icon(
-                imageVector = Icons.Default.PlayArrow,
+                imageVector = if (isCompleted) Icons.Default.Check else Icons.Default.PlayArrow,
                 contentDescription = null,
                 tint = colors.accentText,
                 modifier = Modifier.size(16.dp)
@@ -1659,11 +1664,12 @@ fun FloatingRestTimerCard(
             modifier = Modifier.clickable { showCustomDialog = true }
         ) {
             Text(
-                text = s.restTimerHeader,
+                text = if (isCompleted) s.restTimerNotificationTitle else s.restTimerHeader,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = colors.textSubtle,
-                    letterSpacing = 0.5.sp
+                    color = if (isCompleted) colors.accentText else colors.textSubtle,
+                    letterSpacing = 0.5.sp,
+                    fontWeight = if (isCompleted) FontWeight.Bold else FontWeight.Normal
                 )
             )
             Text(
@@ -1676,20 +1682,22 @@ fun FloatingRestTimerCard(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(
-                modifier = Modifier
-                    .clip(PillShape)
-                    .background(colors.surfaceVariant)
-                    .clickable(onClick = onMinus)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "-${s.secondsShort(subtractStepSec)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = colors.textPrimary,
-                        fontWeight = FontWeight.Bold
+            if (!isCompleted) {
+                Box(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(colors.surfaceVariant)
+                        .clickable(onClick = onMinus)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "-${s.secondsShort(subtractStepSec)}",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
                     )
-                )
+                }
             }
             Box(
                 modifier = Modifier

@@ -1,10 +1,31 @@
 package com.bearbones.kumalift.core.sound
 
+import com.bearbones.kumalift.domain.model.RestTimerSoundSource
 import com.bearbones.kumalift.domain.model.SoundVolume
 
 actual object PlatformSoundPlayer {
     actual fun playSound(event: SoundEvent, volume: SoundVolume) {
         // Minimal iOS actual - sound not implemented on iOS in this milestone
+    }
+
+    actual fun playRestTimerSound(
+        volume: SoundVolume,
+        source: RestTimerSoundSource,
+        customPath: String?
+    ) {
+        // iOS actual stub
+    }
+
+    actual fun playCustomSound(filePath: String, volume: SoundVolume) {
+        // iOS actual stub
+    }
+
+    actual fun playSystemDefaultSound(volume: SoundVolume) {
+        // iOS actual stub
+    }
+
+    actual fun stopRestTimerSound() {
+        // iOS actual stub
     }
 
     actual fun playHaptic() {

@@ -106,6 +106,13 @@ enum class SoundProfile {
 }
 
 @Serializable
+enum class RestTimerSoundSource {
+    BUILTIN,
+    SYSTEM_DEFAULT,
+    CUSTOM
+}
+
+@Serializable
 enum class SoundVolume(val multiplier: Float) {
     LOW(0.35f),
     MEDIUM(0.60f),
@@ -274,6 +281,9 @@ data class EquipmentSettings(
 data class NotificationSettings(
     val soundProfile: SoundProfile = SoundProfile.KUMA,
     val soundVolume: SoundVolume = SoundVolume.MEDIUM,
+    val restTimerSoundSource: RestTimerSoundSource = RestTimerSoundSource.BUILTIN,
+    val customRestTimerSoundPath: String? = null,
+    val customRestTimerSoundName: String? = null,
     val restTimerAlert: Boolean = true,
     val countdownBeeps: Boolean = false,
     val ongoingWorkout: Boolean = true,

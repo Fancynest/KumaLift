@@ -4,7 +4,18 @@ import com.bearbones.kumalift.app.AppNavigator
 import com.bearbones.kumalift.app.Overlay
 import com.bearbones.kumalift.app.Tab
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.core.sound.PlatformSoundPlayer
+import com.bearbones.kumalift.core.sound.SoundEvent
+import com.bearbones.kumalift.core.sound.SoundManager
 import com.bearbones.kumalift.core.timer.RestTimer
+import com.bearbones.kumalift.core.timer.RestTimerCoordinator
+import com.bearbones.kumalift.core.timer.TimerStatus
+import com.bearbones.kumalift.domain.model.NotificationSettings
+import com.bearbones.kumalift.domain.model.RestTimerSoundSource
+import com.bearbones.kumalift.domain.model.SoundProfile
+import com.bearbones.kumalift.domain.model.SoundVolume
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.export.ImportMode
@@ -463,5 +474,141 @@ class LogicStabilizationTests {
         assertEquals(1, sanitized.size)
         assertEquals(20.0, sanitized.first().weightKg, 0.001)
         assertEquals(8, sanitized.first().reps)
+    }
+
+    @Test
+    fun testRestTimerCompletionStateAndPersistence() = runBlocking {
+        val timer = RestTimer(this)
+        assertEquals(TimerStatus.IDLE, timer.state.value.status)
+        assertFalse(timer.state.value.isVisible)
+
+        // 1. Start timer with 1 second
+        timer.start(1, "Bench Press")
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.isRunning)
+        assertTrue(timer.state.value.isVisible)
+        assertEquals("Bench Press", timer.state.value.exerciseName)
+
+        // 2. Wait for completion
+        var attempts = 0
+        while (timer.state.value.status != TimerStatus.COMPLETED && attempts < 20) {
+            delay(100)
+            attempts++
+        }
+
+        // 3. Must transition to COMPLETED and remain visible (do not auto-dismiss)
+        assertEquals(TimerStatus.COMPLETED, timer.state.value.status)
+        assertTrue("Timer must remain visible when completed", timer.state.value.isVisible)
+        assertTrue(timer.state.value.isFinished)
+        assertFalse(timer.state.value.isRunning)
+        assertEquals(0, timer.state.value.remainingSeconds)
+        assertEquals("00:00", timer.state.value.formattedTime)
+        assertEquals(1f, timer.state.value.progressFraction, 0.001f)
+
+        // 4. Adding seconds resumes timer from completed state
+        timer.addSeconds(30)
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.remainingSeconds >= 29)
+        assertTrue(timer.state.value.isVisible)
+
+        // 5. Dismiss transitions to DISMISSED and hides
+        timer.dismiss()
+        assertEquals(TimerStatus.DISMISSED, timer.state.value.status)
+        assertFalse("Timer must not be visible after dismissed", timer.state.value.isVisible)
+        assertFalse(timer.state.value.isRunning)
+    }
+
+    @Test
+    fun testRestTimerStateTransitions() = runBlocking {
+        val timer = RestTimer(this)
+
+        // IDLE
+        assertEquals(TimerStatus.IDLE, timer.state.value.status)
+        assertFalse(timer.state.value.isRunning)
+        assertFalse(timer.state.value.isPaused)
+        assertFalse(timer.state.value.isFinished)
+        assertFalse(timer.state.value.isVisible)
+
+        // RUNNING
+        timer.start(60)
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.isRunning)
+        assertFalse(timer.state.value.isPaused)
+        assertFalse(timer.state.value.isFinished)
+        assertTrue(timer.state.value.isVisible)
+
+        // PAUSED
+        timer.pause()
+        assertEquals(TimerStatus.PAUSED, timer.state.value.status)
+        assertFalse(timer.state.value.isRunning)
+        assertTrue(timer.state.value.isPaused)
+        assertFalse(timer.state.value.isFinished)
+        assertTrue(timer.state.value.isVisible)
+
+        // RESUMED (RUNNING)
+        timer.resume()
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.isRunning)
+        assertFalse(timer.state.value.isPaused)
+        assertTrue(timer.state.value.isVisible)
+
+        // STOP -> IDLE
+        timer.stop()
+        assertEquals(TimerStatus.IDLE, timer.state.value.status)
+        assertFalse(timer.state.value.isVisible)
+
+        // Coordinator controls
+        RestTimerCoordinator.activeRestTimer = timer
+        timer.start(45)
+        RestTimerCoordinator.pause()
+        assertEquals(TimerStatus.PAUSED, timer.state.value.status)
+        RestTimerCoordinator.resume()
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        RestTimerCoordinator.dismiss()
+        assertEquals(TimerStatus.DISMISSED, timer.state.value.status)
+        assertNull(RestTimerCoordinator.activeRestTimer)
+    }
+
+    @Test
+    fun testRestTimerCustomSoundSettingsPersistence() {
+        val json = Json { ignoreUnknownKeys = true }
+        val settings = UserSettings(
+            notifications = NotificationSettings(
+                soundProfile = SoundProfile.KUMA,
+                soundVolume = SoundVolume.NORMAL,
+                restTimerSoundSource = RestTimerSoundSource.CUSTOM,
+                customRestTimerSoundPath = "/data/user/0/com.bearbones.kumalift/files/custom_sounds/my_bell.mp3",
+                customRestTimerSoundName = "my_bell.mp3"
+            )
+        )
+
+        val serialized = json.encodeToString(settings)
+        val deserialized = json.decodeFromString<UserSettings>(serialized)
+
+        assertEquals(RestTimerSoundSource.CUSTOM, deserialized.notifications.restTimerSoundSource)
+        assertEquals("/data/user/0/com.bearbones.kumalift/files/custom_sounds/my_bell.mp3", deserialized.notifications.customRestTimerSoundPath)
+        assertEquals("my_bell.mp3", deserialized.notifications.customRestTimerSoundName)
+        assertEquals(SoundProfile.KUMA, deserialized.notifications.soundProfile)
+        assertEquals(SoundVolume.NORMAL, deserialized.notifications.soundVolume)
+    }
+
+    @Test
+    fun testRestTimerSoundSourceFallbackAndStop() {
+        // Fallback test: calling playRestTimerSound with non-existent custom path should not crash
+        PlatformSoundPlayer.playRestTimerSound(
+            volume = SoundVolume.MEDIUM,
+            source = RestTimerSoundSource.CUSTOM,
+            customPath = "/non/existent/path/sound.mp3"
+        )
+
+        // System default test: should not crash
+        PlatformSoundPlayer.playRestTimerSound(
+            volume = SoundVolume.LOW,
+            source = RestTimerSoundSource.SYSTEM_DEFAULT,
+            customPath = null
+        )
+
+        // Stop test: should stop cleanly without exception
+        PlatformSoundPlayer.stopRestTimerSound()
     }
 }

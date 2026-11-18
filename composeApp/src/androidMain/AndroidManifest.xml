@@ -49,8 +49,10 @@
             android:name=".core.timer.RestTimerNotificationReceiver"
             android:exported="false">
             <intent-filter>
+                <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_ADD_15" />
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_ADD_30" />
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_SKIP" />
+                <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_DISMISS" />
             </intent-filter>
         </receiver>
     </application>

@@ -14,6 +14,7 @@ import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.notification.PlatformNotificationChannels
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.RestTimerSoundSource
 import com.bearbones.kumalift.domain.model.SoundVolume
 
 actual object PlatformSoundPlayer {
@@ -23,6 +24,30 @@ actual object PlatformSoundPlayer {
     actual fun playSound(event: SoundEvent, volume: SoundVolume) {
         val context = AndroidAppProvider.appContext ?: return
         KumaSoundPlayer.play(context, event, volume)
+    }
+
+    actual fun playRestTimerSound(
+        volume: SoundVolume,
+        source: RestTimerSoundSource,
+        customPath: String?
+    ) {
+        val context = AndroidAppProvider.appContext ?: return
+        KumaSoundPlayer.playRestTimerSound(context, volume, source, customPath)
+    }
+
+    actual fun playCustomSound(filePath: String, volume: SoundVolume) {
+        val context = AndroidAppProvider.appContext ?: return
+        KumaSoundPlayer.playCustomSound(context, filePath, volume.multiplier)
+    }
+
+    actual fun playSystemDefaultSound(volume: SoundVolume) {
+        val context = AndroidAppProvider.appContext ?: return
+        KumaSoundPlayer.playSystemDefaultSound(context, volume.multiplier)
+    }
+
+    actual fun stopRestTimerSound() {
+        val context = AndroidAppProvider.appContext ?: return
+        KumaSoundPlayer.stopCustomSound()
     }
 
     actual fun playHaptic() {
@@ -55,6 +80,7 @@ actual object PlatformSoundPlayer {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             nm?.cancel(NOTIF_ID_ALERT)
         } catch (_: Throwable) {}
+        stopRestTimerSound()
     }
 
     actual fun postRestFinishedNotification(channelVariant: ChannelVariant) {

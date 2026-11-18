@@ -28,6 +28,8 @@ import com.bearbones.kumalift.core.backup.AutoBackupService
 import com.bearbones.kumalift.core.backup.BackupErrorCode
 import com.bearbones.kumalift.core.crypto.BackupCrypto
 import com.bearbones.kumalift.core.crypto.BackupFileType
+import com.bearbones.kumalift.core.data.deleteCustomAudioFile
+import com.bearbones.kumalift.core.data.rememberAudioPickerLauncher
 import com.bearbones.kumalift.core.data.rememberDataExportBytesLauncher
 import com.bearbones.kumalift.core.data.rememberDataExportLauncher
 import com.bearbones.kumalift.core.data.rememberDataImportBytesLauncher
@@ -50,7 +52,9 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -64,13 +68,18 @@ import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
@@ -130,6 +139,7 @@ import com.bearbones.kumalift.domain.model.OneRepMaxFormula
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.core.sound.SoundEvent
 import com.bearbones.kumalift.core.sound.SoundManager
+import com.bearbones.kumalift.domain.model.RestTimerSoundSource
 import com.bearbones.kumalift.domain.model.SoundProfile
 import com.bearbones.kumalift.domain.model.SoundVolume
 import com.bearbones.kumalift.domain.model.WeightUnit
@@ -1019,6 +1029,26 @@ private fun NotificationSettingsPage(
         }
     }
 
+    var isCustomPreviewPlaying by remember { mutableStateOf(false) }
+    var customSoundError by remember { mutableStateOf<String?>(null) }
+
+    val audioPickerLauncher = rememberAudioPickerLauncher { fileName, localPath, errorMsg ->
+        if (errorMsg != null) {
+            customSoundError = errorMsg
+        } else if (fileName != null && localPath != null) {
+            customSoundError = null
+            settingsRepository.update {
+                it.copy(
+                    notifications = it.notifications.copy(
+                        restTimerSoundSource = RestTimerSoundSource.CUSTOM,
+                        customRestTimerSoundPath = localPath,
+                        customRestTimerSoundName = fileName
+                    )
+                )
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1119,6 +1149,257 @@ private fun NotificationSettingsPage(
                                     }
                                 }
                             )
+
+                            SettingsDivider()
+
+                            // 2b. Rest Timer Sound Source Selector
+                            UnitOptionGroup(
+                                title = s.restTimerSoundSourceTitle,
+                                options = listOf(
+                                    RestTimerSoundSource.BUILTIN to s.restTimerSoundBuiltin,
+                                    RestTimerSoundSource.SYSTEM_DEFAULT to s.restTimerSoundSystemDefault,
+                                    RestTimerSoundSource.CUSTOM to s.restTimerSoundCustom
+                                ),
+                                selected = settings.notifications.restTimerSoundSource,
+                                onSelect = { source ->
+                                    settingsRepository.update {
+                                        it.copy(notifications = it.notifications.copy(restTimerSoundSource = source))
+                                    }
+                                }
+                            )
+
+                            if (settings.notifications.restTimerSoundSource == RestTimerSoundSource.CUSTOM) {
+                                val customFileName = settings.notifications.customRestTimerSoundName
+                                val customFilePath = settings.notifications.customRestTimerSoundPath
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(colors.surfaceVariant.copy(alpha = 0.5f))
+                                        .border(1.dp, colors.surfaceVariant, RoundedCornerShape(12.dp))
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    if (!customFileName.isNullOrBlank() && !customFilePath.isNullOrBlank()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(36.dp)
+                                                    .clip(CircleShape)
+                                                    .background(colors.accentFill.copy(alpha = 0.2f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.MusicNote,
+                                                    contentDescription = null,
+                                                    tint = colors.accentText,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = customFileName,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = colors.textPrimary
+                                                    ),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    text = s.customSoundReady,
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        color = colors.accentText,
+                                                        fontSize = 11.sp
+                                                    )
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = {
+                                                    deleteCustomAudioFile(customFilePath)
+                                                    SoundManager.stopSound()
+                                                    isCustomPreviewPlaying = false
+                                                    settingsRepository.update {
+                                                        it.copy(
+                                                            notifications = it.notifications.copy(
+                                                                restTimerSoundSource = RestTimerSoundSource.BUILTIN,
+                                                                customRestTimerSoundPath = null,
+                                                                customRestTimerSoundName = null
+                                                            )
+                                                        )
+                                                    }
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.DeleteOutline,
+                                                    contentDescription = s.removeCustomSound,
+                                                    tint = KumaColors.ErrorRed,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isCustomPreviewPlaying) colors.accentFill else KumaColors.SurfaceDim)
+                                                    .clickable {
+                                                        if (isCustomPreviewPlaying) {
+                                                            SoundManager.stopSound()
+                                                            isCustomPreviewPlaying = false
+                                                        } else {
+                                                            isCustomPreviewPlaying = true
+                                                            SoundManager.previewCustomSound(customFilePath, settings.notifications.soundVolume)
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isCustomPreviewPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                                        contentDescription = null,
+                                                        tint = if (isCustomPreviewPlaying) colors.onAccentFill else colors.accentText,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = if (isCustomPreviewPlaying) s.customSoundPlaying else s.previewSoundsTitle,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            color = if (isCustomPreviewPlaying) colors.onAccentFill else colors.textPrimary,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(KumaColors.SurfaceDim)
+                                                    .clickable {
+                                                        SoundManager.stopSound()
+                                                        isCustomPreviewPlaying = false
+                                                        audioPickerLauncher()
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.FolderOpen,
+                                                        contentDescription = null,
+                                                        tint = colors.textPrimary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = s.replaceCustomSound,
+                                                        style = MaterialTheme.typography.labelMedium.copy(
+                                                            color = colors.textPrimary,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = s.customSoundNoFileSelected,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = colors.textPrimary
+                                                )
+                                            )
+                                            Text(
+                                                text = s.customSoundSupportedFormats,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = colors.textSecondary
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Button(
+                                                onClick = {
+                                                    customSoundError = null
+                                                    audioPickerLauncher()
+                                                },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = colors.accentFill,
+                                                    contentColor = colors.onAccentFill
+                                                ),
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.UploadFile,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = s.uploadCustomSound,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    if (customSoundError != null) {
+                                        Text(
+                                            text = customSoundError ?: "",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = KumaColors.ErrorRed,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                    }
+                                }
+                            } else if (settings.notifications.restTimerSoundSource == RestTimerSoundSource.SYSTEM_DEFAULT) {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(KumaColors.SurfaceDim)
+                                        .clickable {
+                                            SoundManager.previewSystemDefaultSound(settings.notifications.soundVolume)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = colors.accentText,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "${s.previewSoundsTitle} (${s.restTimerSoundSystemDefault})",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            color = colors.textPrimary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    )
+                                }
+                            }
 
                             SettingsDivider()
 

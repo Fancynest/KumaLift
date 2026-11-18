@@ -917,6 +917,20 @@ object EnStrings : AppStrings {
     override val soundPreviewReminder = "Reminder"
     override val soundPreviewError = "Error"
 
+    override val restTimerSoundSourceTitle = "Rest Timer Sound"
+    override val restTimerSoundBuiltin = "Built-in Kuma"
+    override val restTimerSoundSystemDefault = "System Default"
+    override val restTimerSoundCustom = "Custom Sound"
+    override val uploadCustomSound = "Upload Sound"
+    override val replaceCustomSound = "Replace"
+    override val removeCustomSound = "Remove"
+    override val customSoundPlaying = "Playing..."
+    override val customSoundReady = "Custom sound active"
+    override val customSoundNoFileSelected = "No custom audio file chosen"
+    override val customSoundSupportedFormats = "Supports MP3, WAV, OGG"
+    override val customSoundInvalidFormat = "Invalid or unsupported audio format"
+    override val customSoundSuccess = "Custom sound saved successfully"
+
     override val restTimerActionAdd15 = "+15s"
 
     override val channelRestTimerAlertName = "Rest Timer Alerts"

@@ -73,6 +73,103 @@ actual fun notifyRestTimerStopped() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         manager?.cancel(NOTIF_ID_ONGOING)
     } catch (_: Throwable) {}
+    PlatformSoundPlayer.cancelRestFinishedNotification()
+}
+
+actual fun notifyRestTimerCompleted(exerciseName: String?) {
+    val context = AndroidAppProvider.appContext ?: return
+    val settings = getUserSettings()
+    if (!settings.notifications.ongoingWorkout && !settings.notifications.restTimerAlert) {
+        notifyRestTimerStopped()
+        return
+    }
+
+    try {
+        val strings = getStrings(context)
+        val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+        val langStr = prefs.getString("language_code", null)
+        val appLanguage = try {
+            if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
+        } catch (_: Exception) {
+            AppLanguage.SYSTEM
+        }
+        PlatformNotificationChannels.ensureChannels(context, appLanguage)
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val appIconRes = context.applicationInfo.icon.let { if (it != 0) it else android.R.drawable.ic_dialog_info }
+
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            100,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val add30Intent = PendingIntent.getBroadcast(
+            context,
+            101,
+            Intent(context, RestTimerNotificationReceiver::class.java).apply {
+                action = ACTION_REST_TIMER_ADD_30
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val dismissIntent = PendingIntent.getBroadcast(
+            context,
+            103,
+            Intent(context, RestTimerNotificationReceiver::class.java).apply {
+                action = RestTimerNotificationReceiver.ACTION_REST_TIMER_DISMISS
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = strings.restTimerNotificationTitle
+        val text = if (!exerciseName.isNullOrBlank()) {
+            "$exerciseName · ${strings.restTimerNotificationText}"
+        } else {
+            strings.restTimerNotificationText
+        }
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+
+        builder.setSmallIcon(appIconRes)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setUsesChronometer(false)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+            val addAction = Notification.Action.Builder(
+                null,
+                strings.restTimerActionAdd30,
+                add30Intent
+            ).build()
+
+            val dismissAction = Notification.Action.Builder(
+                null,
+                strings.close,
+                dismissIntent
+            ).build()
+
+            builder.addAction(addAction)
+            builder.addAction(dismissAction)
+        }
+
+        manager.notify(NOTIF_ID_ONGOING, builder.build())
+    } catch (_: Throwable) {
+        // Fallback gracefully
+    }
 }
 
 private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, exerciseName: String?) {
@@ -180,7 +277,6 @@ actual fun playTimerTickFeedback(secondsRemaining: Int) {
 }
 
 actual fun playTimerCompletionFeedback() {
-    notifyRestTimerStopped()
     val settings = getUserSettings()
     SoundManager.trigger(SoundEvent.REST_END, settings)
 }

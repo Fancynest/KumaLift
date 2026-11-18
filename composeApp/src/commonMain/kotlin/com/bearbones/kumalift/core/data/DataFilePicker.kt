@@ -30,3 +30,10 @@ expect fun rememberDataExportBytesLauncher(
 expect fun rememberDataImportBytesLauncher(
     onBytesRead: (ByteArray?) -> Unit
 ): () -> Unit
+
+@Composable
+expect fun rememberAudioPickerLauncher(
+    onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
+): () -> Unit
+
+expect fun deleteCustomAudioFile(filePath: String?)

@@ -52,3 +52,16 @@ actual fun rememberDataImportBytesLauncher(
         onBytesRead(null)
     }
 }
+
+@Composable
+actual fun rememberAudioPickerLauncher(
+    onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
+): () -> Unit {
+    return {
+        onAudioPicked(null, null, "Custom sound upload is only supported on Android")
+    }
+}
+
+actual fun deleteCustomAudioFile(filePath: String?) {
+    // iOS stub
+}

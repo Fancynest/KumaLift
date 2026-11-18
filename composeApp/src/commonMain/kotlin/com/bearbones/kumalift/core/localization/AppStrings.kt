@@ -809,6 +809,20 @@ interface AppStrings {
     val soundPreviewReminder: String
     val soundPreviewError: String
 
+    val restTimerSoundSourceTitle: String
+    val restTimerSoundBuiltin: String
+    val restTimerSoundSystemDefault: String
+    val restTimerSoundCustom: String
+    val uploadCustomSound: String
+    val replaceCustomSound: String
+    val removeCustomSound: String
+    val customSoundPlaying: String
+    val customSoundReady: String
+    val customSoundNoFileSelected: String
+    val customSoundSupportedFormats: String
+    val customSoundInvalidFormat: String
+    val customSoundSuccess: String
+
     val restTimerActionAdd15: String
 
     val channelRestTimerAlertName: String

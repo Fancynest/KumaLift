@@ -917,6 +917,20 @@ object IdStrings : AppStrings {
     override val soundPreviewReminder = "Pengingat"
     override val soundPreviewError = "Kesalahan"
 
+    override val restTimerSoundSourceTitle = "Suara Rest Timer"
+    override val restTimerSoundBuiltin = "Bawaan Kuma"
+    override val restTimerSoundSystemDefault = "Default Sistem"
+    override val restTimerSoundCustom = "Suara Custom"
+    override val uploadCustomSound = "Unggah Suara"
+    override val replaceCustomSound = "Ganti"
+    override val removeCustomSound = "Hapus"
+    override val customSoundPlaying = "Memutar..."
+    override val customSoundReady = "Suara custom aktif"
+    override val customSoundNoFileSelected = "Belum ada file audio dipilih"
+    override val customSoundSupportedFormats = "Format: MP3, WAV, OGG"
+    override val customSoundInvalidFormat = "Format audio tidak didukung atau rusak"
+    override val customSoundSuccess = "Suara custom berhasil disimpan"
+
     override val restTimerActionAdd15 = "+15dtk"
 
     override val channelRestTimerAlertName = "Pemberitahuan Timer Istirahat"

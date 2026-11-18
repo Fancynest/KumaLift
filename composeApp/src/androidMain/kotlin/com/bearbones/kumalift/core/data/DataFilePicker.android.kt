@@ -1,7 +1,10 @@
 package com.bearbones.kumalift.core.data
 
 import android.content.Intent
+import android.media.MediaPlayer
 import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -209,4 +212,103 @@ actual fun rememberDataImportBytesLauncher(
             }
         }
     }
+}
+
+@Composable
+actual fun rememberAudioPickerLauncher(
+    onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
+): () -> Unit {
+    val context = LocalContext.current
+
+    val openDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) {
+            return@rememberLauncherForActivityResult
+        }
+
+        try {
+            val docFile = DocumentFile.fromSingleUri(context, uri)
+            val displayName = docFile?.name ?: "custom_sound.mp3"
+            val extension = displayName.substringAfterLast('.', "").lowercase()
+
+            val allowedExtensions = setOf("mp3", "wav", "ogg", "opus", "m4a", "aac", "flac")
+            if (extension.isNotEmpty() && !allowedExtensions.contains(extension)) {
+                onAudioPicked(null, null, "Format file .$extension tidak didukung. Harap gunakan MP3, WAV, atau OGG.")
+                return@rememberLauncherForActivityResult
+            }
+
+            val targetExt = if (extension.isNotEmpty()) extension else "mp3"
+            val destDir = File(context.filesDir, "custom_sounds")
+            destDir.mkdirs()
+            val destFile = File(destDir, "custom_rest_timer_sound.$targetExt")
+
+            // Copy stream
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(destFile).use { output ->
+                    input.copyTo(output)
+                }
+            } ?: run {
+                onAudioPicked(null, null, "Gagal membaca file dari penyimpanan.")
+                return@rememberLauncherForActivityResult
+            }
+
+            // Validate audio can be prepared with MediaPlayer
+            val testPlayer = MediaPlayer()
+            var isValid = false
+            try {
+                testPlayer.setDataSource(destFile.absolutePath)
+                testPlayer.prepare()
+                isValid = testPlayer.duration > 0
+            } catch (t: Throwable) {
+                KumaLogger.e("AudioPicker", "Audio file validation failed: ${t.message}", t)
+                isValid = false
+            } finally {
+                try { testPlayer.release() } catch (_: Throwable) {}
+            }
+
+            if (!isValid) {
+                try { destFile.delete() } catch (_: Throwable) {}
+                onAudioPicked(null, null, "File audio rusak atau tidak dapat diputar.")
+                return@rememberLauncherForActivityResult
+            }
+
+            onAudioPicked(displayName, destFile.absolutePath, null)
+        } catch (e: Exception) {
+            KumaLogger.e("AudioPicker", "Exception copying audio file: ${e.message}", e)
+            onAudioPicked(null, null, "Gagal mengunggah file audio: ${e.message}")
+        }
+    }
+
+    return remember(context) {
+        {
+            try {
+                openDocLauncher.launch(
+                    arrayOf(
+                        "audio/*",
+                        "audio/mpeg",
+                        "audio/mp3",
+                        "audio/wav",
+                        "audio/x-wav",
+                        "audio/ogg",
+                        "audio/opus",
+                        "audio/mp4",
+                        "audio/m4a"
+                    )
+                )
+            } catch (e: Exception) {
+                onAudioPicked(null, null, "Gagal membuka pengelola file: ${e.message}")
+            }
+        }
+    }
+}
+
+actual fun deleteCustomAudioFile(filePath: String?) {
+    if (filePath.isNullOrBlank()) return
+    try {
+        val file = File(filePath)
+        if (file.exists()) {
+            file.delete()
+        }
+    } catch (_: Throwable) {}
 }

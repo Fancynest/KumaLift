@@ -14,6 +14,7 @@ import com.bearbones.kumalift.core.sound.PlatformSoundPlayer
 import com.bearbones.kumalift.core.sound.SoundEvent
 import com.bearbones.kumalift.core.sound.SoundManager
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_15
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_30
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.UserSettings
@@ -49,7 +50,7 @@ actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exe
     PlatformSoundPlayer.cancelRestFinishedNotification()
 
     val settings = getUserSettings()
-    if (settings.notifications.ongoingWorkout) {
+    if (settings.notifications.ongoingWorkout || settings.notifications.restTimerAlert) {
         updateOngoingNotification(context, targetEndEpochMs, exerciseName)
     } else {
         notifyRestTimerStopped()
@@ -59,7 +60,7 @@ actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exe
 actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int) {
     val context = AndroidAppProvider.appContext ?: return
     val settings = getUserSettings()
-    if (settings.notifications.ongoingWorkout) {
+    if (settings.notifications.ongoingWorkout || settings.notifications.restTimerAlert) {
         updateOngoingNotification(context, targetEndEpochMs, lastOngoingExerciseName)
     } else {
         notifyRestTimerStopped()
@@ -99,12 +100,12 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 1: +15s
-        val add15Intent = PendingIntent.getBroadcast(
+        // Action 1: +30s
+        val add30Intent = PendingIntent.getBroadcast(
             context,
             101,
             Intent(context, RestTimerNotificationReceiver::class.java).apply {
-                action = ACTION_REST_TIMER_ADD_15
+                action = ACTION_REST_TIMER_ADD_30
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -137,7 +138,12 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(true)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setUsesChronometer(true)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder.setCategory(Notification.CATEGORY_PROGRESS)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             builder.setChronometerCountDown(true)
@@ -148,8 +154,8 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
             val addAction = Notification.Action.Builder(
                 null,
-                strings.restTimerActionAdd15,
-                add15Intent
+                strings.restTimerActionAdd30,
+                add30Intent
             ).build()
 
             val skipAction = Notification.Action.Builder(

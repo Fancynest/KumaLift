@@ -240,6 +240,7 @@ object EnStrings : AppStrings {
     override val restDayTitle = "Rest Day"
     override val restDayAllProgramsMessage = "No workouts scheduled today across your training programs. Take time to recover or start a freestyle session."
     override fun restDayProgramMessage(name: String) = "No workout scheduled today for $name. Take time to recover or start a freestyle session."
+    override fun nextWorkoutScheduled(routineTitle: String, dayName: String) = "Next workout: $routineTitle on $dayName. Take time to recover or start a freestyle session."
 
     // Active Workout Logger
     override val workoutLogTitle = "Workout Log"

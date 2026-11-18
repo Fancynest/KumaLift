@@ -240,6 +240,7 @@ object IdStrings : AppStrings {
     override val restDayTitle = "Hari Istirahat"
     override val restDayAllProgramsMessage = "Tidak ada jadwal latihan hari ini untuk seluruh program Anda. Istirahat untuk pemulihan otot atau mulai sesi latihan bebas."
     override fun restDayProgramMessage(name: String) = "Tidak ada jadwal latihan hari ini untuk $name. Istirahat untuk pemulihan otot atau mulai sesi latihan bebas."
+    override fun nextWorkoutScheduled(routineTitle: String, dayName: String) = "Latihan berikutnya: $routineTitle pada hari $dayName. Istirahat untuk pemulihan otot atau mulai sesi latihan bebas."
 
     // Active Workout Logger
     override val workoutLogTitle = "Catatan Latihan"

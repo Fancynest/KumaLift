@@ -158,8 +158,33 @@ class PersonalRecordRepository(
     private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
     private val dateFormatProvider: () -> DateFormatPreference = { DateFormatPreference.SYSTEM }
 ) {
-    private val _prs = MutableStateFlow(initialPrs)
+    private val _prs = MutableStateFlow(
+        sanitizeInitialPrs(initialPrs, calculationSettingsProvider(), databaseRepo)
+    )
     val personalRecords: StateFlow<List<PersonalRecord>> = _prs.asStateFlow()
+
+    companion object {
+        fun sanitizeInitialPrs(
+            prs: List<PersonalRecord>,
+            calcSettings: CalculationSettings,
+            databaseRepo: KumaDatabaseRepository?
+        ): List<PersonalRecord> {
+            if (calcSettings.repRangePrs) return prs
+            val grouped = prs.groupBy { it.exerciseId }
+            val sanitized = mutableListOf<PersonalRecord>()
+            for ((exerciseId, list) in grouped) {
+                if (list.size > 1) {
+                    val best = list.maxWithOrNull(compareBy({ it.weightKg }, { it.reps })) ?: list.first()
+                    sanitized.add(best)
+                    databaseRepo?.deletePersonalRecordsForExercise(exerciseId)
+                    databaseRepo?.savePersonalRecord(best)
+                } else {
+                    sanitized.addAll(list)
+                }
+            }
+            return sanitized
+        }
+    }
 
     fun detectAndRecordPr(
         exercise: Exercise,
@@ -251,6 +276,9 @@ class PersonalRecordRepository(
             }
 
             // T5: Side effects run strictly outside StateFlow.update
+            if (!calcSettings.repRangePrs) {
+                databaseRepo?.deletePersonalRecordsForExercise(exercise.id)
+            }
             databaseRepo?.savePersonalRecord(newPr)
             KumaLogger.i("PersonalRecord", "New PR detected for ${exercise.name}: ${weightKg}kg x $reps ($tier)")
             return newPr
@@ -325,6 +353,7 @@ class PersonalRecordRepository(
             list.filterNot { it.exerciseId == exerciseId } + restoredPrs
         }
         databaseRepo?.let { db ->
+            db.deletePersonalRecordsForExercise(exerciseId)
             restoredPrs.forEach { db.savePersonalRecord(it) }
         }
     }
@@ -939,6 +968,13 @@ class WorkoutRepository(
     }
 
     fun cancelWorkout() {
+        val active = _activeWorkout.value
+        if (active != null) {
+            val activeSetIds = active.exercises.flatMap { it.sets }.map { it.id }
+            for (setId in activeSetIds) {
+                prRepository.revokePrBySetId(setId)
+            }
+        }
         _activeWorkout.value = null
         databaseRepo?.clearActiveWorkout()
     }

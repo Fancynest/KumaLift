@@ -118,14 +118,45 @@ fun HomeScreen(
         val otherActivePrograms = programs.filter { program ->
             !includedProgramIds.contains(program.id) &&
             program.activeDays.contains(todayDayOfWeek)
-        }.map { program ->
+        }.mapNotNull { program ->
             val programRoutines = routines.filter { it.programId == program.id }
             val routine = programRoutines.firstOrNull { it.scheduledDays.isEmpty() }
-                ?: programRoutines.firstOrNull()
-            ScheduledProgramItem(program = program, scheduledRoutine = routine)
+            if (routine != null || programRoutines.isEmpty()) {
+                ScheduledProgramItem(program = program, scheduledRoutine = routine)
+            } else {
+                null
+            }
         }
 
         routineScheduledItems + otherActivePrograms
+    }
+
+    val nextScheduledItem = remember(programs, routines, todayDayOfWeek, todayScheduledPrograms) {
+        if (todayScheduledPrograms.isNotEmpty()) null
+        else {
+            var found: Pair<ScheduledProgramItem, Int>? = null
+            for (offset in 1..6) {
+                val targetDay = ((todayDayOfWeek - 1 + offset) % 7) + 1
+                val routineForDay = routines.firstOrNull { it.scheduledDays.contains(targetDay) }
+                if (routineForDay != null) {
+                    val prog = programs.find { it.id == routineForDay.programId }
+                        ?: programs.firstOrNull()
+                        ?: TrainingProgram.DEFAULT_HYPERTROPHY
+                    found = ScheduledProgramItem(program = prog, scheduledRoutine = routineForDay) to offset
+                    break
+                }
+                val progForDay = programs.firstOrNull { it.activeDays.contains(targetDay) }
+                if (progForDay != null) {
+                    val programRoutines = routines.filter { it.programId == progForDay.id }
+                    val routine = programRoutines.firstOrNull { it.scheduledDays.isEmpty() }
+                    if (routine != null || programRoutines.isEmpty()) {
+                        found = ScheduledProgramItem(program = progForDay, scheduledRoutine = routine) to offset
+                        break
+                    }
+                }
+            }
+            found
+        }
     }
 
     var showScheduleModal by remember { mutableStateOf(false) }
@@ -608,7 +639,15 @@ fun HomeScreen(
 
                                 Spacer(modifier = Modifier.height(6.dp))
 
-                                val restMessage = if (programs.size == 1) {
+                                val nextItem = nextScheduledItem
+                                val nextOffset = nextItem?.second
+                                val nextRoutine = nextItem?.first?.scheduledRoutine
+                                val nextDayNumber = if (nextOffset != null) ((todayDayOfWeek - 1 + nextOffset) % 7) + 1 else null
+                                val nextDayName = if (nextDayNumber != null) (s.dayNamesFull.getOrNull(nextDayNumber - 1) ?: "") else ""
+
+                                val restMessage = if (nextRoutine != null && nextDayName.isNotBlank()) {
+                                    s.nextWorkoutScheduled(nextRoutine.localizedTitle(s), nextDayName)
+                                } else if (programs.size == 1) {
                                     s.restDayProgramMessage(programs.first().localizedTitle(s))
                                 } else {
                                     s.restDayAllProgramsMessage

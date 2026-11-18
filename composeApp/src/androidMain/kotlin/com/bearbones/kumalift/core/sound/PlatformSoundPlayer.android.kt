@@ -104,6 +104,7 @@ actual object PlatformSoundPlayer {
                 .setContentIntent(openIntent)
                 .setAutoCancel(true)
                 .setShowWhen(true)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .build()
 
             nm.notify(NOTIF_ID_ALERT, alertNotification)

@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.notification
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -62,6 +63,7 @@ object PlatformNotificationChannels {
             description = strings.channelRestTimerOngoingDesc
             setSound(null, null)
             enableVibration(false)
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(ongoingChannel)
 

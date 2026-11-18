@@ -18,6 +18,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TrainingProgramTests {
@@ -398,5 +399,27 @@ class TrainingProgramTests {
         assertEquals(EnStrings.muscleFocusPush, legacyIndoRoutine.localizedMuscleFocus(EnStrings))
         // And Indonesian in Indonesian
         assertEquals(IdStrings.muscleFocusPush, legacyIndoRoutine.localizedMuscleFocus(IdStrings))
+    }
+
+    @Test
+    fun testRoutineScheduledForSaturdayDoesNotMatchWednesday() {
+        val saturdayRoutine = RoutineBlueprint(
+            id = "legs_core",
+            programId = TrainingProgram.DEFAULT_HYPERTROPHY.id,
+            title = "Legs & Core",
+            splitCategory = "Legs",
+            muscleFocus = "Quads, Hamstrings",
+            scheduledDays = listOf(6) // Saturday
+        )
+        val wednesdayDayOfWeek = 3 // Wednesday
+
+        // Check explicit match
+        val routinesScheduledWednesday = listOf(saturdayRoutine).filter { it.scheduledDays.contains(wednesdayDayOfWeek) }
+        assertTrue(routinesScheduledWednesday.isEmpty())
+
+        // Ensure unscheduled fallback does NOT pick saturdayRoutine on Wednesday
+        val programRoutines = listOf(saturdayRoutine).filter { it.programId == TrainingProgram.DEFAULT_HYPERTROPHY.id }
+        val fallbackRoutine = programRoutines.firstOrNull { it.scheduledDays.isEmpty() }
+        assertNull(fallbackRoutine)
     }
 }

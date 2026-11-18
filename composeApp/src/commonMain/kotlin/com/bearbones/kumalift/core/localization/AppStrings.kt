@@ -232,6 +232,7 @@ interface AppStrings {
     val restDayTitle: String
     val restDayAllProgramsMessage: String
     fun restDayProgramMessage(name: String): String
+    fun nextWorkoutScheduled(routineTitle: String, dayName: String): String
 
     // Active Workout Logger
     val workoutLogTitle: String

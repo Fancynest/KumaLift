@@ -245,6 +245,10 @@ class KumaDatabaseRepository(
         queries.deletePrBySourceSet(sourceSetId)
     }
 
+    fun deletePersonalRecordsForExercise(exerciseId: String) {
+        queries.deletePrsByExerciseId(exerciseId)
+    }
+
     private fun formatDateEpoch(epochMs: Long): String {
         if (epochMs <= 0L) return "Today"
         val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(epochMs)

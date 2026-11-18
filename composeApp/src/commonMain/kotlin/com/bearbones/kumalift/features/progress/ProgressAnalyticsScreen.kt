@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -482,25 +484,37 @@ fun PersonalRecordItem(pr: PersonalRecord) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = pr.exerciseName,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                val formatted1Rm = kotlin.math.round(pr.estimated1RmKg * 10.0) / 10.0
+                val e1rmPart = if (pr.estimated1RmKg > 0.0) {
+                    val formatted1Rm = kotlin.math.round(pr.estimated1RmKg * 10.0) / 10.0
+                    " · ${s.estimatedOneRepMaxHeader}: $formatted1Rm ${s.unitKg}"
+                } else ""
                 Text(
-                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev} · ${s.estimatedOneRepMaxHeader}: $formatted1Rm ${s.unitKg}",
+                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev}$e1rmPart",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 13.sp
-                    )
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Column(horizontalAlignment = Alignment.End) {
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.wrapContentWidth()
+            ) {
                 KumaBadge(
                     text = pr.prTier,
                     isPr = true
@@ -511,7 +525,9 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 11.sp
-                    )
+                    ),
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

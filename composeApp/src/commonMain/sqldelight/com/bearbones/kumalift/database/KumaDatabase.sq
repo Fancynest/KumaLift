@@ -213,6 +213,9 @@ DELETE FROM personal_records WHERE id = ?;
 deletePrBySourceSet:
 DELETE FROM personal_records WHERE sourceSetId = ?;
 
+deletePrsByExerciseId:
+DELETE FROM personal_records WHERE exerciseId = ?;
+
 -- Queries for Bodyweight
 selectAllBodyweightLogs:
 SELECT * FROM bodyweight_log ORDER BY dateEpochMs DESC;

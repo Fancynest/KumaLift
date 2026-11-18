@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -2374,24 +2376,30 @@ fun <T> UnitOptionGroup(
                 .clip(RoundedCornerShape(12.dp))
                 .background(KumaColors.SurfaceDim)
                 .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             options.forEach { (option, label) ->
                 val isSelected = option == selected
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp)
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (isSelected) colors.accentFill else Color.Transparent
                         )
-                        .clickable { onSelect(option) },
+                        .clickable { onSelect(option) }
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 15.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) colors.onAccentFill else colors.textSecondary
                         )

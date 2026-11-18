@@ -18,6 +18,7 @@ import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
+import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.PrMetricType
 import com.bearbones.kumalift.domain.model.ProfileSettings
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
@@ -410,5 +411,57 @@ class LogicStabilizationTests {
             assertTrue(title.isNotBlank())
             assertTrue(body.isNotBlank())
         }
+    }
+
+    @Test
+    fun testCancelWorkoutRevokesSessionPrs() {
+        workoutRepository.startEmptyWorkout("Cancel Workout PR Test")
+        workoutRepository.addExerciseToActiveWorkout(benchPress)
+
+        val weId = workoutRepository.activeWorkout.value!!.exercises.first().id
+        val setId = workoutRepository.activeWorkout.value!!.exercises.first().sets[0].id
+
+        workoutRepository.updateSet(weId, setId, weightKg = 120.0, reps = 5)
+        workoutRepository.toggleSetCompletion(weId, setId) {}
+        assertEquals(1, prRepository.personalRecords.value.size)
+
+        // Cancel workout session
+        workoutRepository.cancelWorkout()
+
+        // PR created during cancelled workout must be revoked
+        assertEquals(0, prRepository.personalRecords.value.size)
+    }
+
+    @Test
+    fun testPrSanitizationOnRestartWithoutRepRange() {
+        val pr1 = PersonalRecord(
+            exerciseId = "ex_1",
+            exerciseName = "Dumbbell Bench Press",
+            weightKg = 12.0,
+            reps = 16,
+            estimated1RmKg = 0.0,
+            dateAchieved = "Nov 17",
+            deltaWeightKg = 0.0,
+            prTier = "16RM PR",
+            dateAchievedEpochMs = 1000L
+        )
+        val pr2 = PersonalRecord(
+            exerciseId = "ex_1",
+            exerciseName = "Dumbbell Bench Press",
+            weightKg = 20.0,
+            reps = 8,
+            estimated1RmKg = 25.3,
+            dateAchieved = "Nov 17",
+            deltaWeightKg = 8.0,
+            prTier = "8RM PR",
+            dateAchievedEpochMs = 2000L
+        )
+        val calcSettings = CalculationSettings(repRangePrs = false)
+        val sanitized = PersonalRecordRepository.sanitizeInitialPrs(listOf(pr1, pr2), calcSettings, null)
+
+        // Should keep only the best PR (highest weight)
+        assertEquals(1, sanitized.size)
+        assertEquals(20.0, sanitized.first().weightKg, 0.001)
+        assertEquals(8, sanitized.first().reps)
     }
 }

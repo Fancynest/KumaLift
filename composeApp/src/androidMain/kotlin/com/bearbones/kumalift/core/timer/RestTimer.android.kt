@@ -41,6 +41,19 @@ private fun getStrings(context: Context): AppStrings {
 
 private fun getUserSettings(): UserSettings {
     RestTimerCoordinator.userSettingsProvider?.invoke()?.let { return it }
+    val context = AndroidAppProvider.appContext
+    if (context != null) {
+        try {
+            val driver = com.bearbones.kumalift.data.local.DatabaseDriverFactory(context).createDriver()
+            val database = com.bearbones.kumalift.database.KumaDatabase(driver)
+            val dbRepo = com.bearbones.kumalift.data.local.KumaDatabaseRepository(database)
+            val loaded = dbRepo.loadUserSettings()
+            if (loaded != null) {
+                RestTimerCoordinator.userSettingsProvider = { loaded }
+                return loaded
+            }
+        } catch (_: Throwable) {}
+    }
     return UserSettings()
 }
 

@@ -35,13 +35,16 @@ actual fun rememberSettingsRepository(databaseRepo: KumaDatabaseRepository): Set
             migrated
         }
 
-        SettingsRepository(
+        val repo = SettingsRepository(
             initialSettings = initial,
             onSave = { updated ->
                 databaseRepo.saveUserSettings(updated)
                 AutoBackupScheduler.scheduleOrUpdate(context, updated)
+                com.bearbones.kumalift.core.timer.RestTimerCoordinator.userSettingsProvider = { updated }
             }
         )
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.userSettingsProvider = { repo.settings.value }
+        repo
     }
 }
 

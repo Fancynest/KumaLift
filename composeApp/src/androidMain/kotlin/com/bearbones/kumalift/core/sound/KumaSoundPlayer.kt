@@ -105,9 +105,13 @@ object KumaSoundPlayer {
         }
     }
 
-    fun play(context: Context, event: SoundEvent, volume: SoundVolume) {
+    fun play(context: Context, event: SoundEvent, volumePercent: Int) {
         val appContext = context.applicationContext ?: context
-        val volumeMultiplier = volume.multiplier
+        val volumeMultiplier = (volumePercent / 100f).coerceIn(0f, 1f)
+        if (volumeMultiplier <= 0f) {
+            KumaLogger.d(TAG, "Muted (volume 0%) for $event")
+            return
+        }
         val resId = eventToResource[event]
 
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -248,16 +252,24 @@ object KumaSoundPlayer {
         }
     }
 
+    fun play(context: Context, event: SoundEvent, volume: SoundVolume) {
+        play(context, event, volume.percent)
+    }
+
     private var activeCustomPlayer: MediaPlayer? = null
     private val customPlayerLock = Any()
 
     fun playCustomSound(context: Context, filePath: String, volumeMultiplier: Float) {
         stopCustomSound()
+        if (volumeMultiplier <= 0f) {
+            KumaLogger.d(TAG, "Muted (volume 0%) for custom sound")
+            return
+        }
         val appContext = context.applicationContext ?: context
         val file = File(filePath)
         if (!file.exists() || !file.canRead()) {
             KumaLogger.w(TAG, "Custom sound file not found or unreadable: $filePath. Falling back to built-in sound.")
-            play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+            play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
             return
         }
 
@@ -292,7 +304,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
-                    play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+                    play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                     true
                 }
                 prepare()
@@ -305,18 +317,22 @@ object KumaSoundPlayer {
         } catch (e: Exception) {
             KumaLogger.e(TAG, "Failed to play custom sound from $filePath: ${e.message}. Falling back.", e)
             stopCustomSound()
-            play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+            play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
         }
     }
 
     fun playSystemDefaultSound(context: Context, volumeMultiplier: Float) {
         stopCustomSound()
+        if (volumeMultiplier <= 0f) {
+            KumaLogger.d(TAG, "Muted (volume 0%) for system default sound")
+            return
+        }
         val appContext = context.applicationContext ?: context
         try {
             val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             if (defaultUri == null) {
-                play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+                play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                 return
             }
 
@@ -349,7 +365,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
-                    play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+                    play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                     true
                 }
                 prepare()
@@ -360,7 +376,35 @@ object KumaSoundPlayer {
             }
         } catch (e: Exception) {
             KumaLogger.e(TAG, "Failed to play system default sound: ${e.message}", e)
-            play(appContext, SoundEvent.REST_END, SoundVolume.MEDIUM)
+            play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
+        }
+    }
+
+    fun playRestTimerSound(
+        context: Context,
+        volumePercent: Int,
+        source: RestTimerSoundSource,
+        customPath: String?
+    ) {
+        val volumeMultiplier = (volumePercent / 100f).coerceIn(0f, 1f)
+        if (volumeMultiplier <= 0f) {
+            KumaLogger.d(TAG, "Muted (volume 0%) for rest timer sound")
+            return
+        }
+        when (source) {
+            RestTimerSoundSource.CUSTOM -> {
+                if (!customPath.isNullOrBlank()) {
+                    playCustomSound(context, customPath, volumeMultiplier)
+                } else {
+                    play(context, SoundEvent.REST_END, volumePercent)
+                }
+            }
+            RestTimerSoundSource.SYSTEM_DEFAULT -> {
+                playSystemDefaultSound(context, volumeMultiplier)
+            }
+            RestTimerSoundSource.BUILTIN -> {
+                play(context, SoundEvent.REST_END, volumePercent)
+            }
         }
     }
 
@@ -370,21 +414,7 @@ object KumaSoundPlayer {
         source: RestTimerSoundSource,
         customPath: String?
     ) {
-        when (source) {
-            RestTimerSoundSource.CUSTOM -> {
-                if (!customPath.isNullOrBlank()) {
-                    playCustomSound(context, customPath, volume.multiplier)
-                } else {
-                    play(context, SoundEvent.REST_END, volume)
-                }
-            }
-            RestTimerSoundSource.SYSTEM_DEFAULT -> {
-                playSystemDefaultSound(context, volume.multiplier)
-            }
-            RestTimerSoundSource.BUILTIN -> {
-                play(context, SoundEvent.REST_END, volume)
-            }
-        }
+        playRestTimerSound(context, volume.percent, source, customPath)
     }
 
     fun stopCustomSound() {

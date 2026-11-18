@@ -58,7 +58,7 @@ object SettingsMigration {
     private fun migrateNotifications(notifs: JsonObject): JsonObject {
         return buildJsonObject {
             var soundProfileName: String? = null
-            var soundVolumeName: String? = null
+            var soundVolumeValue = 50
 
             // Check if legacy restTimerSound exists
             val legacySound = notifs["restTimerSound"]?.jsonPrimitive?.contentOrNull?.uppercase()
@@ -82,16 +82,22 @@ object SettingsMigration {
                 }
             }
 
-            // Validate or default soundVolume
-            val existingVolume = notifs["soundVolume"]?.jsonPrimitive?.contentOrNull?.uppercase()
-            soundVolumeName = if (existingVolume != null) {
-                try {
-                    SoundVolume.valueOf(existingVolume).name
-                } catch (_: Exception) {
-                    SoundVolume.MEDIUM.name
+            // Validate or default soundVolume (supports legacy enum strings and new integer percent)
+            val existingVolume = notifs["soundVolume"]?.jsonPrimitive?.contentOrNull
+            soundVolumeValue = when {
+                existingVolume == null -> 50
+                existingVolume.equals("NORMAL", ignoreCase = true) -> 100
+                existingVolume.equals("MEDIUM", ignoreCase = true) -> 50
+                existingVolume.equals("LOW", ignoreCase = true) -> 30
+                existingVolume.equals("MUTE", ignoreCase = true) -> 0
+                else -> {
+                    val parsed = existingVolume.toIntOrNull()
+                    if (parsed != null) {
+                        (((parsed + 5) / 10) * 10).coerceIn(0, 100)
+                    } else {
+                        50
+                    }
                 }
-            } else {
-                SoundVolume.MEDIUM.name
             }
 
             // Copy over other fields, omitting deprecated keys
@@ -111,7 +117,7 @@ object SettingsMigration {
             }
 
             put("soundProfile", JsonPrimitive(soundProfileName ?: SoundProfile.KUMA.name))
-            put("soundVolume", JsonPrimitive(soundVolumeName))
+            put("soundVolume", JsonPrimitive(soundVolumeValue))
         }
     }
 

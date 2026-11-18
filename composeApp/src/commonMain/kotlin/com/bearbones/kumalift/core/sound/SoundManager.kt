@@ -33,54 +33,75 @@ object SoundManager {
             secondsRemaining = secondsRemaining
         )
 
-        if (event == SoundEvent.REST_END && settings.notifications.restTimerSoundSource != com.bearbones.kumalift.domain.model.RestTimerSoundSource.BUILTIN) {
+        if (event == SoundEvent.REST_END) {
+            val volumePercent = settings.notifications.soundVolume
+            val volumeMultiplier = (volumePercent / 100f).coerceIn(0f, 1f)
+
+            // Rest timer completion alert:
+            // Plays if profile is KUMA, alert is enabled, and volume > 0.
+            // Does NOT silence for ringerMode == VIBRATE or DND - athletes expect their rest timer
+            // alarm to sound at their configured in-app volume.
             if (settings.notifications.soundProfile == com.bearbones.kumalift.domain.model.SoundProfile.KUMA &&
-                ringerMode == RingerMode.NORMAL && !dnd) {
+                settings.notifications.restTimerAlert &&
+                volumeMultiplier > 0f
+            ) {
                 PlatformSoundPlayer.playRestTimerSound(
-                    settings.notifications.soundVolume,
+                    volumePercent,
                     settings.notifications.restTimerSoundSource,
                     settings.notifications.customRestTimerSoundPath
                 )
             }
-            if (decision.vibrate) {
+
+            // Haptic feedback
+            if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT &&
+                settings.notifications.restTimerAlert
+            ) {
                 PlatformSoundPlayer.playHaptic()
             }
-            if (decision.postNotification) {
+
+            // In background or screen off, post non-duplicate notification (sound handled above)
+            val isForegroundAndInteractive = appInForeground && screenInteractive
+            if (!isForegroundAndInteractive && settings.notifications.restTimerAlert && notifPerm) {
                 PlatformSoundPlayer.postRestFinishedNotification(
-                    if (decision.vibrate) ChannelVariant.VIBRATE else ChannelVariant.SILENT
+                    if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT) ChannelVariant.VIBRATE else ChannelVariant.SILENT
                 )
             }
-        } else {
-            if (decision.playInAppSound && decision.soundEventToPlay != null) {
-                if (decision.soundEventToPlay == SoundEvent.REST_END) {
-                    PlatformSoundPlayer.playRestTimerSound(
-                        settings.notifications.soundVolume,
-                        settings.notifications.restTimerSoundSource,
-                        settings.notifications.customRestTimerSoundPath
-                    )
-                } else {
-                    PlatformSoundPlayer.playSound(decision.soundEventToPlay, settings.notifications.soundVolume)
-                }
-            }
-            if (decision.vibrate) {
-                PlatformSoundPlayer.playHaptic()
-            }
-            if (decision.postNotification && decision.notificationChannelVariant != null) {
-                PlatformSoundPlayer.postRestFinishedNotification(decision.notificationChannelVariant)
-            }
+            return
+        }
+
+        if (decision.playInAppSound && decision.soundEventToPlay != null) {
+            PlatformSoundPlayer.playSound(decision.soundEventToPlay, settings.notifications.soundVolume)
+        }
+        if (decision.vibrate) {
+            PlatformSoundPlayer.playHaptic()
+        }
+        if (decision.postNotification && decision.notificationChannelVariant != null) {
+            PlatformSoundPlayer.postRestFinishedNotification(decision.notificationChannelVariant)
         }
     }
 
+    fun previewSound(event: SoundEvent, volumePercent: Int) {
+        PlatformSoundPlayer.playSound(event, volumePercent)
+    }
+
     fun previewSound(event: SoundEvent, volume: SoundVolume) {
-        PlatformSoundPlayer.playSound(event, volume)
+        PlatformSoundPlayer.playSound(event, volume.percent)
+    }
+
+    fun previewCustomSound(filePath: String, volumePercent: Int) {
+        PlatformSoundPlayer.playCustomSound(filePath, volumePercent)
     }
 
     fun previewCustomSound(filePath: String, volume: SoundVolume) {
-        PlatformSoundPlayer.playCustomSound(filePath, volume)
+        PlatformSoundPlayer.playCustomSound(filePath, volume.percent)
+    }
+
+    fun previewSystemDefaultSound(volumePercent: Int) {
+        PlatformSoundPlayer.playSystemDefaultSound(volumePercent)
     }
 
     fun previewSystemDefaultSound(volume: SoundVolume) {
-        PlatformSoundPlayer.playSystemDefaultSound(volume)
+        PlatformSoundPlayer.playSystemDefaultSound(volume.percent)
     }
 
     fun stopSound() {

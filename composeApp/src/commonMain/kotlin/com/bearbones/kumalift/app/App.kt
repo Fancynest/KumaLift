@@ -111,6 +111,10 @@ fun App() {
     val settings by settingsRepository.settings.collectAsState()
     val appStrings = resolveAppStrings(settings.appearance.language)
 
+    LaunchedEffect(settings) {
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.userSettingsProvider = { settings }
+    }
+
     LaunchedEffect(settings.security.localLogging) {
         KumaLogger.isEnabled = settings.security.localLogging
     }

@@ -54,6 +54,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1134,21 +1136,68 @@ private fun NotificationSettingsPage(
 
                             SettingsDivider()
 
-                            // 2. In-App Sound Volume Selector
-                            UnitOptionGroup(
-                                title = s.soundVolumeTitle,
-                                options = listOf(
-                                    SoundVolume.LOW to s.soundVolumeLow,
-                                    SoundVolume.MEDIUM to s.soundVolumeMedium,
-                                    SoundVolume.NORMAL to s.soundVolumeNormal
-                                ),
-                                selected = settings.notifications.soundVolume,
-                                onSelect = { vol ->
-                                    settingsRepository.update {
-                                        it.copy(notifications = it.notifications.copy(soundVolume = vol))
+                            // 2. In-App Sound Volume Slider (multiples of 10, default 50%)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = s.soundVolumeTitle,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = colors.textPrimary
+                                        )
+                                        Text(
+                                            text = s.soundVolumeSubtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colors.textSecondary
+                                        )
                                     }
+                                    Text(
+                                        text = if (settings.notifications.soundVolume == 0) "0% (${s.soundProfileSilent})" else "${settings.notifications.soundVolume}%",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = if (settings.notifications.soundVolume == 0) colors.textSecondary else colors.accentFill
+                                    )
                                 }
-                            )
+
+                                Slider(
+                                    value = settings.notifications.soundVolume.toFloat(),
+                                    onValueChange = { newVal ->
+                                        val snapped = (((newVal + 5f) / 10f).toInt() * 10).coerceIn(0, 100)
+                                        if (snapped != settings.notifications.soundVolume) {
+                                            settingsRepository.update {
+                                                it.copy(notifications = it.notifications.copy(soundVolume = snapped))
+                                            }
+                                        }
+                                    },
+                                    valueRange = 0f..100f,
+                                    steps = 9,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = colors.accentFill,
+                                        activeTrackColor = colors.accentFill,
+                                        inactiveTrackColor = colors.surfaceVariant,
+                                        activeTickColor = colors.surfaceBright,
+                                        inactiveTickColor = colors.textSecondary.copy(alpha = 0.3f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("0%", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    Text("50%", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    Text("100%", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                }
+                            }
 
                             SettingsDivider()
 

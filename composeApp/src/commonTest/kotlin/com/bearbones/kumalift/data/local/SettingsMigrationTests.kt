@@ -29,7 +29,7 @@ class SettingsMigrationTests {
         val settings = SettingsMigration.decodeUserSettings(legacyJson)
         assertNotNull(settings)
         assertEquals(SoundProfile.KUMA, settings.notifications.soundProfile)
-        assertEquals(SoundVolume.MEDIUM, settings.notifications.soundVolume)
+        assertEquals(50, settings.notifications.soundVolume)
         assertTrue(settings.logging.soundAlerts)
 
         val migratedJson = SettingsMigration.migrateJson(legacyJson)
@@ -103,7 +103,7 @@ class SettingsMigrationTests {
         val settings = SettingsMigration.decodeUserSettings(json)
         assertNotNull(settings)
         assertEquals(SoundProfile.KUMA, settings.notifications.soundProfile)
-        assertEquals(SoundVolume.MEDIUM, settings.notifications.soundVolume)
+        assertEquals(50, settings.notifications.soundVolume)
     }
 
     @Test
@@ -117,6 +117,6 @@ class SettingsMigrationTests {
         """.trimIndent()
         val settings = SettingsMigration.decodeUserSettings(json)
         assertNotNull(settings)
-        assertEquals(SoundVolume.MEDIUM, settings.notifications.soundVolume)
+        assertEquals(50, settings.notifications.soundVolume)
     }
 }

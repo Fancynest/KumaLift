@@ -113,10 +113,11 @@ enum class RestTimerSoundSource {
 }
 
 @Serializable
-enum class SoundVolume(val multiplier: Float) {
-    LOW(0.35f),
-    MEDIUM(0.60f),
-    NORMAL(1.00f)
+enum class SoundVolume(val multiplier: Float, val percent: Int = (multiplier * 100).toInt()) {
+    MUTE(0.00f, 0),
+    LOW(0.30f, 30),
+    MEDIUM(0.50f, 50),
+    NORMAL(1.00f, 100)
 }
 
 @Serializable
@@ -280,7 +281,7 @@ data class EquipmentSettings(
 @Serializable
 data class NotificationSettings(
     val soundProfile: SoundProfile = SoundProfile.KUMA,
-    val soundVolume: SoundVolume = SoundVolume.MEDIUM,
+    val soundVolume: Int = 50,
     val restTimerSoundSource: RestTimerSoundSource = RestTimerSoundSource.BUILTIN,
     val customRestTimerSoundPath: String? = null,
     val customRestTimerSoundName: String? = null,
@@ -295,7 +296,10 @@ data class NotificationSettings(
     val quietHoursEnabled: Boolean = false,
     val quietHoursStart: String = "22:00",
     val quietHoursEnd: String = "06:00"
-)
+) {
+    val soundVolumeMultiplier: Float
+        get() = if (soundVolume <= 0) 0f else (soundVolume / 100f).coerceIn(0f, 1f)
+}
 
 @Serializable
 data class CalculationSettings(

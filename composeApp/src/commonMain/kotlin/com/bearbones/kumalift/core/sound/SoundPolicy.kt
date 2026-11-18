@@ -78,10 +78,10 @@ class SoundPolicy(
             SoundEvent.REST_END -> {
                 if (isForegroundAndInteractive) {
                     // Rule 1: In foreground and interactive -> in-app sound + light haptic, NO sounding notification
-                    if (restTimerAlert && soundProfile == SoundProfile.KUMA && ringerMode == RingerMode.NORMAL && !doNotDisturbActive) {
+                    if (restTimerAlert && soundProfile == SoundProfile.KUMA) {
                         shouldPlaySound = true
                     }
-                    if (restTimerAlert && soundProfile != SoundProfile.SILENT && ringerMode != RingerMode.SILENT && !doNotDisturbActive) {
+                    if (restTimerAlert && soundProfile != SoundProfile.SILENT) {
                         shouldVibrate = true
                     }
                     shouldPostNotif = false
@@ -156,12 +156,15 @@ class SoundPolicy(
             }
         }
 
-        // Global override: RingerMode SILENT or DND active suppresses in-app sound and in-app vibration
-        if (ringerMode == RingerMode.SILENT || doNotDisturbActive) {
-            shouldPlaySound = false
-            shouldVibrate = false
-        } else if (ringerMode == RingerMode.VIBRATE) {
-            shouldPlaySound = false
+        // Global override: RingerMode SILENT or DND active suppresses in-app feedback clicks and ticks,
+        // while REST_END timer alarm obeys its own SoundProfile.
+        if (event != SoundEvent.REST_END) {
+            if (ringerMode == RingerMode.SILENT || doNotDisturbActive) {
+                shouldPlaySound = false
+                shouldVibrate = false
+            } else if (ringerMode == RingerMode.VIBRATE) {
+                shouldPlaySound = false
+            }
         }
 
         // Rule 8: Debounce in-app sound (1500ms default, never plays twice within debounce window)

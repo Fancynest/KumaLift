@@ -21,28 +21,28 @@ actual object PlatformSoundPlayer {
 
     private const val NOTIF_ID_ALERT = 2003
 
-    actual fun playSound(event: SoundEvent, volume: SoundVolume) {
+    actual fun playSound(event: SoundEvent, volumePercent: Int) {
         val context = AndroidAppProvider.appContext ?: return
-        KumaSoundPlayer.play(context, event, volume)
+        KumaSoundPlayer.play(context, event, volumePercent)
     }
 
     actual fun playRestTimerSound(
-        volume: SoundVolume,
+        volumePercent: Int,
         source: RestTimerSoundSource,
         customPath: String?
     ) {
         val context = AndroidAppProvider.appContext ?: return
-        KumaSoundPlayer.playRestTimerSound(context, volume, source, customPath)
+        KumaSoundPlayer.playRestTimerSound(context, volumePercent, source, customPath)
     }
 
-    actual fun playCustomSound(filePath: String, volume: SoundVolume) {
+    actual fun playCustomSound(filePath: String, volumePercent: Int) {
         val context = AndroidAppProvider.appContext ?: return
-        KumaSoundPlayer.playCustomSound(context, filePath, volume.multiplier)
+        KumaSoundPlayer.playCustomSound(context, filePath, (volumePercent / 100f).coerceIn(0f, 1f))
     }
 
-    actual fun playSystemDefaultSound(volume: SoundVolume) {
+    actual fun playSystemDefaultSound(volumePercent: Int) {
         val context = AndroidAppProvider.appContext ?: return
-        KumaSoundPlayer.playSystemDefaultSound(context, volume.multiplier)
+        KumaSoundPlayer.playSystemDefaultSound(context, (volumePercent / 100f).coerceIn(0f, 1f))
     }
 
     actual fun stopRestTimerSound() {

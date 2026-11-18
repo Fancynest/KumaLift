@@ -575,7 +575,7 @@ class LogicStabilizationTests {
         val settings = UserSettings(
             notifications = NotificationSettings(
                 soundProfile = SoundProfile.KUMA,
-                soundVolume = SoundVolume.NORMAL,
+                soundVolume = 100,
                 restTimerSoundSource = RestTimerSoundSource.CUSTOM,
                 customRestTimerSoundPath = "/data/user/0/com.bearbones.kumalift/files/custom_sounds/my_bell.mp3",
                 customRestTimerSoundName = "my_bell.mp3"
@@ -589,21 +589,37 @@ class LogicStabilizationTests {
         assertEquals("/data/user/0/com.bearbones.kumalift/files/custom_sounds/my_bell.mp3", deserialized.notifications.customRestTimerSoundPath)
         assertEquals("my_bell.mp3", deserialized.notifications.customRestTimerSoundName)
         assertEquals(SoundProfile.KUMA, deserialized.notifications.soundProfile)
-        assertEquals(SoundVolume.NORMAL, deserialized.notifications.soundVolume)
+        assertEquals(100, deserialized.notifications.soundVolume)
+        assertEquals(1.0f, deserialized.notifications.soundVolumeMultiplier)
+    }
+
+    @Test
+    fun testSoundVolumeSliderValuesAndMute() {
+        val defaultSettings = NotificationSettings()
+        assertEquals(50, defaultSettings.soundVolume)
+        assertEquals(0.5f, defaultSettings.soundVolumeMultiplier)
+
+        val mutedSettings = NotificationSettings(soundVolume = 0)
+        assertEquals(0, mutedSettings.soundVolume)
+        assertEquals(0.0f, mutedSettings.soundVolumeMultiplier)
+
+        val steppedSettings = NotificationSettings(soundVolume = 70)
+        assertEquals(70, steppedSettings.soundVolume)
+        assertEquals(0.7f, steppedSettings.soundVolumeMultiplier)
     }
 
     @Test
     fun testRestTimerSoundSourceFallbackAndStop() {
         // Fallback test: calling playRestTimerSound with non-existent custom path should not crash
         PlatformSoundPlayer.playRestTimerSound(
-            volume = SoundVolume.MEDIUM,
+            volumePercent = 50,
             source = RestTimerSoundSource.CUSTOM,
             customPath = "/non/existent/path/sound.mp3"
         )
 
         // System default test: should not crash
         PlatformSoundPlayer.playRestTimerSound(
-            volume = SoundVolume.LOW,
+            volumePercent = 30,
             source = RestTimerSoundSource.SYSTEM_DEFAULT,
             customPath = null
         )

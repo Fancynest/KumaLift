@@ -64,11 +64,10 @@ object KumaSoundPlayer {
             if (soundPool != null) return
 
             try {
-                // AudioAttributes.USAGE_MEDIA ensures audio routes through STREAM_MUSIC (Media Volume),
-                // so workout and rest sounds remain audible over speakers/headphones and are not
-                // suppressed by muted system touch sounds.
+                // AudioAttributes.USAGE_ALARM ensures audio routes through STREAM_ALARM (independent of Media Volume),
+                // so workout and timer alerts remain audible even if phone media volume is muted or DND is active.
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
 
@@ -115,7 +114,10 @@ object KumaSoundPlayer {
         val resId = eventToResource[event]
 
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-        audioManager?.let { requestTransientDuckFocus(it) }
+        audioManager?.let { am ->
+            ensureAlarmStreamVolume(am, volumeMultiplier)
+            requestTransientDuckFocus(am)
+        }
 
         val pool = soundPool
         val soundId = soundIdMap[event]
@@ -166,7 +168,7 @@ object KumaSoundPlayer {
             }
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
@@ -189,11 +191,27 @@ object KumaSoundPlayer {
     private var activeFocusRequest: AudioFocusRequest? = null
     private var pendingAbandonRunnable: Runnable? = null
 
+    private fun ensureAlarmStreamVolume(audioManager: AudioManager, volumeMultiplier: Float) {
+        if (volumeMultiplier <= 0f) return
+        try {
+            val currentAlarmVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+            val maxAlarmVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            if (maxAlarmVol > 0 && currentAlarmVol < maxAlarmVol) {
+                // Keep STREAM_ALARM at maximum so in-app volume slider (setVolume multiplier)
+                // maps directly to the full 0%-100% dynamic speaker range.
+                // flags = 0 ensures no system volume slider HUD or tone is shown/played.
+                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarmVol, 0)
+            }
+        } catch (t: Throwable) {
+            KumaLogger.w(TAG, "Could not ensure alarm stream volume: ${t.message}")
+        }
+    }
+
     private fun requestTransientDuckFocus(audioManager: AudioManager) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val playbackAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
 
@@ -209,7 +227,7 @@ object KumaSoundPlayer {
                 @Suppress("DEPRECATION")
                 audioManager.requestAudioFocus(
                     null,
-                    AudioManager.STREAM_MUSIC,
+                    AudioManager.STREAM_ALARM,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
                 )
             }
@@ -275,13 +293,16 @@ object KumaSoundPlayer {
 
         try {
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.let { requestTransientDuckFocus(it) }
+            audioManager?.let { am ->
+                ensureAlarmStreamVolume(am, volumeMultiplier)
+                requestTransientDuckFocus(am)
+            }
 
             val mp = MediaPlayer().apply {
                 setDataSource(file.absolutePath)
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
@@ -329,21 +350,24 @@ object KumaSoundPlayer {
         }
         val appContext = context.applicationContext ?: context
         try {
-            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             if (defaultUri == null) {
                 play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                 return
             }
 
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.let { requestTransientDuckFocus(it) }
+            audioManager?.let { am ->
+                ensureAlarmStreamVolume(am, volumeMultiplier)
+                requestTransientDuckFocus(am)
+            }
 
             val mp = MediaPlayer().apply {
                 setDataSource(appContext, defaultUri)
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )

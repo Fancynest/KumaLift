@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.Looper
 import com.bearbones.kumalift.R
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.core.timer.AndroidAppProvider
 import com.bearbones.kumalift.domain.model.RestTimerSoundSource
 import com.bearbones.kumalift.domain.model.SoundVolume
 import java.io.File
@@ -51,6 +52,8 @@ object KumaSoundPlayer {
         SoundEvent.REMINDER to 1200L,
         SoundEvent.ERROR to 500L
     )
+
+    var onCustomSoundCompletion: (() -> Unit)? = null
 
     fun initialize(context: Context) {
         val appContext = context.applicationContext ?: context
@@ -111,6 +114,8 @@ object KumaSoundPlayer {
             KumaLogger.d(TAG, "Muted (volume 0%) for $event")
             return
         }
+        stopCustomSound()
+        stopFallbackPlayer()
         val resId = eventToResource[event]
 
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -156,8 +161,11 @@ object KumaSoundPlayer {
         audioManager?.let { scheduleAbandonFocus(it, duration) }
     }
 
+    private var activeFallbackPlayer: MediaPlayer? = null
+
     private fun playFallbackMediaPlayer(context: Context, resId: Int, volumeMultiplier: Float) {
         try {
+            stopFallbackPlayer()
             val afd = context.resources.openRawResourceFd(resId)
             val mp = MediaPlayer()
             if (afd != null) {
@@ -174,17 +182,44 @@ object KumaSoundPlayer {
             )
             mp.setVolume(volumeMultiplier, volumeMultiplier)
             mp.setOnCompletionListener {
+                synchronized(customPlayerLock) {
+                    if (activeFallbackPlayer === it) {
+                        activeFallbackPlayer = null
+                    }
+                }
                 try { it.release() } catch (_: Throwable) {}
             }
             mp.setOnErrorListener { it, _, _ ->
+                synchronized(customPlayerLock) {
+                    if (activeFallbackPlayer === it) {
+                        activeFallbackPlayer = null
+                    }
+                }
                 try { it.release() } catch (_: Throwable) {}
                 true
             }
             mp.prepare()
             mp.start()
+            synchronized(customPlayerLock) {
+                activeFallbackPlayer = mp
+            }
             KumaLogger.i(TAG, "Fallback MediaPlayer played resId=$resId (vol=$volumeMultiplier)")
         } catch (t: Throwable) {
             KumaLogger.e(TAG, "Fallback MediaPlayer failed for resId=$resId", t)
+        }
+    }
+
+    fun stopFallbackPlayer() {
+        synchronized(customPlayerLock) {
+            try {
+                activeFallbackPlayer?.let {
+                    if (it.isPlaying) {
+                        it.stop()
+                    }
+                    it.release()
+                }
+            } catch (_: Throwable) {}
+            activeFallbackPlayer = null
         }
     }
 
@@ -315,6 +350,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
+                    notifyPlaybackStopped()
                 }
                 setOnErrorListener { it, what, extra ->
                     KumaLogger.w(TAG, "MediaPlayer custom sound error what=$what extra=$extra. Falling back to built-in.")
@@ -325,6 +361,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
+                    notifyPlaybackStopped()
                     play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                     true
                 }
@@ -380,6 +417,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
+                    notifyPlaybackStopped()
                 }
                 setOnErrorListener { it, _, _ ->
                     synchronized(customPlayerLock) {
@@ -389,6 +427,7 @@ object KumaSoundPlayer {
                     }
                     try { it.release() } catch (_: Throwable) {}
                     audioManager?.let { am -> abandonFocus(am) }
+                    notifyPlaybackStopped()
                     play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
                     true
                 }
@@ -401,6 +440,16 @@ object KumaSoundPlayer {
         } catch (e: Exception) {
             KumaLogger.e(TAG, "Failed to play system default sound: ${e.message}", e)
             play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
+        }
+    }
+
+    private fun notifyPlaybackStopped() {
+        try {
+            handler.post {
+                onCustomSoundCompletion?.invoke()
+            }
+        } catch (_: Throwable) {
+            onCustomSoundCompletion?.invoke()
         }
     }
 
@@ -453,5 +502,21 @@ object KumaSoundPlayer {
             } catch (_: Throwable) {}
             activeCustomPlayer = null
         }
+        val ctx = AndroidAppProvider.appContext
+        val audioManager = ctx?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        audioManager?.let { abandonFocus(it) }
+    }
+
+    fun stopAllSounds(context: Context? = null) {
+        stopCustomSound()
+        stopFallbackPlayer()
+        synchronized(soundPoolLock) {
+            try {
+                soundPool?.autoPause()
+            } catch (_: Throwable) {}
+        }
+        val ctx = context ?: AndroidAppProvider.appContext
+        val audioManager = ctx?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+        audioManager?.let { abandonFocus(it) }
     }
 }

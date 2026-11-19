@@ -98,6 +98,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -170,7 +171,14 @@ fun SettingsScreen(
     val destinationStack = remember { mutableStateListOf(SettingsDestination.MAIN) }
     val currentDestination = destinationStack.lastOrNull() ?: SettingsDestination.MAIN
 
+    DisposableEffect(Unit) {
+        onDispose {
+            SoundManager.stopSound()
+        }
+    }
+
     val popDestination: () -> Unit = {
+        SoundManager.stopSound()
         if (destinationStack.size > 1) {
             destinationStack.removeAt(destinationStack.lastIndex)
         } else {
@@ -181,6 +189,7 @@ fun SettingsScreen(
     com.bearbones.kumalift.core.navigation.KumaBackHandler(
         enabled = destinationStack.size > 1
     ) {
+        SoundManager.stopSound()
         if (destinationStack.size > 1) {
             destinationStack.removeAt(destinationStack.lastIndex)
         }
@@ -296,7 +305,10 @@ private fun SettingsMainMenu(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -541,7 +553,10 @@ private fun ProfileSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -912,7 +927,10 @@ private fun ChangeUsernamePage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -1009,6 +1027,8 @@ private fun NotificationSettingsPage(
     var hasPostNotificationPermission by remember {
         mutableStateOf(workoutReminderManager.hasNotificationPermission())
     }
+    var isCustomPreviewPlaying by remember { mutableStateOf(false) }
+    var customSoundError by remember { mutableStateOf<String?>(null) }
 
     // Dynamic sync on resume: automatically dismisses or restores the warning card
     // when returning from system notification settings.
@@ -1018,7 +1038,21 @@ private fun NotificationSettingsPage(
         if (currentPermission && settings.notifications.workoutReminders) {
             workoutReminderManager.syncSettings(settings.notifications, settings.appearance.language)
         }
-        onPauseOrDispose { }
+        onPauseOrDispose {
+            SoundManager.stopSound()
+            isCustomPreviewPlaying = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        SoundManager.onPlaybackStopped = {
+            isCustomPreviewPlaying = false
+        }
+        onDispose {
+            SoundManager.stopSound()
+            SoundManager.onPlaybackStopped = null
+            isCustomPreviewPlaying = false
+        }
     }
 
     val requestNotificationPermission = rememberNotificationPermissionLauncher { granted ->
@@ -1030,9 +1064,6 @@ private fun NotificationSettingsPage(
             workoutReminderManager.syncSettings(settings.notifications.copy(workoutReminders = true), settings.appearance.language)
         }
     }
-
-    var isCustomPreviewPlaying by remember { mutableStateOf(false) }
-    var customSoundError by remember { mutableStateOf<String?>(null) }
 
     val audioPickerLauncher = rememberAudioPickerLauncher { fileName, localPath, errorMsg ->
         if (errorMsg != null) {
@@ -1071,7 +1102,10 @@ private fun NotificationSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -1124,6 +1158,8 @@ private fun NotificationSettingsPage(
                                 ),
                                 selected = settings.notifications.soundProfile,
                                 onSelect = { profile ->
+                                    SoundManager.stopSound()
+                                    isCustomPreviewPlaying = false
                                     settingsRepository.update {
                                         it.copy(notifications = it.notifications.copy(soundProfile = profile))
                                     }
@@ -1211,6 +1247,8 @@ private fun NotificationSettingsPage(
                                 ),
                                 selected = settings.notifications.restTimerSoundSource,
                                 onSelect = { source ->
+                                    SoundManager.stopSound()
+                                    isCustomPreviewPlaying = false
                                     settingsRepository.update {
                                         it.copy(notifications = it.notifications.copy(restTimerSoundSource = source))
                                     }
@@ -2156,7 +2194,10 @@ private fun WorkoutSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -2617,7 +2658,10 @@ private fun UnitsSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -2772,7 +2816,10 @@ private fun LanguageSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -2883,7 +2930,10 @@ private fun ThemeSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -3332,7 +3382,10 @@ private fun ExportImportDataPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -4067,7 +4120,10 @@ private fun AboutSettingsPage(
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
-                        .clickable(onClick = onNavigateBack),
+                        .clickable(onClick = {
+                            SoundManager.stopSound()
+                            onNavigateBack()
+                        }),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

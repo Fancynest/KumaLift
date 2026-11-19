@@ -104,8 +104,11 @@ object SoundManager {
         PlatformSoundPlayer.playSystemDefaultSound(volume.percent)
     }
 
+    var onPlaybackStopped: (() -> Unit)? = null
+
     fun stopSound() {
         PlatformSoundPlayer.stopRestTimerSound()
+        onPlaybackStopped?.invoke()
     }
 
     fun dismissRestFinishedNotification() {

@@ -21,6 +21,12 @@ actual object PlatformSoundPlayer {
 
     private const val NOTIF_ID_ALERT = 2003
 
+    init {
+        KumaSoundPlayer.onCustomSoundCompletion = {
+            SoundManager.onPlaybackStopped?.invoke()
+        }
+    }
+
     actual fun playSound(event: SoundEvent, volumePercent: Int) {
         val context = AndroidAppProvider.appContext ?: return
         KumaSoundPlayer.play(context, event, volumePercent)
@@ -47,7 +53,7 @@ actual object PlatformSoundPlayer {
 
     actual fun stopRestTimerSound() {
         val context = AndroidAppProvider.appContext ?: return
-        KumaSoundPlayer.stopCustomSound()
+        KumaSoundPlayer.stopAllSounds(context)
     }
 
     actual fun playHaptic() {

@@ -428,6 +428,8 @@ class WorkoutRepository(
         _completedWorkouts.value = workouts
     }
 
+    private val repoScope = CoroutineScope(Dispatchers.Default)
+
     init {
         // T1: Restore completed workouts from local database
         val savedCompleted = databaseRepo?.getCompletedWorkouts() ?: emptyList()
@@ -436,6 +438,72 @@ class WorkoutRepository(
         // T1: Restore active unfinished workout if valid and not stale
         val restoredActive = databaseRepo?.loadActiveWorkout(staleWorkoutHours)
         _activeWorkout.value = restoredActive
+
+        // Smartwatch Companion Event Listener
+        SmartwatchCompanionManager.registerEventListener { event ->
+            handleSmartwatchEvent(event)
+        }
+
+        repoScope.launch {
+            _activeWorkout.collect { workout ->
+                if (workout != null) {
+                    syncActiveWorkoutToSmartwatch(workout)
+                }
+            }
+        }
+    }
+
+    private fun handleSmartwatchEvent(event: com.bearbones.kumalift.domain.model.SmartwatchSyncEvent) {
+        when (event.action) {
+            com.bearbones.kumalift.domain.model.SmartwatchSyncEvent.ACTION_COMPLETE_SET -> {
+                val current = _activeWorkout.value ?: return
+                for (exercise in current.exercises) {
+                    val nextSet = exercise.sets.firstOrNull { !it.isCompleted }
+                    if (nextSet != null) {
+                        toggleSetCompletion(
+                            exerciseId = exercise.id,
+                            setId = nextSet.id,
+                            currentHeartRateBpm = event.heartRateBpm
+                        ) { /* completed */ }
+                        break
+                    }
+                }
+            }
+            com.bearbones.kumalift.domain.model.SmartwatchSyncEvent.ACTION_SKIP_REST -> {
+                com.bearbones.kumalift.core.timer.RestTimerCoordinator.skip()
+            }
+            com.bearbones.kumalift.domain.model.SmartwatchSyncEvent.ACTION_ADD_REST_30S -> {
+                com.bearbones.kumalift.core.timer.RestTimerCoordinator.addSeconds(30)
+            }
+            com.bearbones.kumalift.domain.model.SmartwatchSyncEvent.ACTION_PAUSE_WORKOUT -> {
+                com.bearbones.kumalift.core.timer.RestTimerCoordinator.pause()
+            }
+            com.bearbones.kumalift.domain.model.SmartwatchSyncEvent.ACTION_RESUME_WORKOUT -> {
+                com.bearbones.kumalift.core.timer.RestTimerCoordinator.resume()
+            }
+        }
+    }
+
+    private fun syncActiveWorkoutToSmartwatch(workout: Workout) {
+        val currentExercise = workout.exercises.firstOrNull { we -> we.sets.any { !it.isCompleted } }
+            ?: workout.exercises.lastOrNull() ?: return
+        val currentSetIndex = currentExercise.sets.indexOfFirst { !it.isCompleted }.takeIf { it >= 0 }
+            ?: (currentExercise.sets.size - 1).coerceAtLeast(0)
+        val currentSet = currentExercise.sets.getOrNull(currentSetIndex)
+
+        val payload = com.bearbones.kumalift.domain.model.SmartwatchWorkoutPayload(
+            workoutId = workout.id,
+            workoutTitle = workout.title,
+            currentExerciseName = currentExercise.exercise.name,
+            currentSetNumber = currentSetIndex + 1,
+            totalSetsForExercise = currentExercise.sets.size,
+            targetWeightKg = currentSet?.weightKg ?: 0.0,
+            targetReps = currentSet?.targetReps ?: currentSet?.reps ?: 0,
+            isRestTimerActive = com.bearbones.kumalift.core.timer.RestTimerCoordinator.activeRestTimer?.state?.value?.isRunning == true,
+            restSecondsRemaining = com.bearbones.kumalift.core.timer.RestTimerCoordinator.activeRestTimer?.state?.value?.remainingSeconds ?: 0,
+            elapsedWorkoutSeconds = ((currentEpochMillis() - workout.startTimeEpochMs) / 1000L).coerceAtLeast(0L)
+        )
+        SmartwatchCompanionManager.sendActiveWorkoutUpdate(payload)
     }
 
     fun startWorkoutFromRoutine(

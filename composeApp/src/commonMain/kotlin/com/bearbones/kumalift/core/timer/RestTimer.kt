@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.timer
 
+import com.bearbones.kumalift.core.smartwatch.SmartwatchCompanionManager
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,10 +132,15 @@ class RestTimer(private val scope: CoroutineScope) {
                         status = TimerStatus.COMPLETED
                     )
                     playTimerCompletionFeedback()
+                    SmartwatchCompanionManager.sendHapticPulse()
                     notifyRestTimerCompleted(_state.value.exerciseName)
                     break
                 } else {
+                    val prev = _state.value.remainingSeconds
                     _state.value = _state.value.copy(remainingSeconds = remaining)
+                    if (remaining != prev) {
+                        SmartwatchCompanionManager.sendRestTimerTick(remaining)
+                    }
                     if (remaining in 1..3 && remaining != lastTickedSecond) {
                         lastTickedSecond = remaining
                         playTimerTickFeedback(remaining)

@@ -8,7 +8,14 @@ import com.bearbones.kumalift.domain.model.SmartwatchWorkoutPayload
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import platform.Foundation.NSDate
+import platform.Foundation.timeIntervalSince1970
 import platform.WatchConnectivity.WCSession
+import platform.WatchConnectivity.WCSessionActivationState
+import platform.WatchConnectivity.WCSessionDelegateProtocol
+import platform.darwin.NSObject
 
 actual object SmartwatchCompanionManager {
     actual val deviceType: SmartwatchDeviceType = SmartwatchDeviceType.APPLE_WATCH
@@ -18,15 +25,59 @@ actual object SmartwatchCompanionManager {
 
     private var eventListener: ((SmartwatchSyncEvent) -> Unit)? = null
 
+    private class AppleWatchSessionDelegate : NSObject(), WCSessionDelegateProtocol {
+        override fun session(
+            session: WCSession,
+            activationDidCompleteWithState: WCSessionActivationState,
+            error: platform.Foundation.NSError?
+        ) {
+            updateStatus(session)
+        }
+
+        override fun sessionDidBecomeInactive(session: WCSession) {
+            _connectionStatus.value = SmartwatchConnectionStatus.DISCONNECTED
+        }
+
+        override fun sessionDidDeactivate(session: WCSession) {
+            _connectionStatus.value = SmartwatchConnectionStatus.DISCONNECTED
+            WCSession.defaultSession.activateSession()
+        }
+
+        override fun session(
+            session: WCSession,
+            didReceiveMessage: Map<Any?, *>
+        ) {
+            val action = didReceiveMessage["action"] as? String ?: return
+            val heartRate = (didReceiveMessage["heartRate"] as? Number)?.toInt()
+            val event = SmartwatchSyncEvent(
+                action = action,
+                timestampEpochMs = (NSDate().timeIntervalSince1970 * 1000.0).toLong(),
+                heartRateBpm = heartRate
+            )
+            dispatchIncomingEvent(event)
+        }
+    }
+
+    private var sessionDelegate: AppleWatchSessionDelegate? = null
+
+    private fun updateStatus(session: WCSession) {
+        _connectionStatus.value = if (session.isPaired() && session.isWatchAppInstalled()) {
+            SmartwatchConnectionStatus.CONNECTED
+        } else {
+            SmartwatchConnectionStatus.DISCONNECTED
+        }
+    }
+
     actual fun connect() {
         if (WCSession.isSupported()) {
             val session = WCSession.defaultSession
-            session.activateSession()
-            _connectionStatus.value = if (session.isPaired() && session.isWatchAppInstalled()) {
-                SmartwatchConnectionStatus.CONNECTED
-            } else {
-                SmartwatchConnectionStatus.DISCONNECTED
+            if (sessionDelegate == null) {
+                val del = AppleWatchSessionDelegate()
+                sessionDelegate = del
+                session.delegate = del
             }
+            session.activateSession()
+            updateStatus(session)
         } else {
             _connectionStatus.value = SmartwatchConnectionStatus.UNAVAILABLE
         }
@@ -39,21 +90,40 @@ actual object SmartwatchCompanionManager {
     }
 
     actual fun sendActiveWorkoutUpdate(payload: SmartwatchWorkoutPayload) {
-        if (_connectionStatus.value != SmartwatchConnectionStatus.CONNECTED) return
-        KumaLogger.d(
-            "SmartwatchCompanionManager",
-            "Relaying workout state to Apple Watch: ${payload.currentExerciseName} Set #${payload.currentSetNumber}"
-        )
+        if (!WCSession.isSupported()) return
+        val session = WCSession.defaultSession
+        if (!session.isReachable()) return
+        try {
+            val json = Json.encodeToString(payload)
+            val msg = mapOf<Any?, Any?>(
+                "type" to "WORKOUT_UPDATE",
+                "payload" to json
+            )
+            session.sendMessage(msg, replyHandler = null, errorHandler = { err ->
+                KumaLogger.w("SmartwatchCompanionManager", "Watch send message failed: ${err?.localizedDescription}")
+            })
+        } catch (e: Exception) {
+            KumaLogger.w("SmartwatchCompanionManager", "Failed to encode workout update: ${e.message}")
+        }
     }
 
     actual fun sendRestTimerTick(remainingSeconds: Int) {
-        if (_connectionStatus.value != SmartwatchConnectionStatus.CONNECTED) return
-        KumaLogger.d("SmartwatchCompanionManager", "Relaying timer tick to Apple Watch: ${remainingSeconds}s")
+        if (!WCSession.isSupported()) return
+        val session = WCSession.defaultSession
+        if (!session.isReachable()) return
+        val msg = mapOf<Any?, Any?>(
+            "type" to "REST_TIMER_TICK",
+            "remainingSeconds" to remainingSeconds
+        )
+        session.sendMessage(msg, replyHandler = null, errorHandler = null)
     }
 
     actual fun sendHapticPulse() {
-        if (_connectionStatus.value != SmartwatchConnectionStatus.CONNECTED) return
-        KumaLogger.d("SmartwatchCompanionManager", "Sending watch haptic alert")
+        if (!WCSession.isSupported()) return
+        val session = WCSession.defaultSession
+        if (!session.isReachable()) return
+        val msg = mapOf<Any?, Any?>("type" to "HAPTIC_PULSE")
+        session.sendMessage(msg, replyHandler = null, errorHandler = null)
     }
 
     actual fun registerEventListener(listener: (SmartwatchSyncEvent) -> Unit) {

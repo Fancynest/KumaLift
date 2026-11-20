@@ -38,6 +38,8 @@ kotlin {
             implementation(libs.sqldelight.android)
             implementation("androidx.work:work-runtime-ktx:2.9.1")
             implementation("androidx.documentfile:documentfile:1.0.1")
+            implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
+            implementation("com.google.android.gms:play-services-wearable:18.2.0")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

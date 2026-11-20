@@ -3,6 +3,7 @@ package com.bearbones.kumalift.features.analytics
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,7 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +80,7 @@ fun AnatomyBodyHighlighter(
         MuscleGroup.CORE
     )
 
+    var currentView by remember { mutableStateOf(initialView) }
     var selectedMuscle by remember { mutableStateOf(MuscleGroup.CHEST) }
 
     fun statusColor(status: MuscleVolumeStatus): Color = when (status) {
@@ -162,7 +170,68 @@ fun AnatomyBodyHighlighter(
             }
         }
 
-        // 2. Muscle Group Selector Chips
+        // 2. Interactive SVG Anatomy Body Highlighter (from HichamELBSI/react-native-body-highlighter)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.surfaceVariant.copy(alpha = 0.25f))
+                .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // View Switcher: Front View / Back View
+            Row(
+                modifier = Modifier
+                    .clip(PillShape)
+                    .background(colors.surfaceBright)
+                    .border(1.dp, colors.border, PillShape)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf(
+                    BodyView.FRONT to "Front View",
+                    BodyView.BACK to "Back View"
+                ).forEach { (view, label) ->
+                    val isViewSelected = currentView == view
+                    Box(
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(if (isViewSelected) colors.surfaceVariant else Color.Transparent)
+                            .clickable {
+                                currentView = view
+                                if (view == BodyView.BACK && selectedMuscle == MuscleGroup.CHEST) {
+                                    selectedMuscle = MuscleGroup.BACK
+                                    onMuscleSelected?.invoke(MuscleGroup.BACK)
+                                } else if (view == BodyView.FRONT && selectedMuscle == MuscleGroup.BACK) {
+                                    selectedMuscle = MuscleGroup.CHEST
+                                    onMuscleSelected?.invoke(MuscleGroup.CHEST)
+                                }
+                            }
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = if (isViewSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isViewSelected) colors.textPrimary else colors.textSecondary
+                            )
+                        )
+                    }
+                }
+            }
+
+            // Anatomical SVG Canvas
+            AnatomySvgBodyCanvas(
+                currentView = currentView,
+                selectedMuscle = selectedMuscle,
+                statsMap = statsMap,
+                statusColor = ::statusColor
+            )
+        }
+
+        // 3. Muscle Group Selector Chips
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,6 +255,11 @@ fun AnatomyBodyHighlighter(
                         .clickable {
                             selectedMuscle = muscle
                             onMuscleSelected?.invoke(muscle)
+                            if (muscle == MuscleGroup.CHEST || muscle == MuscleGroup.CORE) {
+                                currentView = BodyView.FRONT
+                            } else if (muscle == MuscleGroup.BACK) {
+                                currentView = BodyView.BACK
+                            }
                         }
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -490,6 +564,124 @@ private fun MuscleVolumeDetailCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AnatomySvgBodyCanvas(
+    currentView: BodyView,
+    selectedMuscle: MuscleGroup,
+    statsMap: Map<MuscleGroup, MuscleVolumeStats>,
+    statusColor: (MuscleVolumeStatus) -> Color,
+    modifier: Modifier = Modifier
+) {
+    val colors = LocalKumaColors.current
+
+    val frontParsed = remember {
+        val parser = PathParser()
+        val outline = parser.parsePathString(BodyHighlighterSvgData.FRONT_OUTLINE).toPath()
+        val parts = BodyHighlighterSvgData.FRONT_PARTS.map { part ->
+            part to part.pathDataList.map { d ->
+                parser.parsePathString(d).toPath()
+            }
+        }
+        outline to parts
+    }
+
+    val backParsed = remember {
+        val parser = PathParser()
+        val outline = parser.parsePathString(BodyHighlighterSvgData.BACK_OUTLINE).toPath()
+        val parts = BodyHighlighterSvgData.BACK_PARTS.map { part ->
+            part to part.pathDataList.map { d ->
+                parser.parsePathString(d).toPath()
+            }
+        }
+        outline to parts
+    }
+
+    val (outlinePath, partsList) = if (currentView == BodyView.FRONT) frontParsed else backParsed
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(300.dp)
+    ) {
+        val scale = size.height / BodyHighlighterSvgData.VIEW_BOX_HEIGHT
+        val baseOffsetX = (size.width - BodyHighlighterSvgData.VIEW_BOX_WIDTH * scale) / 2f
+        val offsetX = if (currentView == BodyView.FRONT) {
+            baseOffsetX
+        } else {
+            baseOffsetX - BodyHighlighterSvgData.BACK_OFFSET_X * scale
+        }
+
+        withTransform({
+            translate(left = offsetX, top = 0f)
+            scale(scale, scale, pivot = Offset.Zero)
+        }) {
+            // 1. Draw neutral anatomical body parts (head, hands, feet, etc.)
+            partsList.forEach { (part, paths) ->
+                if (part.muscleGroup == null) {
+                    paths.forEach { path ->
+                        drawPath(
+                            path = path,
+                            color = colors.surfaceVariant.copy(alpha = 0.65f),
+                            style = Fill
+                        )
+                        drawPath(
+                            path = path,
+                            color = colors.border,
+                            style = Stroke(width = 1f)
+                        )
+                    }
+                }
+            }
+
+            // 2. Draw muscle parts with hypertrophy coloring
+            partsList.forEach { (part, paths) ->
+                val mg = part.muscleGroup ?: return@forEach
+                val isSelected = mg == selectedMuscle
+                val stat = statsMap[mg]
+                val muscleStatusColor = statusColor(stat?.status ?: MuscleVolumeStatus.RECOVERING)
+
+                val highlightColor = if (stat != null && stat.weeklySets > 0) {
+                    muscleStatusColor
+                } else {
+                    colors.accentFill
+                }
+
+                val fillColor = when {
+                    isSelected -> highlightColor.copy(alpha = 0.90f)
+                    (stat?.weeklySets ?: 0) > 0 -> muscleStatusColor.copy(alpha = 0.40f)
+                    else -> colors.surfaceVariant.copy(alpha = 0.85f)
+                }
+
+                val strokeColor = when {
+                    isSelected -> if (colors.isDark) highlightColor else colors.accentText
+                    (stat?.weeklySets ?: 0) > 0 -> muscleStatusColor.copy(alpha = 0.70f)
+                    else -> colors.border
+                }
+
+                paths.forEach { path ->
+                    drawPath(
+                        path = path,
+                        color = fillColor,
+                        style = Fill
+                    )
+                    drawPath(
+                        path = path,
+                        color = strokeColor,
+                        style = Stroke(width = if (isSelected) 3.5f else 1.2f)
+                    )
+                }
+            }
+
+            // 3. Draw overall body silhouette outline
+            drawPath(
+                path = outlinePath,
+                color = colors.borderStrong,
+                style = Stroke(width = 2.5f)
+            )
         }
     }
 }

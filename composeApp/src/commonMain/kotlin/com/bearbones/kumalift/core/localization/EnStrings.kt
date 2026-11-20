@@ -941,4 +941,21 @@ object EnStrings : AppStrings {
     override val channelBackupErrorDesc = "Notifications for automatic backup issues"
     override val channelRestTimerOngoingName = "Rest Timer Ongoing"
     override val channelRestTimerOngoingDesc = "Continuous countdown during workout rest"
+
+    override val monthNamesFull = listOf(
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    )
+    override val workoutCalendarTitle = "Workout Calendar"
+    override val prevMonth = "Previous month"
+    override val nextMonth = "Next month"
+    override val todayLabel = "Today"
+    override val completedStatus = "Completed"
+    override val scheduledStatus = "Scheduled"
+    override val restDayStatus = "Rest Day"
+    override val monthlyOverviewTitle = "Monthly Overview"
+    override val workoutDaysLabel = "Workout Days"
+    override val totalDurationLabel = "Total Duration"
+    override val noActivityOnDate = "No workout activity on this date."
+    override fun sessionsCount(count: Int) = if (count == 1) "1 session" else "$count sessions"
 }

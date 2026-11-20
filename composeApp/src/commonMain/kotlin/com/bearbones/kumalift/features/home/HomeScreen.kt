@@ -66,6 +66,7 @@ import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.features.calendar.WorkoutCalendarSection
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -484,6 +485,17 @@ fun HomeScreen(
                                 }
                             }
                         }
+                    }
+                }
+
+                // 2b. Workout Calendar Section
+                if (settings.appearance.showWorkoutCalendar) {
+                    item {
+                        WorkoutCalendarSection(
+                            completedWorkouts = completedWorkouts,
+                            firstDayOfWeek = settings.units.firstDayOfWeek,
+                            weightUnit = settings.units.weightUnit
+                        )
                     }
                 }
 

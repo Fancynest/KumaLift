@@ -324,6 +324,7 @@ data class AppearanceSettings(
     val haptics: Boolean = true,
     val leftHandedMode: Boolean = false,
     val showWeeklyHorizon: Boolean = true,
+    val showWorkoutCalendar: Boolean = true,
     val showMonthlyGlance: Boolean = true,
     val showRecentWorkouts: Boolean = true,
     val recentWorkoutsCount: Int = 5

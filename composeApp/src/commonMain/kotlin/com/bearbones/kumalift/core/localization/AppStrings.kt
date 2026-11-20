@@ -833,4 +833,19 @@ interface AppStrings {
     val channelBackupErrorDesc: String
     val channelRestTimerOngoingName: String
     val channelRestTimerOngoingDesc: String
+
+    // Workout Calendar Strings
+    val monthNamesFull: List<String>
+    val workoutCalendarTitle: String
+    val prevMonth: String
+    val nextMonth: String
+    val todayLabel: String
+    val completedStatus: String
+    val scheduledStatus: String
+    val restDayStatus: String
+    val monthlyOverviewTitle: String
+    val workoutDaysLabel: String
+    val totalDurationLabel: String
+    val noActivityOnDate: String
+    fun sessionsCount(count: Int): String
 }

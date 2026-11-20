@@ -941,4 +941,21 @@ object IdStrings : AppStrings {
     override val channelBackupErrorDesc = "Pemberitahuan kendala pencadangan otomatis"
     override val channelRestTimerOngoingName = "Timer Istirahat Berjalan"
     override val channelRestTimerOngoingDesc = "Hitung mundur berkelanjutan selama istirahat latihan"
+
+    override val monthNamesFull = listOf(
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    )
+    override val workoutCalendarTitle = "Kalender Latihan"
+    override val prevMonth = "Bulan sebelumnya"
+    override val nextMonth = "Bulan berikutnya"
+    override val todayLabel = "Hari Ini"
+    override val completedStatus = "Selesai"
+    override val scheduledStatus = "Terjadwal"
+    override val restDayStatus = "Istirahat"
+    override val monthlyOverviewTitle = "Rangkuman Bulanan"
+    override val workoutDaysLabel = "Hari Latihan"
+    override val totalDurationLabel = "Total Durasi"
+    override val noActivityOnDate = "Tidak ada riwayat latihan pada tanggal ini."
+    override fun sessionsCount(count: Int) = "$count sesi"
 }

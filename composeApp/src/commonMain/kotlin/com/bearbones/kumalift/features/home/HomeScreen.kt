@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Hotel
 import androidx.compose.material.icons.filled.PlayArrow
@@ -367,11 +368,13 @@ fun HomeScreen(
                                                     current.copy(dataBackup = current.dataBackup.copy(lastReminderDismissedEpochMs = nowMs))
                                                 }
                                             }
-                                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                                            .padding(horizontal = 6.dp, vertical = 6.dp)
                                     ) {
-                                        Text(
-                                            text = "✕",
-                                            style = MaterialTheme.typography.labelSmall.copy(color = KumaColors.TextMuted)
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = s.cancel,
+                                            tint = KumaColors.TextMuted,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }

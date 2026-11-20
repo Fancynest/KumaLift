@@ -319,7 +319,7 @@ fun OnboardingScreen(
                                 TrainingGoal.HYPERTROPHY to Triple(
                                     s.programHypertrophy,
                                     s.onboardingHypertrophyDesc,
-                                    "⚡ ${s.popularBadge}"
+                                    s.popularBadge
                                 ),
                                 TrainingGoal.STRENGTH to Triple(
                                     s.programStrength,

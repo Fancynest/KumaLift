@@ -1,4 +1,4 @@
-# KumaLift 🐻⚡
+# KumaLift
 
 **Minimalist High-Precision Strength Telemetry & Training Logger**
 
@@ -6,7 +6,7 @@ Built with **Compose Multiplatform (CMP)** targeting **Android** and **iOS** fro
 
 ---
 
-## 🎨 Design System: "Iron & Electric Minimalist Athletic"
+## Design System: "Iron & Electric Minimalist Athletic"
 - **Backgrounds:** `#0C0E12` (Lowest), `#111317` (Surface)
 - **Cards & Surfaces:** `#1A1C20`, `#1E2024`, `#282A2E`
 - **Primary Accent:** `#C6FF3D` (Electric Lime - strictly for completions, PRs, active telemetry, and CTAs)
@@ -15,7 +15,7 @@ Built with **Compose Multiplatform (CMP)** targeting **Android** and **iOS** fro
 
 ---
 
-## 💾 Local Storage Architecture: SQLDelight
+## Local Storage Architecture: SQLDelight
 KumaLift is **100% pure local** with zero remote servers, cloud dependencies, or remote analytics:
 - **Engine:** [SQLDelight 2.0.2](https://cashapp.github.io/sqldelight/) generates type-safe multiplatform Kotlin APIs directly from SQLite schema (`KumaDatabase.sq`).
 - **Choice Justification:** SQLDelight provides native SQLite performance across Android (`AndroidSqliteDriver`), iOS (`NativeSqliteDriver`), and JVM unit tests (`JdbcSqliteDriver`) without annotation processor friction or runtime reflection.
@@ -25,7 +25,7 @@ KumaLift is **100% pure local** with zero remote servers, cloud dependencies, or
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 KumaLift/
@@ -58,7 +58,7 @@ KumaLift/
 
 ---
 
-## 🚀 Running the Project
+## Running the Project
 
 ### Android
 ```bash
@@ -83,7 +83,7 @@ Open `iosApp/` in Xcode or run via CI/CD runner.
 
 ---
 
-## 📱 Platform Media & Dataset Architecture (Android-First & iOS)
+## Platform Media & Dataset Architecture (Android-First & iOS)
 
 - **Android:** Exercise thumbnails and animation GIFs are rendered locally with hardware acceleration via Coil (`androidMain/assets`). The exercises dataset is loaded at runtime via Java resource stream from `commonMain/resources/exercises.json` configured in Gradle `sourceSets`.
 - **iOS (Placeholder Status):** 
@@ -92,7 +92,7 @@ Open `iosApp/` in Xcode or run via CI/CD runner.
 
 ---
 
-## 📜 Media Attribution, Licensing & Asset Swapping
+## Media Attribution, Licensing & Asset Swapping
 
 This project utilizes the fitness exercises dataset and media from:
 **https://github.com/hasaneyldrm/exercises-dataset** (1,324 exercises with animation GIFs, 180×180 thumbnails, muscle group metadata, and step-by-step instructions).
@@ -108,7 +108,7 @@ This project utilizes the fitness exercises dataset and media from:
 
 ---
 
-## 🎬 High-Resolution Animation Sprite Pipeline (FSRCNN x3 Super-Resolution)
+## High-Resolution Animation Sprite Pipeline (FSRCNN x3 Super-Resolution)
 
 To solve the pixelation and dither noise of the 180×180 GIFs when displayed on modern high-DPI smartphone displays (180dp ≈ 540 physical pixels), KumaLift incorporates a high-performance offline pre-processing pipeline:
 
@@ -128,7 +128,7 @@ python tools/upscale_gifs.py --src composeApp/src/androidMain/assets/videos \
 
 ---
 
-## 📋 Technical Debt & Schema Evolution Ledger
+## Technical Debt & Schema Evolution Ledger
 
 ### 1. Nullable Heart Rate Fields (`workouts.avgHeartRateBpm`, `workouts.peakHeartRateBpm`, `sets.heartRateBpm`)
 - **Status:** Dipertahankan sementara (Technical Debt / Deferred Schema Migration).
@@ -141,7 +141,7 @@ python tools/upscale_gifs.py --src composeApp/src/androidMain/assets/videos \
 
 ---
 
-## 🌐 Localization & Language Architecture
+## Localization & Language Architecture
 
 KumaLift strictly separates localized UI strings from business logic and database persistence:
 - **Languages Supported:** Indonesian (`id`) and English (`en`), with system locale matching by default.

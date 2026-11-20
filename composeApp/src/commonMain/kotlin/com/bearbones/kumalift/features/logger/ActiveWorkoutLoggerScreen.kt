@@ -549,10 +549,8 @@ fun ActiveWorkoutLoggerScreen(
                                     .background(bannerColors.recoveryFresh.copy(alpha = 0.12f))
                                     .border(1.dp, bannerColors.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("🌿", fontSize = 16.sp)
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = s.phaseDeload,
@@ -1205,31 +1203,24 @@ fun ExerciseLoggingCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("⚡", fontSize = 14.sp)
-                            Column {
-                                Text(
-                                    text = s.progressionReady,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = LocalKumaColors.current.recoveryFresh
-                                    )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = s.progressionReady,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = LocalKumaColors.current.recoveryFresh
                                 )
-                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
-                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
-                                val e1RmText = if (progressionAdvice.projectedE1RmKg != null) " • ${s.estimatedOneRmLabel}: ${progressionAdvice.projectedE1RmKg} ${s.unitKg}" else ""
-                                Text(
-                                    text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)$e1RmText",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.TextMuted,
-                                        fontSize = 11.sp
-                                    )
+                            )
+                            val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                            val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                            val e1RmText = if (progressionAdvice.projectedE1RmKg != null) " • ${s.estimatedOneRmLabel}: ${progressionAdvice.projectedE1RmKg} ${s.unitKg}" else ""
+                            Text(
+                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)$e1RmText",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = KumaColors.TextMuted,
+                                    fontSize = 11.sp
                                 )
-                            }
+                            )
                         }
                         Box(
                             modifier = Modifier
@@ -1260,30 +1251,23 @@ fun ExerciseLoggingCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("🎯", fontSize = 14.sp)
-                            Column {
-                                Text(
-                                    text = s.progressionRepTarget,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = LocalKumaColors.current.accentFill
-                                    )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = s.progressionRepTarget,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = LocalKumaColors.current.accentFill
                                 )
-                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
-                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
-                                Text(
-                                    text = detailsText,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.TextMuted,
-                                        fontSize = 11.sp
-                                    )
+                            )
+                            val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                            val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                            Text(
+                                text = detailsText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = KumaColors.TextMuted,
+                                    fontSize = 11.sp
                                 )
-                            }
+                            )
                         }
                         Box(
                             modifier = Modifier
@@ -1314,30 +1298,23 @@ fun ExerciseLoggingCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text("🛡️", fontSize = 14.sp)
-                            Column {
-                                Text(
-                                    text = s.progressionDeload,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = LocalKumaColors.current.recoveryTired
-                                    )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = s.progressionDeload,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = LocalKumaColors.current.recoveryTired
                                 )
-                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
-                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
-                                Text(
-                                    text = detailsText,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = KumaColors.TextMuted,
-                                        fontSize = 11.sp
-                                    )
+                            )
+                            val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                            val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                            Text(
+                                text = detailsText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = KumaColors.TextMuted,
+                                    fontSize = 11.sp
                                 )
-                            }
+                            )
                         }
                         Box(
                             modifier = Modifier

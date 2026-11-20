@@ -477,14 +477,14 @@ object IdStrings : AppStrings {
     // Notifications (Android OS)
     override val notifChannelName = "Pengingat Latihan"
     override val notifChannelDescription = "Notifikasi pengingat sesi latihan KumaLift"
-    override val notifReminderTitle = "Waktunya Latihan! 🏋️"
+    override val notifReminderTitle = "Waktunya Latihan"
     override val notifReminderBody = "Jaga konsistensi & capai target mingguanmu. Buka KumaLift sekarang!"
     override val notificationVariations = listOf(
-        "Waktunya Latihan! 🏋️" to "Jaga konsistensi & capai target mingguanmu. Buka KumaLift sekarang!",
-        "Ayo Mulai Latihan! 💪" to "Satu sesi lebih dekat dengan versi terbaikmu. Mari mulai!",
-        "Siap Latihan Hari Ini? 🔥" to "Usaha kecil setiap hari menghasilkan kekuatan nyata. Saatnya latihan!",
-        "Kunci Sukses Adalah Konsistensi! ⚡" to "Buktikan komitmenmu hari ini. Buka KumaLift dan selesaikan setmu!",
-        "Fokus pada Targetmu! 🎯" to "Setiap repetisi membawamu semakin maju. Jadikan hari ini bermakna!"
+        "Waktunya Latihan" to "Jaga konsistensi & capai target mingguanmu. Buka KumaLift sekarang!",
+        "Ayo Mulai Latihan" to "Satu sesi lebih dekat dengan versi terbaikmu. Mari mulai!",
+        "Siap Latihan Hari Ini?" to "Usaha kecil setiap hari menghasilkan kekuatan nyata. Saatnya latihan!",
+        "Kunci Sukses Adalah Konsistensi" to "Buktikan komitmenmu hari ini. Buka KumaLift dan selesaikan setmu!",
+        "Fokus pada Targetmu" to "Setiap repetisi membawamu semakin maju. Jadikan hari ini bermakna!"
     )
 
     // Empty states & Dialogs

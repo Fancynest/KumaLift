@@ -477,14 +477,14 @@ object EnStrings : AppStrings {
     // Notifications (Android OS)
     override val notifChannelName = "Workout Reminders"
     override val notifChannelDescription = "KumaLift workout session reminder notifications"
-    override val notifReminderTitle = "Workout Time! 🏋️"
+    override val notifReminderTitle = "Workout Time"
     override val notifReminderBody = "Stay consistent & hit your weekly goals. Open KumaLift now!"
     override val notificationVariations = listOf(
-        "Workout Time! 🏋️" to "Stay consistent & hit your weekly goals. Open KumaLift now!",
-        "Time to Train! 💪" to "One session closer to your best self. Let's get moving!",
-        "Ready to Lift? 🔥" to "Small daily efforts build incredible strength. Let's hit the gym!",
-        "Consistency Is Key! ⚡" to "Show up for yourself today. Open KumaLift and crush your sets!",
-        "Focus on Your Goals! 🎯" to "Every rep counts toward your progress. Make today count!"
+        "Workout Time" to "Stay consistent & hit your weekly goals. Open KumaLift now!",
+        "Time to Train" to "One session closer to your best self. Let's get moving!",
+        "Ready to Lift?" to "Small daily efforts build incredible strength. Let's hit the gym!",
+        "Consistency Is Key" to "Show up for yourself today. Open KumaLift and crush your sets!",
+        "Focus on Your Goals" to "Every rep counts toward your progress. Make today count!"
     )
 
     // Empty states & Dialogs

@@ -482,6 +482,41 @@ fun ActiveWorkoutLoggerScreen(
                         }
                     }
 
+                    // Deload Week Banner if active or workout marked [Deload]
+                    if (workout.title.contains("[Deload]", ignoreCase = true)) {
+                        item {
+                            val bannerColors = LocalKumaColors.current
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(bannerColors.recoveryFresh.copy(alpha = 0.12f))
+                                    .border(1.dp, bannerColors.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("🌿", fontSize = 16.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = s.phaseDeload,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = bannerColors.recoveryFresh
+                                        )
+                                    )
+                                    Text(
+                                        text = s.deloadActiveBanner,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = KumaColors.TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // Exercise Cards List
                     items(workout.exercises, key = { it.id }) { we ->
                         ExerciseLoggingCard(

@@ -68,6 +68,7 @@ import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.features.calendar.WorkoutCalendarSection
+import com.bearbones.kumalift.features.mesocycle.MesocycleSection
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -85,6 +86,7 @@ fun HomeScreen(
     trainingProgramRepository: com.bearbones.kumalift.data.repository.TrainingProgramRepository? = null,
     personalRecordRepository: com.bearbones.kumalift.data.repository.PersonalRecordRepository? = null,
     workoutScheduleRepository: WorkoutScheduleRepository? = null,
+    mesocycleRepository: com.bearbones.kumalift.data.repository.MesocycleRepository? = null,
     onStartWorkout: () -> Unit,
     onStartFreestyle: () -> Unit,
     onOpenSettings: () -> Unit
@@ -528,6 +530,13 @@ fun HomeScreen(
                                 }
                             }
                         )
+                    }
+                }
+
+                // 2c. Mesocycle & Deload Block Section
+                if (mesocycleRepository != null) {
+                    item {
+                        MesocycleSection(mesocycleRepository = mesocycleRepository)
                     }
                 }
 

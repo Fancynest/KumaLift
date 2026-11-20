@@ -18,6 +18,7 @@ import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
+import com.bearbones.kumalift.domain.model.MesocycleBlock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -33,7 +34,8 @@ data class KumaBackupData(
     val customRoutines: List<RoutineBlueprint> = emptyList(),
     val customExercises: List<Exercise> = emptyList(),
     val trainingPrograms: List<TrainingProgram> = emptyList(),
-    val scheduledEvents: List<WorkoutScheduleEvent> = emptyList()
+    val scheduledEvents: List<WorkoutScheduleEvent> = emptyList(),
+    val mesocycles: List<MesocycleBlock> = emptyList()
 )
 
 enum class ImportMode {
@@ -77,6 +79,7 @@ class DataBackupManager(
         }
         val trainingPrograms = databaseRepo.getAllTrainingPrograms()
         val scheduledEvents = databaseRepo.getAllScheduleEvents()
+        val mesocycles = databaseRepo.getAllMesocycles()
         return KumaBackupData(
             schemaVersion = 1,
             exportedAtEpochMs = currentEpochMillis(),
@@ -87,7 +90,8 @@ class DataBackupManager(
             customRoutines = customRoutines,
             customExercises = customExercises,
             trainingPrograms = trainingPrograms,
-            scheduledEvents = scheduledEvents
+            scheduledEvents = scheduledEvents,
+            mesocycles = mesocycles
         )
     }
 
@@ -269,6 +273,7 @@ class DataBackupManager(
                 backup.personalRecords.forEach { databaseRepo.savePersonalRecord(it) }
                 backup.workouts.forEach { databaseRepo.saveCompletedWorkout(it) }
                 backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
+                backup.mesocycles.forEach { databaseRepo.insertOrReplaceMesocycle(it) }
 
                 // Step 4: Restore settings
                 databaseRepo.saveUserSettings(backup.settings)
@@ -337,6 +342,13 @@ class DataBackupManager(
                 backup.scheduledEvents.forEach { ev ->
                     if (ev.id !in existingEventIds) {
                         databaseRepo.insertScheduleEvent(ev)
+                    }
+                }
+
+                val existingMesocycleIds = databaseRepo.getAllMesocycles().map { it.id }.toSet()
+                backup.mesocycles.forEach { meso ->
+                    if (meso.id !in existingMesocycleIds) {
+                        databaseRepo.insertOrReplaceMesocycle(meso)
                     }
                 }
 

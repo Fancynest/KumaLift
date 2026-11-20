@@ -57,6 +57,7 @@ import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.data.repository.WorkoutScheduleRepository
+import com.bearbones.kumalift.data.repository.MesocycleRepository
 import com.bearbones.kumalift.data.repository.rememberDatabaseRepository
 import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
@@ -91,11 +92,15 @@ fun App() {
     val workoutScheduleRepository = remember(databaseRepo) {
         WorkoutScheduleRepository(databaseRepo)
     }
-    val workoutRepository = remember(personalRecordRepository, databaseRepo, workoutScheduleRepository) {
+    val mesocycleRepository = remember(databaseRepo) {
+        MesocycleRepository(databaseRepo)
+    }
+    val workoutRepository = remember(personalRecordRepository, databaseRepo, workoutScheduleRepository, mesocycleRepository) {
         WorkoutRepository(
             prRepository = personalRecordRepository,
             databaseRepo = databaseRepo,
             scheduleRepository = workoutScheduleRepository,
+            mesocycleRepository = mesocycleRepository,
             calculationSettingsProvider = { settingsRepository.settings.value.calculations },
             loggingSettingsProvider = { settingsRepository.settings.value.logging },
             staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
@@ -194,6 +199,7 @@ fun App() {
                             trainingProgramRepository = trainingProgramRepository,
                             personalRecordRepository = personalRecordRepository,
                             workoutScheduleRepository = workoutScheduleRepository,
+                            mesocycleRepository = mesocycleRepository,
                             onStartWorkout = { navigator.push(Overlay.ActiveLogger) },
                             onStartFreestyle = { navigator.push(Overlay.ActiveLogger) },
                             onOpenSettings = { navigator.push(Overlay.Settings) }

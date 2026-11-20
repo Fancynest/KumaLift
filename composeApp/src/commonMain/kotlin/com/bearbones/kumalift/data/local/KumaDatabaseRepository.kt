@@ -20,6 +20,8 @@ import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
 import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import com.bearbones.kumalift.domain.model.ScheduleStatus
+import com.bearbones.kumalift.domain.model.MesocycleBlock
+import com.bearbones.kumalift.domain.model.MesocycleStatus
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -609,6 +611,7 @@ class KumaDatabaseRepository(
             queries.clearActiveWorkout()
             queries.clearAllTrainingPrograms()
             queries.clearAllWorkoutScheduleEvents()
+            queries.clearAllMesocycles()
         }
         saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
     }
@@ -699,6 +702,80 @@ class KumaDatabaseRepository(
             notes = notes,
             createdAtEpochMs = createdAtEpochMs,
             updatedAtEpochMs = updatedAtEpochMs
+        )
+    }
+
+    // ==========================================
+    // MESOCYCLES
+    // ==========================================
+
+    fun getAllMesocycles(): List<MesocycleBlock> {
+        return queries.selectAllMesocycles().executeAsList().map { it.toDomain() }
+    }
+
+    fun getActiveMesocycle(): MesocycleBlock? {
+        return queries.selectActiveMesocycle().executeAsOneOrNull()?.toDomain()
+    }
+
+    fun getMesocycleById(id: String): MesocycleBlock? {
+        return queries.selectMesocycleById(id).executeAsOneOrNull()?.toDomain()
+    }
+
+    fun insertOrReplaceMesocycle(block: MesocycleBlock) {
+        queries.insertOrReplaceMesocycle(
+            id = block.id,
+            name = block.name,
+            programId = block.programId,
+            totalWeeks = block.totalWeeks.toLong(),
+            currentWeek = block.currentWeek.toLong(),
+            deloadWeek = block.deloadWeek.toLong(),
+            isDeloadActive = if (block.isDeloadActive) 1L else 0L,
+            startDateEpochMs = block.startDateEpochMs,
+            endDateEpochMs = block.endDateEpochMs,
+            status = block.status.name,
+            notes = block.notes,
+            createdAtEpochMs = if (block.createdAtEpochMs > 0L) block.createdAtEpochMs else currentEpochMillis()
+        )
+    }
+
+    fun updateMesocycleWeek(id: String, currentWeek: Int, isDeloadActive: Boolean) {
+        queries.updateMesocycleWeek(
+            currentWeek = currentWeek.toLong(),
+            isDeloadActive = if (isDeloadActive) 1L else 0L,
+            id = id
+        )
+    }
+
+    fun updateMesocycleStatus(id: String, status: MesocycleStatus, endDateEpochMs: Long?) {
+        queries.updateMesocycleStatus(
+            status = status.name,
+            endDateEpochMs = endDateEpochMs,
+            id = id
+        )
+    }
+
+    fun deleteMesocycle(id: String) {
+        queries.deleteMesocycle(id)
+    }
+
+    fun clearAllMesocycles() {
+        queries.clearAllMesocycles()
+    }
+
+    private fun com.bearbones.kumalift.database.Mesocycles.toDomain(): MesocycleBlock {
+        return MesocycleBlock(
+            id = id,
+            name = name,
+            programId = programId,
+            totalWeeks = totalWeeks.toInt(),
+            currentWeek = currentWeek.toInt(),
+            deloadWeek = deloadWeek.toInt(),
+            isDeloadActive = isDeloadActive == 1L,
+            startDateEpochMs = startDateEpochMs,
+            endDateEpochMs = endDateEpochMs,
+            status = try { MesocycleStatus.valueOf(status) } catch (_: Exception) { MesocycleStatus.ACTIVE },
+            notes = notes,
+            createdAtEpochMs = createdAtEpochMs
         )
     }
 }

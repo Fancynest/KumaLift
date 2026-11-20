@@ -154,6 +154,21 @@ CREATE TABLE workout_schedule_events (
     FOREIGN KEY (linkedWorkoutId) REFERENCES workouts(id) ON DELETE SET NULL
 );
 
+CREATE TABLE mesocycles (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    programId TEXT,
+    totalWeeks INTEGER NOT NULL,
+    currentWeek INTEGER NOT NULL,
+    deloadWeek INTEGER NOT NULL,
+    isDeloadActive INTEGER NOT NULL,
+    startDateEpochMs INTEGER NOT NULL,
+    endDateEpochMs INTEGER,
+    status TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    createdAtEpochMs INTEGER NOT NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
@@ -161,6 +176,7 @@ CREATE INDEX idx_sets_workout ON sets(workoutId);
 CREATE INDEX idx_prs_exercise ON personal_records(exerciseId);
 CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routineId);
 CREATE INDEX idx_workout_schedule_events_date ON workout_schedule_events(scheduledDate);
+CREATE INDEX idx_mesocycles_status ON mesocycles(status);
 
 -- Queries for Workouts
 selectAllCompletedWorkouts:
@@ -393,3 +409,35 @@ DELETE FROM workout_schedule_events WHERE id = ?;
 
 clearAllWorkoutScheduleEvents:
 DELETE FROM workout_schedule_events;
+
+-- Queries for Mesocycles
+selectAllMesocycles:
+SELECT * FROM mesocycles ORDER BY createdAtEpochMs DESC;
+
+selectActiveMesocycle:
+SELECT * FROM mesocycles WHERE status = 'ACTIVE' LIMIT 1;
+
+selectMesocycleById:
+SELECT * FROM mesocycles WHERE id = ?;
+
+insertOrReplaceMesocycle:
+INSERT OR REPLACE INTO mesocycles (
+    id, name, programId, totalWeeks, currentWeek, deloadWeek,
+    isDeloadActive, startDateEpochMs, endDateEpochMs, status, notes, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMesocycleWeek:
+UPDATE mesocycles
+SET currentWeek = ?, isDeloadActive = ?
+WHERE id = ?;
+
+updateMesocycleStatus:
+UPDATE mesocycles
+SET status = ?, endDateEpochMs = ?
+WHERE id = ?;
+
+deleteMesocycle:
+DELETE FROM mesocycles WHERE id = ?;
+
+clearAllMesocycles:
+DELETE FROM mesocycles;

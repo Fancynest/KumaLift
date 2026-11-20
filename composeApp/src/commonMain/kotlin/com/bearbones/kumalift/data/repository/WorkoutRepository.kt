@@ -25,6 +25,7 @@ import com.bearbones.kumalift.domain.model.WorkoutExercise
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -406,6 +407,7 @@ class WorkoutRepository(
     private val prRepository: PersonalRecordRepository,
     private val databaseRepo: KumaDatabaseRepository? = null,
     private val scheduleRepository: WorkoutScheduleRepository? = null,
+    private val mesocycleRepository: MesocycleRepository? = null,
     private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
     private val loggingSettingsProvider: () -> LoggingSettings = { LoggingSettings() },
     staleWorkoutHours: Int = 24
@@ -436,6 +438,7 @@ class WorkoutRepository(
         scheduledEventId: String? = null
     ) {
         val now = currentEpochMillis()
+        val isDeload = mesocycleRepository?.isDeloadActive() == true
         val configs = routine.effectiveConfigs
         val workoutExercises = configs.mapIndexed { index, config ->
             val exercise = config.exercise
@@ -446,9 +449,15 @@ class WorkoutRepository(
                 ?: previousSet?.weightKg
                 ?: (if (isBodyweight) 0.0 else (exercise.currentPrWeightKg?.let { it * 0.75 } ?: 20.0))
             val defaultReps = if (config.targetReps > 0) config.targetReps else (previousSet?.reps ?: 8)
-            val setsCount = maxOf(1, config.targetSets)
 
-            val sets = config.effectiveSets.mapIndexed { setIndex, setConfig ->
+            val baseSets = config.effectiveSets
+            val effectiveSetsList = if (isDeload && baseSets.size > 1) {
+                baseSets.take(maxOf(1, (baseSets.size * 0.6).roundToInt()))
+            } else {
+                baseSets
+            }
+
+            val sets = effectiveSetsList.mapIndexed { setIndex, setConfig ->
                 val targetWeight = setConfig.targetWeightKg ?: defaultWeight
                 val targetReps = if (setConfig.targetReps > 0) setConfig.targetReps else defaultReps
                 val prevWeight = setConfig.previousWeightKg ?: previousSet?.weightKg
@@ -478,7 +487,7 @@ class WorkoutRepository(
 
         val newWorkout = Workout(
             id = IdGenerator.workoutId(routine.id),
-            title = routine.title,
+            title = if (isDeload) "${routine.title} [Deload]" else routine.title,
             splitType = routine.splitCategory,
             startTimeEpochMs = now,
             exercises = workoutExercises,

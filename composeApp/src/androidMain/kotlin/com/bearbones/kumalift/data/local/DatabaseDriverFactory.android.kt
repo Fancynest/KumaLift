@@ -151,5 +151,33 @@ actual class DatabaseDriverFactory(private val context: Context) {
                 0
             )
         } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS mesocycles (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    programId TEXT,
+                    totalWeeks INTEGER NOT NULL,
+                    currentWeek INTEGER NOT NULL,
+                    deloadWeek INTEGER NOT NULL,
+                    isDeloadActive INTEGER NOT NULL,
+                    startDateEpochMs INTEGER NOT NULL,
+                    endDateEpochMs INTEGER,
+                    status TEXT NOT NULL,
+                    notes TEXT NOT NULL DEFAULT '',
+                    createdAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+            driver.execute(
+                null,
+                "CREATE INDEX IF NOT EXISTS idx_mesocycles_status ON mesocycles(status);",
+                0
+            )
+        } catch (_: Exception) {}
     }
 }

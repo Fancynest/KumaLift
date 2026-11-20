@@ -865,4 +865,24 @@ interface AppStrings {
     val startScheduledWorkout: String
     val cancelledStatus: String
     val scheduleRoutineTitle: String
+
+    // Mesocycle & Deload Program Management
+    val mesocycleTitle: String
+    val mesocycleActiveBlock: String
+    fun mesocycleWeekFormat(current: Int, total: Int): String
+    val phaseIntroductory: String
+    val phaseAccumulation: String
+    val phasePeakOverload: String
+    val phaseDeload: String
+    val advanceWeekAction: String
+    val startNewMesocycleAction: String
+    val toggleDeloadAction: String
+    val deloadActiveBanner: String
+    val completeMesocycleAction: String
+    val noActiveMesocycle: String
+    val newMesocycleDialogTitle: String
+    val mesocycleNameLabel: String
+    val mesocycleTotalWeeksLabel: String
+    val mesocycleDeloadWeekLabel: String
+    fun mesocycleDeloadScheduleHint(week: Int): String
 }

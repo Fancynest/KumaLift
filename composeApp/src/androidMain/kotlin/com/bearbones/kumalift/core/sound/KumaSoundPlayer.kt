@@ -18,6 +18,7 @@ import com.bearbones.kumalift.domain.model.SoundVolume
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 object KumaSoundPlayer {
 
@@ -29,6 +30,7 @@ object KumaSoundPlayer {
 
     private val soundIdMap = ConcurrentHashMap<SoundEvent, Int>()
     private val loadedSoundIds = ConcurrentHashMap.newKeySet<Int>()
+    private val activeSoundPoolStreamIds = ConcurrentHashMap.newKeySet<Int>()
 
     private val handler by lazy { Handler(Looper.getMainLooper()) }
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
@@ -67,10 +69,10 @@ object KumaSoundPlayer {
             if (soundPool != null) return
 
             try {
-                // AudioAttributes.USAGE_ALARM ensures audio routes through STREAM_ALARM (independent of Media Volume),
-                // so workout and timer alerts remain audible even if phone media volume is muted or DND is active.
+                // AudioAttributes.USAGE_MEDIA routes through STREAM_MUSIC (Media Volume),
+                // matching the in-app sound volume slider and ensuring ducking with background music works reliably.
                 val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
 
@@ -120,7 +122,7 @@ object KumaSoundPlayer {
 
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         audioManager?.let { am ->
-            ensureAlarmStreamVolume(am, volumeMultiplier)
+            ensureStreamVolume(am, volumeMultiplier)
             requestTransientDuckFocus(am)
         }
 
@@ -140,6 +142,7 @@ object KumaSoundPlayer {
                 )
                 if (streamId != 0) {
                     playedViaSoundPool = true
+                    activeSoundPoolStreamIds.add(streamId)
                     KumaLogger.i(TAG, "Played $event via SoundPool (streamId=$streamId, vol=$volumeMultiplier)")
                 } else {
                     KumaLogger.w(TAG, "SoundPool.play returned 0 for $event; falling back to MediaPlayer")
@@ -176,7 +179,7 @@ object KumaSoundPlayer {
             }
             mp.setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
@@ -210,43 +213,52 @@ object KumaSoundPlayer {
     }
 
     fun stopFallbackPlayer() {
-        synchronized(customPlayerLock) {
-            try {
-                activeFallbackPlayer?.let {
-                    if (it.isPlaying) {
-                        it.stop()
-                    }
-                    it.release()
-                }
-            } catch (_: Throwable) {}
+        val player = synchronized(customPlayerLock) {
+            val p = activeFallbackPlayer
             activeFallbackPlayer = null
+            p
+        }
+        if (player != null) {
+            try { player.stop() } catch (_: Throwable) {}
+            try { player.reset() } catch (_: Throwable) {}
+            try { player.release() } catch (_: Throwable) {}
         }
     }
 
     private var activeFocusRequest: AudioFocusRequest? = null
     private var pendingAbandonRunnable: Runnable? = null
 
-    private fun ensureAlarmStreamVolume(audioManager: AudioManager, volumeMultiplier: Float) {
+    private fun ensureStreamVolume(audioManager: AudioManager, volumeMultiplier: Float) {
         if (volumeMultiplier <= 0f) return
         try {
+            // Ensure STREAM_MUSIC is at least set to the user-chosen volume level,
+            // preventing silence when system media volume was previously 0.
+            val currentMusicVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val maxMusicVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            if (maxMusicVol > 0) {
+                val targetVol = (volumeMultiplier * maxMusicVol).roundToInt().coerceIn(1, maxMusicVol)
+                if (currentMusicVol < targetVol) {
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
+                }
+            }
+        } catch (t: Throwable) {
+            KumaLogger.w(TAG, "Could not ensure media stream volume: ${t.message}")
+        }
+        try {
+            // Also ensure alarm stream is non-zero as secondary safeguard
             val currentAlarmVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
             val maxAlarmVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             if (maxAlarmVol > 0 && currentAlarmVol < maxAlarmVol) {
-                // Keep STREAM_ALARM at maximum so in-app volume slider (setVolume multiplier)
-                // maps directly to the full 0%-100% dynamic speaker range.
-                // flags = 0 ensures no system volume slider HUD or tone is shown/played.
                 audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarmVol, 0)
             }
-        } catch (t: Throwable) {
-            KumaLogger.w(TAG, "Could not ensure alarm stream volume: ${t.message}")
-        }
+        } catch (_: Throwable) {}
     }
 
     private fun requestTransientDuckFocus(audioManager: AudioManager) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val playbackAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
 
@@ -262,7 +274,7 @@ object KumaSoundPlayer {
                 @Suppress("DEPRECATION")
                 audioManager.requestAudioFocus(
                     null,
-                    AudioManager.STREAM_ALARM,
+                    AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
                 )
             }
@@ -329,7 +341,7 @@ object KumaSoundPlayer {
         try {
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.let { am ->
-                ensureAlarmStreamVolume(am, volumeMultiplier)
+                ensureStreamVolume(am, volumeMultiplier)
                 requestTransientDuckFocus(am)
             }
 
@@ -337,7 +349,7 @@ object KumaSoundPlayer {
                 setDataSource(file.absolutePath)
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
@@ -396,7 +408,7 @@ object KumaSoundPlayer {
 
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.let { am ->
-                ensureAlarmStreamVolume(am, volumeMultiplier)
+                ensureStreamVolume(am, volumeMultiplier)
                 requestTransientDuckFocus(am)
             }
 
@@ -404,7 +416,7 @@ object KumaSoundPlayer {
                 setDataSource(appContext, defaultUri)
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
@@ -491,16 +503,15 @@ object KumaSoundPlayer {
     }
 
     fun stopCustomSound() {
-        synchronized(customPlayerLock) {
-            try {
-                activeCustomPlayer?.let {
-                    if (it.isPlaying) {
-                        it.stop()
-                    }
-                    it.release()
-                }
-            } catch (_: Throwable) {}
+        val player = synchronized(customPlayerLock) {
+            val p = activeCustomPlayer
             activeCustomPlayer = null
+            p
+        }
+        if (player != null) {
+            try { player.stop() } catch (_: Throwable) {}
+            try { player.reset() } catch (_: Throwable) {}
+            try { player.release() } catch (_: Throwable) {}
         }
         val ctx = AndroidAppProvider.appContext
         val audioManager = ctx?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -512,7 +523,13 @@ object KumaSoundPlayer {
         stopFallbackPlayer()
         synchronized(soundPoolLock) {
             try {
-                soundPool?.autoPause()
+                soundPool?.let { pool ->
+                    activeSoundPoolStreamIds.forEach { sId ->
+                        try { pool.stop(sId) } catch (_: Throwable) {}
+                    }
+                    activeSoundPoolStreamIds.clear()
+                    pool.autoPause()
+                }
             } catch (_: Throwable) {}
         }
         val ctx = context ?: AndroidAppProvider.appContext

@@ -1030,6 +1030,12 @@ private fun NotificationSettingsPage(
     var isCustomPreviewPlaying by remember { mutableStateOf(false) }
     var customSoundError by remember { mutableStateOf<String?>(null) }
 
+    com.bearbones.kumalift.core.navigation.KumaBackHandler(enabled = true) {
+        SoundManager.stopSound()
+        isCustomPreviewPlaying = false
+        onNavigateBack()
+    }
+
     // Dynamic sync on resume: automatically dismisses or restores the warning card
     // when returning from system notification settings.
     LifecycleResumeEffect(workoutReminderManager) {
@@ -1215,6 +1221,14 @@ private fun NotificationSettingsPage(
                                     },
                                     valueRange = 0f..100f,
                                     steps = 9,
+                                    onValueChangeFinished = {
+                                        if (settings.notifications.soundVolume > 0) {
+                                            SoundManager.previewSound(
+                                                com.bearbones.kumalift.core.sound.SoundEvent.TICK,
+                                                settings.notifications.soundVolume
+                                            )
+                                        }
+                                    },
                                     colors = SliderDefaults.colors(
                                         thumbColor = colors.accentFill,
                                         activeTrackColor = colors.accentFill,

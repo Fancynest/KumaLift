@@ -50,7 +50,9 @@ import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.MuscleVolumeCalculator
 import com.bearbones.kumalift.domain.model.PersonalRecord
+import com.bearbones.kumalift.features.analytics.AnatomyBodyHighlighter
 
 @Composable
 fun ProgressAnalyticsScreen(
@@ -66,6 +68,9 @@ fun ProgressAnalyticsScreen(
     val unitStr = if (isLb) s.unitLb else s.unitKg
     val prs by personalRecordRepository.personalRecords.collectAsState()
     val completedWorkouts by (workoutRepository?.completedWorkouts ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
+    val muscleVolumeStats = remember(completedWorkouts) {
+        MuscleVolumeCalculator.calculateWeeklyVolume(completedWorkouts)
+    }
     var selectedTimeframe by rememberSaveable { mutableStateOf("3M") }
     val timeframes = listOf("1M", "3M", "6M", "1Y", "ALL")
 
@@ -348,6 +353,26 @@ fun ProgressAnalyticsScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+
+                // Muscle Volume Intelligence (Interactive Vector Body Highlighter & Landmarks)
+                item {
+                    KumaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = KumaColors.SurfaceContainerLow,
+                        cornerRadius = 18.dp
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = s.muscleVolumeIntelligenceTitle,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            AnatomyBodyHighlighter(statsMap = muscleVolumeStats)
                         }
                     }
                 }

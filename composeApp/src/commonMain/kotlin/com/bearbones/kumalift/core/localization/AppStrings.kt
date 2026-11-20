@@ -885,4 +885,24 @@ interface AppStrings {
     val mesocycleTotalWeeksLabel: String
     val mesocycleDeloadWeekLabel: String
     fun mesocycleDeloadScheduleHint(week: Int): String
+
+    // Muscle Volume Intelligence (P2)
+    val muscleVolumeIntelligenceTitle: String
+    val volumeLandmarkMevDescription: String
+    val volumeLandmarkMavDescription: String
+    val volumeLandmarkMrvDescription: String
+    val volumeStatusRecovering: String
+    val volumeStatusMaintenance: String
+    val volumeStatusOptimal: String
+    val volumeStatusOverreaching: String
+    val volumeStatusOvertrained: String
+    val bodyViewFront: String
+    val bodyViewBack: String
+    val weeklySetsCountLabel: String
+    val directVsIndirectSetsLabel: String
+    val targetVolumeLandmarkLabel: String
+    val topExercisesContributingLabel: String
+    val tapMuscleToInspectLabel: String
+    fun volumeRecommendationHint(statusCode: String, setsNeeded: Int): String
+    fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int): String
 }

@@ -995,4 +995,32 @@ object IdStrings : AppStrings {
     override val mesocycleTotalWeeksLabel = "Total Minggu"
     override val mesocycleDeloadWeekLabel = "Minggu Deload"
     override fun mesocycleDeloadScheduleHint(week: Int) = "Minggu $week (Minggu terakhir dijadwalkan untuk deload & pemulihan sistemik)"
+
+    // Muscle Volume Intelligence (P2)
+    override val muscleVolumeIntelligenceTitle = "Intelegensi Volume Otot"
+    override val volumeLandmarkMevDescription = "Efektif Min. (MEV)"
+    override val volumeLandmarkMavDescription = "Adaptif Maks. (MAV)"
+    override val volumeLandmarkMrvDescription = "Batas Pulih (MRV)"
+    override val volumeStatusRecovering = "Istirahat / Pemulihan"
+    override val volumeStatusMaintenance = "Volume Pemeliharaan"
+    override val volumeStatusOptimal = "Hipertrofi Optimal"
+    override val volumeStatusOverreaching = "Akumulasi Beban Tinggi"
+    override val volumeStatusOvertrained = "Melebihi Batas MRV"
+    override val bodyViewFront = "Tampak Depan"
+    override val bodyViewBack = "Tampak Belakang"
+    override val weeklySetsCountLabel = "Set Kerja Mingguan"
+    override val directVsIndirectSetsLabel = "Stimulus Langsung vs Tidak Langsung"
+    override val targetVolumeLandmarkLabel = "Target Landmark Volume"
+    override val topExercisesContributingLabel = "Latihan Paling Berkontribusi"
+    override val tapMuscleToInspectLabel = "Ketuk bagian otot untuk melihat target volume mingguan"
+    override fun volumeRecommendationHint(statusCode: String, setsNeeded: Int): String = when (statusCode) {
+        "RECOVERING" -> "Belum ada set minggu ini. Jadwalkan sesi latihan untuk stimulasi pertumbuhan."
+        "MAINTENANCE" -> "Perlu $setsNeeded set lagi untuk mencapai volume efektif minimum (MEV)."
+        "OPTIMAL" -> "Rentang volume optimal untuk stimulasi hipertrofi otot maksimal."
+        "OVERREACHING" -> "Akumulasi beban sangat tinggi. Mendekati batas kemampuan pemulihan tubuh."
+        "OVERTRAINED" -> "Volume melebihi kapasitas pemulihan (MRV). Pertimbangkan minggu deload."
+        else -> "Jadwalkan set dalam rentang volume adaptif untuk stimulasi progresif."
+    }
+    override fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int) =
+        "MEV: $mev · MAV: $mavMin–$mavMax · MRV: $mrv set"
 }

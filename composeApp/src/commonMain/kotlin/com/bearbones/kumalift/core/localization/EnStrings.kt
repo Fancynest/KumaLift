@@ -995,4 +995,32 @@ object EnStrings : AppStrings {
     override val mesocycleTotalWeeksLabel = "Total Weeks"
     override val mesocycleDeloadWeekLabel = "Deload Week"
     override fun mesocycleDeloadScheduleHint(week: Int) = "Week $week (Final week scheduled for deload & systemic recovery)"
+
+    // Muscle Volume Intelligence (P2)
+    override val muscleVolumeIntelligenceTitle = "Muscle Volume Intelligence"
+    override val volumeLandmarkMevDescription = "Min. Effective (MEV)"
+    override val volumeLandmarkMavDescription = "Max. Adaptive (MAV)"
+    override val volumeLandmarkMrvDescription = "Max. Recoverable (MRV)"
+    override val volumeStatusRecovering = "Rest / Recovery"
+    override val volumeStatusMaintenance = "Maintenance Volume"
+    override val volumeStatusOptimal = "Optimal Hypertrophy"
+    override val volumeStatusOverreaching = "Overreaching Volume"
+    override val volumeStatusOvertrained = "Exceeding MRV"
+    override val bodyViewFront = "Front View"
+    override val bodyViewBack = "Back View"
+    override val weeklySetsCountLabel = "Weekly Working Sets"
+    override val directVsIndirectSetsLabel = "Direct vs. Indirect Stimulus"
+    override val targetVolumeLandmarkLabel = "Volume Landmarks"
+    override val topExercisesContributingLabel = "Top Contributing Exercises"
+    override val tapMuscleToInspectLabel = "Tap any muscle to view weekly volume landmarks"
+    override fun volumeRecommendationHint(statusCode: String, setsNeeded: Int): String = when (statusCode) {
+        "RECOVERING" -> "0 sets logged this week. Schedule a session to stimulate growth."
+        "MAINTENANCE" -> "$setsNeeded more sets to reach minimum effective volume (MEV)."
+        "OPTIMAL" -> "Optimal volume sweet spot for maximum muscle hypertrophy."
+        "OVERREACHING" -> "High volume accumulation. Approaching recovery ceiling."
+        "OVERTRAINED" -> "Volume exceeds maximum recoverable volume. Consider deloading."
+        else -> "Schedule sets within optimal volume range for progressive hypertrophy."
+    }
+    override fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int) =
+        "MEV: $mev · MAV: $mavMin–$mavMax · MRV: $mrv sets"
 }

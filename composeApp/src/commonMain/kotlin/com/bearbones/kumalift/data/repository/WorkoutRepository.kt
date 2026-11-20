@@ -892,7 +892,7 @@ class WorkoutRepository(
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 
-    fun applyProgressionToExercise(exerciseId: String, newWeightKg: Double) {
+    fun applyProgressionToExercise(exerciseId: String, newWeightKg: Double, targetReps: Int? = null) {
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
@@ -901,7 +901,12 @@ class WorkoutRepository(
                 if (isMatch) {
                     val updatedSets = we.sets.map { s ->
                         if (s.setType != SetType.WARMUP) {
-                            s.copy(weightKg = newWeightKg, targetWeightKg = newWeightKg)
+                            s.copy(
+                                weightKg = newWeightKg,
+                                targetWeightKg = newWeightKg,
+                                reps = if (!s.isCompleted && targetReps != null && targetReps > 0) targetReps else s.reps,
+                                targetReps = targetReps ?: s.targetReps
+                            )
                         } else s
                     }
                     we.copy(sets = updatedSets)
@@ -910,6 +915,28 @@ class WorkoutRepository(
             currentWorkout.copy(exercises = updatedExercises)
         }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+    }
+
+    /**
+     * Retrieves the most recent completed working sets for an exercise across past workouts,
+     * allowing the progressive overload advisor to analyze historical performance.
+     */
+    fun getPreviousCompletedSetsForExercise(exerciseId: String): List<SetLog> {
+        val workouts = _completedWorkouts.value
+        val targetWorkout = workouts
+            .sortedByDescending { it.endTimeEpochMs ?: it.startTimeEpochMs }
+            .firstOrNull { w ->
+                w.exercises.any { we ->
+                    (we.exercise.id == exerciseId || we.id == exerciseId) &&
+                            we.sets.any { s -> s.isCompleted && s.setType != SetType.WARMUP }
+                }
+            } ?: return emptyList()
+
+        return targetWorkout.exercises
+            .firstOrNull { it.exercise.id == exerciseId || it.id == exerciseId }
+            ?.sets
+            ?.filter { it.isCompleted }
+            ?: emptyList()
     }
 
     fun pauseWorkout() {

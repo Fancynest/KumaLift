@@ -486,6 +486,7 @@ fun ActiveWorkoutLoggerScreen(
                     items(workout.exercises, key = { it.id }) { we ->
                         ExerciseLoggingCard(
                             workoutExercise = we,
+                            previousSessionSets = workoutRepository.getPreviousCompletedSetsForExercise(we.exercise.id),
                             settings = settings,
                             onToggleSet = { setId ->
                                 workoutRepository.toggleSetCompletion(
@@ -561,8 +562,8 @@ fun ActiveWorkoutLoggerScreen(
                             onAddWarmupSets = {
                                 workoutRepository.addWarmupSetsToExercise(we.id)
                             },
-                            onApplyProgression = { newWeight ->
-                                workoutRepository.applyProgressionToExercise(we.id, newWeight)
+                            onApplyProgression = { newWeight, targetReps ->
+                                workoutRepository.applyProgressionToExercise(we.id, newWeight, targetReps)
                             },
                             onToggleSuperset = {
                                 val nextSs = when (we.supersetGroupId) {
@@ -839,6 +840,7 @@ private fun getWeightStep(
 fun ExerciseLoggingCard(
     workoutExercise: WorkoutExercise,
     settings: UserSettings,
+    previousSessionSets: List<SetLog> = emptyList(),
     onToggleSet: (String) -> Unit,
     onUpdateSet: (String, Double, Int) -> Unit,
     onUpdateSetType: (String, SetType) -> Unit,
@@ -852,7 +854,7 @@ fun ExerciseLoggingCard(
     onRemoveExercise: () -> Unit = {},
     onUpdateNotes: (String) -> Unit = {},
     onAddWarmupSets: () -> Unit = {},
-    onApplyProgression: (Double) -> Unit = {},
+    onApplyProgression: (Double, Int?) -> Unit = { _, _ -> },
     onToggleSuperset: () -> Unit = {}
 ) {
     val exercise = workoutExercise.exercise
@@ -875,7 +877,9 @@ fun ExerciseLoggingCard(
         )
     }
 
-    val currentTopWeight = workoutExercise.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg ?: 60.0
+    val currentTopWeight = workoutExercise.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg
+        ?: previousSessionSets.firstOrNull { it.weightKg > 0.0 }?.weightKg
+        ?: 60.0
 
     if (showPlateCalcModal) {
         PlateCalculatorDialog(
@@ -892,12 +896,15 @@ fun ExerciseLoggingCard(
         )
     }
 
-    val progressionAdvice = remember(workoutExercise.sets, currentTopWeight, settings.profile.goal) {
+    val setsToAnalyze = if (previousSessionSets.isNotEmpty()) previousSessionSets else workoutExercise.sets
+
+    val progressionAdvice = remember(setsToAnalyze, currentTopWeight, settings.profile.goal, settings.calculations.oneRepMaxFormula) {
         com.bearbones.kumalift.domain.model.ProgressionAdvisor.advise(
             exercise = exercise,
-            previousSets = workoutExercise.sets,
+            previousSets = setsToAnalyze,
             currentWeightKg = currentTopWeight,
-            trainingGoal = settings.profile.goal
+            trainingGoal = settings.profile.goal,
+            oneRmFormula = settings.calculations.oneRepMaxFormula
         )
     }
 
@@ -1062,58 +1069,172 @@ fun ExerciseLoggingCard(
             }
 
             // Progression Overload Advisor Banner
-            if (progressionAdvice is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseWeight) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(LocalKumaColors.current.recoveryFresh.copy(alpha = 0.12f))
-                        .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+            when (progressionAdvice) {
+                is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseWeight -> {
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LocalKumaColors.current.recoveryFresh.copy(alpha = 0.12f))
+                            .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("⚡", fontSize = 14.sp)
-                        Column {
-                            Text(
-                                text = s.progressionReady,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = LocalKumaColors.current.recoveryFresh
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("⚡", fontSize = 14.sp)
+                            Column {
+                                Text(
+                                    text = s.progressionReady,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = LocalKumaColors.current.recoveryFresh
+                                    )
                                 )
-                            )
-                            val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
-                            val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                                val e1RmText = if (progressionAdvice.projectedE1RmKg != null) " • ${s.estimatedOneRmLabel}: ${progressionAdvice.projectedE1RmKg} ${s.unitKg}" else ""
+                                Text(
+                                    text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)$e1RmText",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(LocalKumaColors.current.recoveryFresh)
+                                .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
                             Text(
-                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)",
+                                text = s.applyProgressionAction,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    color = KumaColors.TextMuted,
-                                    fontSize = 11.sp
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalKumaColors.current.onRecoveryFresh
                                 )
                             )
                         }
                     }
-                    Box(
+                }
+                is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseReps -> {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
                         modifier = Modifier
-                            .clip(PillShape)
-                            .background(LocalKumaColors.current.recoveryFresh)
-                            .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg) }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LocalKumaColors.current.accentFill.copy(alpha = 0.12f))
+                            .border(1.dp, LocalKumaColors.current.accentFill.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = s.applyProgressionAction,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = LocalKumaColors.current.onRecoveryFresh
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("🎯", fontSize = 14.sp)
+                            Column {
+                                Text(
+                                    text = s.progressionRepTarget,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = LocalKumaColors.current.accentFill
+                                    )
+                                )
+                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                                Text(
+                                    text = detailsText,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(LocalKumaColors.current.accentFill)
+                                .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = s.applyRepTargetAction,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalKumaColors.current.onAccentFill
+                                )
                             )
-                        )
+                        }
                     }
+                }
+                is com.bearbones.kumalift.domain.model.ProgressionAdvice.Deload -> {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(LocalKumaColors.current.recoveryTired.copy(alpha = 0.12f))
+                            .border(1.dp, LocalKumaColors.current.recoveryTired.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("🛡️", fontSize = 14.sp)
+                            Column {
+                                Text(
+                                    text = s.progressionDeload,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = LocalKumaColors.current.recoveryTired
+                                    )
+                                )
+                                val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
+                                val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
+                                Text(
+                                    text = detailsText,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = KumaColors.TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(LocalKumaColors.current.recoveryTired)
+                                .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = s.applyProgressionAction,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = LocalKumaColors.current.onRecoveryFresh
+                                )
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // MaintainOrConsolidate or Baseline
                 }
             }
 

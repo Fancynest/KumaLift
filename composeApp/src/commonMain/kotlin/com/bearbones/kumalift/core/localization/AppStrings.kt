@@ -607,7 +607,12 @@ interface AppStrings {
     val addWarmupSetsAction: String
     val warmupSetGenerated: String
     val progressionReady: String
+    val progressionRepTarget: String
+    val progressionConsolidate: String
+    val progressionDeload: String
     val applyProgressionAction: String
+    val applyRepTargetAction: String
+    val estimatedOneRmLabel: String
     val muscleRecoveryTitle: String
     val recoveryFresh: String
     val recoveryRecovering: String

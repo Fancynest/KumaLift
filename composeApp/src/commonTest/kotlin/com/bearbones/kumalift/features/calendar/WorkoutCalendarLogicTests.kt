@@ -216,4 +216,69 @@ class WorkoutCalendarLogicTests {
         assertEquals(7800L, statsNov.totalDurationSeconds, "Duration should sum Nov sessions")
         assertEquals(2000.0, statsNov.totalVolumeKg, "Volume should sum Nov workouts")
     }
+
+    @Test
+    fun testGroupScheduleEventsByLocalDate() {
+        val ev1 = com.bearbones.kumalift.domain.model.WorkoutScheduleEvent(
+            id = "ev1",
+            routineId = "r1",
+            scheduledDate = "2026-11-24",
+            routineTitleSnapshot = "Leg Day",
+            createdAtEpochMs = 1000L,
+            updatedAtEpochMs = 1000L
+        )
+        val ev2 = com.bearbones.kumalift.domain.model.WorkoutScheduleEvent(
+            id = "ev2",
+            routineId = "r2",
+            scheduledDate = "2026-11-24",
+            routineTitleSnapshot = "Core Blast",
+            createdAtEpochMs = 2000L,
+            updatedAtEpochMs = 2000L
+        )
+        val ev3 = com.bearbones.kumalift.domain.model.WorkoutScheduleEvent(
+            id = "ev3",
+            routineId = "r3",
+            scheduledDate = "2026-11-25",
+            routineTitleSnapshot = "Push Day",
+            createdAtEpochMs = 3000L,
+            updatedAtEpochMs = 3000L
+        )
+
+        val grouped = WorkoutCalendarLogic.groupScheduleEventsByLocalDate(listOf(ev1, ev2, ev3))
+
+        assertEquals(2, grouped[LocalDate(2026, 11, 24)]?.size)
+        assertEquals(1, grouped[LocalDate(2026, 11, 25)]?.size)
+        assertEquals(null, grouped[LocalDate(2026, 11, 26)])
+    }
+
+    @Test
+    fun testBuildMonthGridWithScheduledEvents() {
+        val today = LocalDate(2026, 11, 20)
+        val selectedDate = LocalDate(2026, 11, 24)
+        val ev = com.bearbones.kumalift.domain.model.WorkoutScheduleEvent(
+            id = "ev1",
+            routineId = "r1",
+            scheduledDate = "2026-11-24",
+            status = com.bearbones.kumalift.domain.model.ScheduleStatus.PLANNED,
+            routineTitleSnapshot = "Leg Day",
+            createdAtEpochMs = 1000L,
+            updatedAtEpochMs = 1000L
+        )
+        val scheduledByDate = WorkoutCalendarLogic.groupScheduleEventsByLocalDate(listOf(ev))
+
+        val grid = WorkoutCalendarLogic.buildMonthGrid(
+            year = 2026,
+            month = 11,
+            firstDayOfWeek = FirstDayOfWeek.MONDAY,
+            today = today,
+            selectedDate = selectedDate,
+            workoutsByDate = emptyMap(),
+            scheduledEventsByDate = scheduledByDate
+        )
+
+        val cellNov24 = grid.flatten().first { it.date == selectedDate }
+        assertTrue(cellNov24.hasScheduledWorkout, "Nov 24 should have scheduled workout")
+        assertFalse(cellNov24.hasCompletedWorkout, "Nov 24 should not have completed workout")
+        assertTrue(cellNov24.isSelected, "Nov 24 should be selected")
+    }
 }

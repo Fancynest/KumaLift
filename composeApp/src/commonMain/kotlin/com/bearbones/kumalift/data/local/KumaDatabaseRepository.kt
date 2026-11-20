@@ -18,6 +18,8 @@ import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
+import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
+import com.bearbones.kumalift.domain.model.ScheduleStatus
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -606,6 +608,7 @@ class KumaDatabaseRepository(
             queries.clearAllBodyweightLog()
             queries.clearActiveWorkout()
             queries.clearAllTrainingPrograms()
+            queries.clearAllWorkoutScheduleEvents()
         }
         saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
     }
@@ -617,5 +620,85 @@ class KumaDatabaseRepository(
             queries.clearAllWorkouts()
             queries.clearActiveWorkout()
         }
+    }
+
+    // ==========================================
+    // WORKOUT SCHEDULE EVENTS
+    // ==========================================
+
+    fun getAllScheduleEvents(): List<WorkoutScheduleEvent> {
+        return queries.selectAllScheduleEvents().executeAsList().map { it.toDomain() }
+    }
+
+    fun getScheduleEventsByDate(dateString: String): List<WorkoutScheduleEvent> {
+        return queries.selectScheduleEventsByDate(dateString).executeAsList().map { it.toDomain() }
+    }
+
+    fun getScheduleEventsByDateRange(startDate: String, endDate: String): List<WorkoutScheduleEvent> {
+        return queries.selectScheduleEventsByDateRange(startDate, endDate).executeAsList().map { it.toDomain() }
+    }
+
+    fun getScheduleEventById(id: String): WorkoutScheduleEvent? {
+        return queries.selectScheduleEventById(id).executeAsOneOrNull()?.toDomain()
+    }
+
+    fun insertScheduleEvent(event: WorkoutScheduleEvent) {
+        queries.insertScheduleEvent(
+            id = event.id,
+            routineId = event.routineId,
+            scheduledDate = event.scheduledDate,
+            status = event.status.name,
+            linkedWorkoutId = event.linkedWorkoutId,
+            routineTitleSnapshot = event.routineTitleSnapshot,
+            splitTypeSnapshot = event.splitTypeSnapshot,
+            notes = event.notes,
+            createdAtEpochMs = event.createdAtEpochMs,
+            updatedAtEpochMs = event.updatedAtEpochMs
+        )
+    }
+
+    fun updateScheduleEventDate(id: String, newDate: String, updatedAtEpochMs: Long = currentEpochMillis()) {
+        queries.updateScheduleEventDate(
+            scheduledDate = newDate,
+            updatedAtEpochMs = updatedAtEpochMs,
+            id = id
+        )
+    }
+
+    fun updateScheduleEventStatus(
+        id: String,
+        status: ScheduleStatus,
+        linkedWorkoutId: String? = null,
+        updatedAtEpochMs: Long = currentEpochMillis()
+    ) {
+        queries.updateScheduleEventStatus(
+            status = status.name,
+            linkedWorkoutId = linkedWorkoutId,
+            updatedAtEpochMs = updatedAtEpochMs,
+            id = id
+        )
+    }
+
+    fun deleteScheduleEvent(id: String) {
+        queries.deleteScheduleEvent(id)
+    }
+
+    fun clearAllWorkoutScheduleEvents() {
+        queries.clearAllWorkoutScheduleEvents()
+    }
+
+    private fun com.bearbones.kumalift.database.Workout_schedule_events.toDomain(): WorkoutScheduleEvent {
+        return WorkoutScheduleEvent(
+            id = id,
+            routineId = routineId,
+            scheduledDate = scheduledDate,
+            status = try { ScheduleStatus.valueOf(status) } catch (_: Exception) { ScheduleStatus.PLANNED },
+            linkedWorkoutId = linkedWorkoutId,
+            routineTitleSnapshot = routineTitleSnapshot,
+            splitTypeSnapshot = splitTypeSnapshot,
+            notes = notes,
+            createdAtEpochMs = createdAtEpochMs,
+            updatedAtEpochMs = updatedAtEpochMs
+        )
     }
 }

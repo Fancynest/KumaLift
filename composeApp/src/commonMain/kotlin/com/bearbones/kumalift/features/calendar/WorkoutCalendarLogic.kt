@@ -1,7 +1,9 @@
 package com.bearbones.kumalift.features.calendar
 
 import com.bearbones.kumalift.domain.model.FirstDayOfWeek
+import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.Workout
+import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -12,10 +14,15 @@ data class CalendarDayCellData(
     val isCurrentMonth: Boolean,
     val isToday: Boolean,
     val isSelected: Boolean,
-    val workouts: List<Workout> = emptyList()
+    val workouts: List<Workout> = emptyList(),
+    val scheduledEvents: List<WorkoutScheduleEvent> = emptyList(),
+    val recurringRoutines: List<RoutineBlueprint> = emptyList()
 ) {
     val hasCompletedWorkout: Boolean get() = workouts.isNotEmpty()
     val completedCount: Int get() = workouts.size
+    val hasScheduledWorkout: Boolean get() = scheduledEvents.any { it.isPlanned }
+    val scheduledCount: Int get() = scheduledEvents.count { it.isPlanned }
+    val hasRecurringRoutine: Boolean get() = recurringRoutines.isNotEmpty() && !hasCompletedWorkout && !hasScheduledWorkout
 }
 
 data class MonthlyWorkoutStats(
@@ -62,13 +69,26 @@ object WorkoutCalendarLogic {
         return map
     }
 
+    fun groupScheduleEventsByLocalDate(
+        events: List<WorkoutScheduleEvent>
+    ): Map<LocalDate, List<WorkoutScheduleEvent>> {
+        val map = mutableMapOf<LocalDate, MutableList<WorkoutScheduleEvent>>()
+        for (ev in events) {
+            val ld = ev.localDate ?: continue
+            map.getOrPut(ld) { mutableListOf() }.add(ev)
+        }
+        return map
+    }
+
     fun buildMonthGrid(
         year: Int,
         month: Int,
         firstDayOfWeek: FirstDayOfWeek,
         today: LocalDate,
         selectedDate: LocalDate,
-        workoutsByDate: Map<LocalDate, List<Workout>>
+        workoutsByDate: Map<LocalDate, List<Workout>>,
+        scheduledEventsByDate: Map<LocalDate, List<WorkoutScheduleEvent>> = emptyMap(),
+        routinesByDayOfWeek: Map<Int, List<RoutineBlueprint>> = emptyMap()
     ): List<List<CalendarDayCellData>> {
         val firstDayOfMonth = LocalDate(year, month, 1)
         val firstDayIso = firstDayOfMonth.dayOfWeek.ordinal + 1 // 1 = Mon, ..., 7 = Sun
@@ -81,38 +101,33 @@ object WorkoutCalendarLogic {
 
         val cells = mutableListOf<CalendarDayCellData>()
 
+        fun makeCell(date: LocalDate, isCurrentMonth: Boolean): CalendarDayCellData {
+            val isoDay = date.dayOfWeek.ordinal + 1
+            return CalendarDayCellData(
+                date = date,
+                isCurrentMonth = isCurrentMonth,
+                isToday = (date == today),
+                isSelected = (date == selectedDate),
+                workouts = workoutsByDate[date] ?: emptyList(),
+                scheduledEvents = scheduledEventsByDate[date] ?: emptyList(),
+                recurringRoutines = routinesByDayOfWeek[isoDay] ?: emptyList()
+            )
+        }
+
         // Leading days from previous month
         if (leadingDaysCount > 0) {
             val (prevYear, prevMonth) = previousMonth(year, month)
             val prevMonthDaysCount = daysInMonth(prevYear, prevMonth)
             val startDay = prevMonthDaysCount - leadingDaysCount + 1
             for (day in startDay..prevMonthDaysCount) {
-                val date = LocalDate(prevYear, prevMonth, day)
-                cells.add(
-                    CalendarDayCellData(
-                        date = date,
-                        isCurrentMonth = false,
-                        isToday = (date == today),
-                        isSelected = (date == selectedDate),
-                        workouts = workoutsByDate[date] ?: emptyList()
-                    )
-                )
+                cells.add(makeCell(LocalDate(prevYear, prevMonth, day), isCurrentMonth = false))
             }
         }
 
         // Current month days
         val currentMonthDaysCount = daysInMonth(year, month)
         for (day in 1..currentMonthDaysCount) {
-            val date = LocalDate(year, month, day)
-            cells.add(
-                CalendarDayCellData(
-                    date = date,
-                    isCurrentMonth = true,
-                    isToday = (date == today),
-                    isSelected = (date == selectedDate),
-                    workouts = workoutsByDate[date] ?: emptyList()
-                )
-            )
+            cells.add(makeCell(LocalDate(year, month, day), isCurrentMonth = true))
         }
 
         // Trailing days from next month to complete the week grid
@@ -121,16 +136,7 @@ object WorkoutCalendarLogic {
             val trailingDaysCount = 7 - remainder
             val (nextYear, nextMonth) = nextMonth(year, month)
             for (day in 1..trailingDaysCount) {
-                val date = LocalDate(nextYear, nextMonth, day)
-                cells.add(
-                    CalendarDayCellData(
-                        date = date,
-                        isCurrentMonth = false,
-                        isToday = (date == today),
-                        isSelected = (date == selectedDate),
-                        workouts = workoutsByDate[date] ?: emptyList()
-                    )
-                )
+                cells.add(makeCell(LocalDate(nextYear, nextMonth, day), isCurrentMonth = false))
             }
         }
 

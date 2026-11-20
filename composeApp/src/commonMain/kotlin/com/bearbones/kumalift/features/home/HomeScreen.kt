@@ -61,6 +61,7 @@ import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.data.repository.WorkoutScheduleRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.TrainingGoal
@@ -83,6 +84,7 @@ fun HomeScreen(
     routineRepository: com.bearbones.kumalift.data.repository.RoutineRepository? = null,
     trainingProgramRepository: com.bearbones.kumalift.data.repository.TrainingProgramRepository? = null,
     personalRecordRepository: com.bearbones.kumalift.data.repository.PersonalRecordRepository? = null,
+    workoutScheduleRepository: WorkoutScheduleRepository? = null,
     onStartWorkout: () -> Unit,
     onStartFreestyle: () -> Unit,
     onOpenSettings: () -> Unit
@@ -90,6 +92,7 @@ fun HomeScreen(
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
+    val scheduledEvents by (workoutScheduleRepository?.events ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val prList by (personalRecordRepository?.personalRecords ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val routines by (routineRepository?.routines ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val programs by (trainingProgramRepository?.programs ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
@@ -494,7 +497,36 @@ fun HomeScreen(
                         WorkoutCalendarSection(
                             completedWorkouts = completedWorkouts,
                             firstDayOfWeek = settings.units.firstDayOfWeek,
-                            weightUnit = settings.units.weightUnit
+                            weightUnit = settings.units.weightUnit,
+                            scheduledEvents = scheduledEvents,
+                            routines = routines,
+                            onScheduleRoutine = { routine, date, notes ->
+                                workoutScheduleRepository?.scheduleRoutine(
+                                    routineId = routine.id,
+                                    routineTitle = routine.title,
+                                    splitType = routine.splitCategory,
+                                    scheduledDate = date,
+                                    notes = notes
+                                )
+                            },
+                            onRescheduleEvent = { eventId, newDate ->
+                                workoutScheduleRepository?.rescheduleEvent(eventId, newDate)
+                            },
+                            onCancelEvent = { eventId ->
+                                workoutScheduleRepository?.cancelEvent(eventId)
+                            },
+                            onRestoreEvent = { eventId ->
+                                workoutScheduleRepository?.uncancelEvent(eventId)
+                            },
+                            onDeleteEvent = { eventId ->
+                                workoutScheduleRepository?.deleteEvent(eventId)
+                            },
+                            onStartScheduledWorkout = { routineId ->
+                                routineRepository?.getRoutineById(routineId)?.let { r ->
+                                    workoutRepository.startWorkoutFromRoutine(r)
+                                    onStartWorkout()
+                                }
+                            }
                         )
                     }
                 }

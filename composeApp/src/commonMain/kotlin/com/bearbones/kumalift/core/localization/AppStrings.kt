@@ -848,4 +848,16 @@ interface AppStrings {
     val totalDurationLabel: String
     val noActivityOnDate: String
     fun sessionsCount(count: Int): String
+    val addScheduleWorkout: String
+    val rescheduleWorkout: String
+    val cancelSchedule: String
+    val restoreSchedule: String
+    val deleteSchedule: String
+    val selectRoutineToSchedule: String
+    val scheduleNotesPlaceholder: String
+    val scheduleDateLabel: String
+    val noRoutinesAvailable: String
+    val startScheduledWorkout: String
+    val cancelledStatus: String
+    val scheduleRoutineTitle: String
 }

@@ -139,12 +139,28 @@ CREATE TABLE safety_snapshots (
     payloadJson TEXT NOT NULL
 );
 
+CREATE TABLE workout_schedule_events (
+    id TEXT NOT NULL PRIMARY KEY,
+    routineId TEXT,
+    scheduledDate TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'PLANNED',
+    linkedWorkoutId TEXT,
+    routineTitleSnapshot TEXT NOT NULL,
+    splitTypeSnapshot TEXT,
+    notes TEXT,
+    createdAtEpochMs INTEGER NOT NULL,
+    updatedAtEpochMs INTEGER NOT NULL,
+    FOREIGN KEY (routineId) REFERENCES routines(id) ON DELETE SET NULL,
+    FOREIGN KEY (linkedWorkoutId) REFERENCES workouts(id) ON DELETE SET NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
 CREATE INDEX idx_sets_workout ON sets(workoutId);
 CREATE INDEX idx_prs_exercise ON personal_records(exerciseId);
 CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routineId);
+CREATE INDEX idx_workout_schedule_events_date ON workout_schedule_events(scheduledDate);
 
 -- Queries for Workouts
 selectAllCompletedWorkouts:
@@ -341,3 +357,39 @@ DELETE FROM custom_exercises;
 
 clearAllBodyweightLog:
 DELETE FROM bodyweight_log;
+
+-- Queries for Workout Schedule Events
+selectAllScheduleEvents:
+SELECT * FROM workout_schedule_events ORDER BY scheduledDate ASC, createdAtEpochMs ASC;
+
+selectScheduleEventsByDate:
+SELECT * FROM workout_schedule_events WHERE scheduledDate = ? ORDER BY createdAtEpochMs ASC;
+
+selectScheduleEventsByDateRange:
+SELECT * FROM workout_schedule_events WHERE scheduledDate >= ? AND scheduledDate <= ? ORDER BY scheduledDate ASC, createdAtEpochMs ASC;
+
+selectScheduleEventById:
+SELECT * FROM workout_schedule_events WHERE id = ?;
+
+insertScheduleEvent:
+INSERT OR REPLACE INTO workout_schedule_events (
+    id, routineId, scheduledDate, status, linkedWorkoutId,
+    routineTitleSnapshot, splitTypeSnapshot, notes,
+    createdAtEpochMs, updatedAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateScheduleEventDate:
+UPDATE workout_schedule_events
+SET scheduledDate = ?, updatedAtEpochMs = ?
+WHERE id = ?;
+
+updateScheduleEventStatus:
+UPDATE workout_schedule_events
+SET status = ?, linkedWorkoutId = ?, updatedAtEpochMs = ?
+WHERE id = ?;
+
+deleteScheduleEvent:
+DELETE FROM workout_schedule_events WHERE id = ?;
+
+clearAllWorkoutScheduleEvents:
+DELETE FROM workout_schedule_events;

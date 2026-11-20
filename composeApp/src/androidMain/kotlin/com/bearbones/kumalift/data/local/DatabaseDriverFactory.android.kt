@@ -123,5 +123,33 @@ actual class DatabaseDriverFactory(private val context: Context) {
                 0
             )
         } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS workout_schedule_events (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    routineId TEXT,
+                    scheduledDate TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'PLANNED',
+                    linkedWorkoutId TEXT,
+                    routineTitleSnapshot TEXT NOT NULL,
+                    splitTypeSnapshot TEXT,
+                    notes TEXT,
+                    createdAtEpochMs INTEGER NOT NULL,
+                    updatedAtEpochMs INTEGER NOT NULL,
+                    FOREIGN KEY (routineId) REFERENCES routines(id) ON DELETE SET NULL,
+                    FOREIGN KEY (linkedWorkoutId) REFERENCES workouts(id) ON DELETE SET NULL
+                );
+                """.trimIndent(),
+                0
+            )
+            driver.execute(
+                null,
+                "CREATE INDEX IF NOT EXISTS idx_workout_schedule_events_date ON workout_schedule_events(scheduledDate);",
+                0
+            )
+        } catch (_: Exception) {}
     }
 }

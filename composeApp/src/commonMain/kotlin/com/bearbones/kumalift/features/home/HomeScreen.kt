@@ -380,170 +380,7 @@ fun HomeScreen(
                     }
                 }
 
-                // 2. Weekly Horizon (7-Day Tracker)
-                if (settings.appearance.showWeeklyHorizon) {
-                    item {
-                        KumaCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showScheduleModal = true },
-                            backgroundColor = KumaColors.SurfaceContainerLow,
-                            cornerRadius = 18.dp
-                        ) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CalendarToday,
-                                            contentDescription = null,
-                                            tint = LocalKumaColors.current.accentText,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = s.thisWeekLabel,
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(PillShape)
-                                            .background(KumaColors.ElectricLime)
-                                            .border(
-                                                1.dp,
-                                                if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder,
-                                                PillShape
-                                            )
-                                            .padding(horizontal = 12.dp, vertical = 3.dp)
-                                    ) {
-                                        val targetWeeklyDays = remember(programs, settings.profile.trainingDaysPerWeek) {
-                                            val totalScheduledDays = programs.flatMap { it.activeDays }.toSet().size
-                                            if (totalScheduledDays > 0) totalScheduledDays else settings.profile.trainingDaysPerWeek
-                                        }
-                                        Text(
-                                            text = s.workoutsTargetCount(weekWorkoutsCount, targetWeeklyDays),
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = KumaColors.OnElectricLime,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                // 7 Days Grid with firstDayOfWeek setting and honest dynamic completion tracking
-                                val nowInstant = Clock.System.now()
-                                val nowDt = nowInstant.toLocalDateTime(TimeZone.currentSystemDefault())
-                                val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, ..., 7 = Sunday
-
-                                val firstDay = settings.units.firstDayOfWeek
-                                val dayIndices = when (firstDay) {
-                                    FirstDayOfWeek.MONDAY -> listOf(1, 2, 3, 4, 5, 6, 7)
-                                    FirstDayOfWeek.SUNDAY -> listOf(7, 1, 2, 3, 4, 5, 6)
-                                    FirstDayOfWeek.SATURDAY -> listOf(6, 7, 1, 2, 3, 4, 5)
-                                }
-                                val dayLabels = when (firstDay) {
-                                    FirstDayOfWeek.MONDAY -> s.daysMondayStart
-                                    FirstDayOfWeek.SUNDAY -> s.daysSundayStart
-                                    FirstDayOfWeek.SATURDAY -> s.daysSaturdayStart
-                                }
-
-                                val daysDone = dayIndices.map { dayNum ->
-                                    thisWeekWorkouts.any { w ->
-                                        val wDt = kotlinx.datetime.Instant.fromEpochMilliseconds(w.startTimeEpochMs).toLocalDateTime(TimeZone.currentSystemDefault())
-                                        (wDt.dayOfWeek.ordinal + 1) == dayNum
-                                    }
-                                }
-
-                                val plannedDays = remember(programs, routines, settings.profile.selectedTrainingDays) {
-                                    val routineDays = routines.flatMap { it.scheduledDays }.toSet()
-                                    if (routineDays.isNotEmpty()) {
-                                        routineDays
-                                    } else {
-                                        val allDays = programs.flatMap { it.activeDays }.toSet()
-                                        if (allDays.isNotEmpty()) allDays else settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) }.toSet()
-                                    }
-                                }
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    dayIndices.forEachIndexed { idx, dayNum ->
-                                        val isDone = daysDone[idx]
-                                        val isToday = dayNum == todayDayOfWeek
-                                        val isPlanned = plannedDays.contains(dayNum)
-                                        DayCircle(
-                                            day = dayLabels[idx],
-                                            isDone = isDone,
-                                            isRest = !isPlanned && !isDone,
-                                            isActive = isToday && !isDone
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 2b. Workout Calendar Section
-                if (settings.appearance.showWorkoutCalendar) {
-                    item {
-                        WorkoutCalendarSection(
-                            completedWorkouts = completedWorkouts,
-                            firstDayOfWeek = settings.units.firstDayOfWeek,
-                            weightUnit = settings.units.weightUnit,
-                            scheduledEvents = scheduledEvents,
-                            routines = routines,
-                            onScheduleRoutine = { routine, date, notes ->
-                                workoutScheduleRepository?.scheduleRoutine(
-                                    routineId = routine.id,
-                                    routineTitle = routine.title,
-                                    splitType = routine.splitCategory,
-                                    scheduledDate = date,
-                                    notes = notes
-                                )
-                            },
-                            onRescheduleEvent = { eventId, newDate ->
-                                workoutScheduleRepository?.rescheduleEvent(eventId, newDate)
-                            },
-                            onCancelEvent = { eventId ->
-                                workoutScheduleRepository?.cancelEvent(eventId)
-                            },
-                            onRestoreEvent = { eventId ->
-                                workoutScheduleRepository?.uncancelEvent(eventId)
-                            },
-                            onDeleteEvent = { eventId ->
-                                workoutScheduleRepository?.deleteEvent(eventId)
-                            },
-                            onStartScheduledWorkout = { eventId, routineId ->
-                                routineRepository?.getRoutineById(routineId)?.let { r ->
-                                    workoutRepository.startWorkoutFromRoutine(r, scheduledEventId = eventId)
-                                    onStartWorkout()
-                                }
-                            }
-                        )
-                    }
-                }
-
-                // 2c. Mesocycle & Deload Block Section
-                if (mesocycleRepository != null) {
-                    item {
-                        MesocycleSection(mesocycleRepository = mesocycleRepository)
-                    }
-                }
-
-                // 3. Today's Workout Card(s) (Hero)
+                // 2. Today's Workout Card(s) (Hero Action - Above The Fold)
                 item {
                     if (todayScheduledPrograms.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -728,10 +565,173 @@ fun HomeScreen(
                     }
                 }
 
-                // Daily Readiness Check-In Card
+                // 3. Daily Readiness Check-In Card
                 if (dailyReadinessRepository != null) {
                     item {
                         DailyReadinessCard(readinessRepository = dailyReadinessRepository)
+                    }
+                }
+
+                // 4. Mesocycle & Deload Block Section
+                if (mesocycleRepository != null) {
+                    item {
+                        MesocycleSection(mesocycleRepository = mesocycleRepository)
+                    }
+                }
+
+                // 5. Weekly Horizon (7-Day Tracker)
+                if (settings.appearance.showWeeklyHorizon) {
+                    item {
+                        KumaCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showScheduleModal = true },
+                            backgroundColor = KumaColors.SurfaceContainerLow,
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = LocalKumaColors.current.accentText,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = s.thisWeekLabel,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(PillShape)
+                                            .background(KumaColors.ElectricLime)
+                                            .border(
+                                                1.dp,
+                                                if (LocalKumaColors.current.isDark) Color.Transparent else LocalKumaColors.current.accentFillBorder,
+                                                PillShape
+                                            )
+                                            .padding(horizontal = 12.dp, vertical = 3.dp)
+                                    ) {
+                                        val targetWeeklyDays = remember(programs, settings.profile.trainingDaysPerWeek) {
+                                            val totalScheduledDays = programs.flatMap { it.activeDays }.toSet().size
+                                            if (totalScheduledDays > 0) totalScheduledDays else settings.profile.trainingDaysPerWeek
+                                        }
+                                        Text(
+                                            text = s.workoutsTargetCount(weekWorkoutsCount, targetWeeklyDays),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = KumaColors.OnElectricLime,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 7 Days Grid with firstDayOfWeek setting and honest dynamic completion tracking
+                                val nowInstant = Clock.System.now()
+                                val nowDt = nowInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+                                val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1 // 1 = Monday, ..., 7 = Sunday
+
+                                val firstDay = settings.units.firstDayOfWeek
+                                val dayIndices = when (firstDay) {
+                                    FirstDayOfWeek.MONDAY -> listOf(1, 2, 3, 4, 5, 6, 7)
+                                    FirstDayOfWeek.SUNDAY -> listOf(7, 1, 2, 3, 4, 5, 6)
+                                    FirstDayOfWeek.SATURDAY -> listOf(6, 7, 1, 2, 3, 4, 5)
+                                }
+                                val dayLabels = when (firstDay) {
+                                    FirstDayOfWeek.MONDAY -> s.daysMondayStart
+                                    FirstDayOfWeek.SUNDAY -> s.daysSundayStart
+                                    FirstDayOfWeek.SATURDAY -> s.daysSaturdayStart
+                                }
+
+                                val daysDone = dayIndices.map { dayNum ->
+                                    thisWeekWorkouts.any { w ->
+                                        val wDt = kotlinx.datetime.Instant.fromEpochMilliseconds(w.startTimeEpochMs).toLocalDateTime(TimeZone.currentSystemDefault())
+                                        (wDt.dayOfWeek.ordinal + 1) == dayNum
+                                    }
+                                }
+
+                                val plannedDays = remember(programs, routines, settings.profile.selectedTrainingDays) {
+                                    val routineDays = routines.flatMap { it.scheduledDays }.toSet()
+                                    if (routineDays.isNotEmpty()) {
+                                        routineDays
+                                    } else {
+                                        val allDays = programs.flatMap { it.activeDays }.toSet()
+                                        if (allDays.isNotEmpty()) allDays else settings.profile.selectedTrainingDays.ifEmpty { listOf(1, 3, 5) }.toSet()
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    dayIndices.forEachIndexed { idx, dayNum ->
+                                        val isDone = daysDone[idx]
+                                        val isToday = dayNum == todayDayOfWeek
+                                        val isPlanned = plannedDays.contains(dayNum)
+                                        DayCircle(
+                                            day = dayLabels[idx],
+                                            isDone = isDone,
+                                            isRest = !isPlanned && !isDone,
+                                            isActive = isToday && !isDone
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 6. Workout Calendar Section
+                if (settings.appearance.showWorkoutCalendar) {
+                    item {
+                        WorkoutCalendarSection(
+                            completedWorkouts = completedWorkouts,
+                            firstDayOfWeek = settings.units.firstDayOfWeek,
+                            weightUnit = settings.units.weightUnit,
+                            scheduledEvents = scheduledEvents,
+                            routines = routines,
+                            onScheduleRoutine = { routine, date, notes ->
+                                workoutScheduleRepository?.scheduleRoutine(
+                                    routineId = routine.id,
+                                    routineTitle = routine.title,
+                                    splitType = routine.splitCategory,
+                                    scheduledDate = date,
+                                    notes = notes
+                                )
+                            },
+                            onRescheduleEvent = { eventId, newDate ->
+                                workoutScheduleRepository?.rescheduleEvent(eventId, newDate)
+                            },
+                            onCancelEvent = { eventId ->
+                                workoutScheduleRepository?.cancelEvent(eventId)
+                            },
+                            onRestoreEvent = { eventId ->
+                                workoutScheduleRepository?.uncancelEvent(eventId)
+                            },
+                            onDeleteEvent = { eventId ->
+                                workoutScheduleRepository?.deleteEvent(eventId)
+                            },
+                            onStartScheduledWorkout = { eventId, routineId ->
+                                routineRepository?.getRoutineById(routineId)?.let { r ->
+                                    workoutRepository.startWorkoutFromRoutine(r, scheduledEventId = eventId)
+                                    onStartWorkout()
+                                }
+                            }
+                        )
                     }
                 }
 

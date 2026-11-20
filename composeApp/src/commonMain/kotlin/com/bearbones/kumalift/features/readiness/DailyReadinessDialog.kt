@@ -306,6 +306,7 @@ private fun ReadinessPillarRow(
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .height(46.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) colors.accentFill else colors.surfaceVariant)
                         .border(
@@ -313,15 +314,15 @@ private fun ReadinessPillarRow(
                             color = if (isSelected) colors.accentFill else colors.border,
                             shape = RoundedCornerShape(8.dp)
                         )
-                        .clickable { onValueChange(level) }
-                        .padding(vertical = 8.dp),
+                        .clickable { onValueChange(level) },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "$level",
-                        style = MaterialTheme.typography.labelSmall.copy(
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isSelected) colors.onAccentFill else colors.textPrimary
+                            color = if (isSelected) colors.onAccentFill else colors.textPrimary,
+                            fontSize = 14.sp
                         )
                     )
                 }

@@ -238,21 +238,21 @@ fun SmartAlternativeDialog(
                                             )
                                         }
 
-                                        // Equipment Code Badge
+                                        // Equipment Label Badge
                                         Text(
-                                            text = "• ${item.exercise.equipment.code}",
+                                            text = "• ${item.exercise.equipment.label(s)}",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = colors.textSecondary,
-                                                fontSize = 10.sp
+                                                fontSize = 11.sp
                                             )
                                         )
 
                                         // Movement Type Badge
                                         Text(
-                                            text = "• ${item.exercise.movementType.name}",
+                                            text = "• ${item.exercise.movementType.label(s)}",
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = colors.textSecondary,
-                                                fontSize = 10.sp
+                                                fontSize = 11.sp
                                             )
                                         )
                                     }

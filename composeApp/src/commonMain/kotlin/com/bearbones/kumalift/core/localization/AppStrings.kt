@@ -905,4 +905,13 @@ interface AppStrings {
     val tapMuscleToInspectLabel: String
     fun volumeRecommendationHint(statusCode: String, setsNeeded: Int): String
     fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int): String
+
+    // Smart Exercise Alternatives (P2)
+    val smartAlternativesTitle: String
+    val smartAlternativesSubtitle: String
+    val matchReasonSamePattern: String
+    val matchReasonSameMuscle: String
+    val matchReasonSecondary: String
+    val allEquipmentLabel: String
+    val swapExerciseButton: String
 }

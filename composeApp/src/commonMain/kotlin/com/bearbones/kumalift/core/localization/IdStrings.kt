@@ -1023,4 +1023,13 @@ object IdStrings : AppStrings {
     }
     override fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int) =
         "MEV: $mev · MAV: $mavMin–$mavMax · MRV: $mrv set"
+
+    // Smart Exercise Alternatives (P2)
+    override val smartAlternativesTitle = "Alternatif Gerakan Pintar"
+    override val smartAlternativesSubtitle = "Pengganti biomekanis teratas untuk gerakan ini"
+    override val matchReasonSamePattern = "Pola Gerakan Serupa"
+    override val matchReasonSameMuscle = "Otot Utama Sama"
+    override val matchReasonSecondary = "Otot Sinergis Pendukung"
+    override val allEquipmentLabel = "Semua Alat"
+    override val swapExerciseButton = "Ganti Gerakan"
 }

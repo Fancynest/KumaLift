@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
@@ -597,6 +598,9 @@ fun ActiveWorkoutLoggerScreen(
                             onAddWarmupSets = {
                                 workoutRepository.addWarmupSetsToExercise(we.id)
                             },
+                            onReplaceExercise = { newExercise ->
+                                workoutRepository.replaceExerciseInActiveWorkout(we.id, newExercise)
+                            },
                             onApplyProgression = { newWeight, targetReps ->
                                 workoutRepository.applyProgressionToExercise(we.id, newWeight, targetReps)
                             },
@@ -889,6 +893,7 @@ fun ExerciseLoggingCard(
     onRemoveExercise: () -> Unit = {},
     onUpdateNotes: (String) -> Unit = {},
     onAddWarmupSets: () -> Unit = {},
+    onReplaceExercise: (Exercise) -> Unit = {},
     onApplyProgression: (Double, Int?) -> Unit = { _, _ -> },
     onToggleSuperset: () -> Unit = {}
 ) {
@@ -897,6 +902,19 @@ fun ExerciseLoggingCard(
     var showMenu by remember { mutableStateOf(false) }
     var showPlateCalcModal by remember { mutableStateOf(false) }
     var showRestTimerModal by remember { mutableStateOf(false) }
+    var showAlternativesModal by remember { mutableStateOf(false) }
+
+    if (showAlternativesModal) {
+        SmartAlternativeDialog(
+            currentExercise = exercise,
+            allExercises = com.bearbones.kumalift.data.local.ExerciseDataset.allExercises,
+            onSelectAlternative = { newEx ->
+                onReplaceExercise(newEx)
+                showAlternativesModal = false
+            },
+            onDismiss = { showAlternativesModal = false }
+        )
+    }
 
     if (showRestTimerModal) {
         ExerciseRestTimerDialog(
@@ -1032,6 +1050,20 @@ fun ExerciseLoggingCard(
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = LocalKumaColors.current.accentText
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(s.replaceExerciseAction, style = MaterialTheme.typography.bodyMedium) },
+                            onClick = {
+                                showMenu = false
+                                showAlternativesModal = true
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.SwapHoriz,
                                     contentDescription = null,
                                     tint = LocalKumaColors.current.accentText
                                 )

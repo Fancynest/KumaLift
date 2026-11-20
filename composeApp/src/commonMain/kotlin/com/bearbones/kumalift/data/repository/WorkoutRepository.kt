@@ -842,6 +842,22 @@ class WorkoutRepository(
         KumaLogger.i("WorkoutRepository", "Removed exercise $workoutExerciseId from active workout")
     }
 
+    fun replaceExerciseInActiveWorkout(workoutExerciseId: String, newExercise: Exercise) {
+        _activeWorkout.update { currentWorkout ->
+            if (currentWorkout == null) return@update null
+            val updatedExercises = currentWorkout.exercises.map { we ->
+                if (we.id == workoutExerciseId || we.exercise.id == workoutExerciseId) {
+                    we.copy(exercise = newExercise)
+                } else {
+                    we
+                }
+            }
+            currentWorkout.copy(exercises = updatedExercises)
+        }
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+        KumaLogger.i("WorkoutRepository", "Replaced exercise $workoutExerciseId with ${newExercise.name}")
+    }
+
     fun updateWorkoutNotes(notes: String) {
         _activeWorkout.update { it?.copy(notes = notes) }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)

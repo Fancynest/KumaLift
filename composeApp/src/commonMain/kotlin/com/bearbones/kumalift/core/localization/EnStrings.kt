@@ -1023,4 +1023,13 @@ object EnStrings : AppStrings {
     }
     override fun landmarkValuesFormat(mev: Int, mavMin: Int, mavMax: Int, mrv: Int) =
         "MEV: $mev · MAV: $mavMin–$mavMax · MRV: $mrv sets"
+
+    // Smart Exercise Alternatives (P2)
+    override val smartAlternativesTitle = "Smart Exercise Alternatives"
+    override val smartAlternativesSubtitle = "Ranked biomechanical substitutes for this movement"
+    override val matchReasonSamePattern = "Same Movement Pattern"
+    override val matchReasonSameMuscle = "Same Primary Muscle"
+    override val matchReasonSecondary = "Synergist Muscle Overlap"
+    override val allEquipmentLabel = "All Equipment"
+    override val swapExerciseButton = "Swap Exercise"
 }

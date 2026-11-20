@@ -571,6 +571,7 @@ class WorkoutRepository(
 
         _activeWorkout.value = newWorkout
         databaseRepo?.saveActiveWorkout(newWorkout)
+        SmartwatchCompanionManager.connect()
         KumaLogger.i("WorkoutRepository", "Started workout from routine '${routine.title}' with ${workoutExercises.size} exercises")
     }
 
@@ -586,6 +587,7 @@ class WorkoutRepository(
         )
         _activeWorkout.value = newWorkout
         databaseRepo?.saveActiveWorkout(newWorkout)
+        SmartwatchCompanionManager.connect()
         KumaLogger.i("WorkoutRepository", "Started freestyle workout: $title")
     }
 

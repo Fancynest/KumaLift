@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.health
 
+import android.content.Intent
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -12,6 +13,9 @@ import com.bearbones.kumalift.domain.model.HealthPlatformType
 import com.bearbones.kumalift.domain.model.HealthSyncResult
 import com.bearbones.kumalift.domain.model.HealthSyncStatus
 import com.bearbones.kumalift.domain.model.WorkoutHealthRecord
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -23,8 +27,28 @@ actual object HealthSyncManager {
         HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class)
     )
 
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private var hasPermissionsGranted: Boolean = false
+
     var isTestMode: Boolean = false
     var mockSuccess: Boolean = true
+
+    init {
+        scope.launch {
+            checkPermissionsInternal()
+        }
+    }
+
+    private suspend fun checkPermissionsInternal(): Boolean {
+        val client = getClient() ?: return false
+        return try {
+            val granted = client.permissionController.getGrantedPermissions()
+            hasPermissionsGranted = granted.containsAll(requiredPermissions)
+            hasPermissionsGranted
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     private fun getClient(): HealthConnectClient? {
         val context = AndroidAppProvider.appContext ?: return null
@@ -54,24 +78,35 @@ actual object HealthSyncManager {
             return HealthSyncStatus.UNAVAILABLE
         }
 
-        return try {
-            val client = getClient() ?: return HealthSyncStatus.UNAVAILABLE
+        return if (hasPermissionsGranted) {
             HealthSyncStatus.CONNECTED
-        } catch (e: Exception) {
+        } else {
             HealthSyncStatus.PERMISSION_REQUIRED
         }
     }
 
     actual suspend fun requestPermissions(): Boolean {
         if (isTestMode) return true
-        val client = getClient() ?: return false
-        return try {
-            val granted = client.permissionController.getGrantedPermissions()
-            granted.containsAll(requiredPermissions)
+        val context = AndroidAppProvider.appContext ?: return false
+        val already = checkPermissionsInternal()
+        if (already) return true
+
+        try {
+            val intent = Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
         } catch (e: Exception) {
-            KumaLogger.e("HealthSyncManager", "Failed to check granted permissions: ${e.message}")
-            false
+            try {
+                val fallbackIntent = Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(fallbackIntent)
+            } catch (ignored: Exception) {
+                KumaLogger.w("HealthSyncManager", "Cannot open Health Connect settings: ${ignored.message}")
+            }
         }
+        return false
     }
 
     actual suspend fun syncWorkout(record: WorkoutHealthRecord): HealthSyncResult {

@@ -1075,4 +1075,12 @@ object EnStrings : AppStrings {
     override val smartwatchDisconnectedStatus = "No Companion Watch Connected"
     override val smartwatchConnectAction = "Connect Watch"
     override val smartwatchDisconnectAction = "Disconnect Watch"
+
+    override val bleHeartRateTitle = "Heart Rate Monitor (BLE)"
+    override val bleHeartRateSubtitle = "Connect Bluetooth smartband or chest strap (Mi Band, Polar, Garmin)"
+    override val bleScanAction = "Scan for Devices"
+    override val bleScanningStatus = "Scanning for Bluetooth monitors..."
+    override val bleDisconnectAction = "Disconnect"
+    override val bleNoDevicesFound = "No Bluetooth heart rate monitors found nearby"
+    override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm BPM" }
 }

@@ -1,11 +1,14 @@
 package com.bearbones.kumalift.domain.model
 
+import com.bearbones.kumalift.core.bluetooth.BleHeartRateManager
 import com.bearbones.kumalift.core.health.HealthSyncManager
 import com.bearbones.kumalift.core.smartwatch.SmartwatchCompanionManager
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HealthAndCompanionTests {
@@ -103,5 +106,26 @@ class HealthAndCompanionTests {
         assertTrue(settings.liveTimerSync)
         assertTrue(settings.hapticAlertsOnWatch)
         assertTrue(settings.autoConnectOnWorkoutStart)
+    }
+
+    @Test
+    fun testBleHeartRateManagerLifecycle() {
+        BleHeartRateManager.disconnect()
+        assertNull(BleHeartRateManager.connectedDevice.value)
+        assertNull(BleHeartRateManager.currentHeartRateBpm.value)
+
+        BleHeartRateManager.startScan()
+        assertTrue(BleHeartRateManager.isScanning.value)
+        assertTrue(BleHeartRateManager.discoveredDevices.value.isNotEmpty())
+
+        val target = BleHeartRateManager.discoveredDevices.value.first()
+        BleHeartRateManager.connect(target)
+        assertFalse(BleHeartRateManager.isScanning.value)
+        assertEquals(target, BleHeartRateManager.connectedDevice.value)
+        assertNotNull(BleHeartRateManager.currentHeartRateBpm.value)
+
+        BleHeartRateManager.disconnect()
+        assertNull(BleHeartRateManager.connectedDevice.value)
+        assertNull(BleHeartRateManager.currentHeartRateBpm.value)
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bearbones.kumalift.core.bluetooth.BleHeartRateManager
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -54,6 +56,11 @@ fun SmartwatchSettingsPage(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     val watchStatus by SmartwatchCompanionManager.connectionStatus.collectAsState()
+
+    val isBleScanning by BleHeartRateManager.isScanning.collectAsState()
+    val discoveredBleDevices by BleHeartRateManager.discoveredDevices.collectAsState()
+    val connectedBleDevice by BleHeartRateManager.connectedDevice.collectAsState()
+    val currentBleBpm by BleHeartRateManager.currentHeartRateBpm.collectAsState()
 
     val deviceName = when (SmartwatchCompanionManager.deviceType) {
         SmartwatchDeviceType.WEAR_OS -> "Wear OS"
@@ -312,6 +319,148 @@ fun SmartwatchSettingsPage(
                                     checkedTrackColor = colors.accentText.copy(alpha = 0.35f)
                                 )
                             )
+                        }
+                    }
+                }
+
+                // 3. Bluetooth Heart Rate Monitor (Smartband / Strap) Card
+                KumaCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = KumaColors.SurfaceContainerLow,
+                    cornerRadius = 16.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = colors.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = s.bleHeartRateTitle,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                            }
+
+                            if (connectedBleDevice != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(colors.recoveryFresh.copy(alpha = 0.15f))
+                                        .border(1.dp, colors.recoveryFresh, PillShape)
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = s.bleConnectedDeviceFormat(
+                                            connectedBleDevice?.name ?: "",
+                                            currentBleBpm ?: 0
+                                        ),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.recoveryFresh,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = s.bleHeartRateSubtitle,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textSecondary
+                            )
+                        )
+
+                        if (connectedBleDevice != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(colors.surfaceVariant)
+                                    .clickable { BleHeartRateManager.disconnect() }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = s.bleDisconnectAction,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.error
+                                    )
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(colors.accentFill)
+                                    .clickable {
+                                        if (isBleScanning) {
+                                            BleHeartRateManager.stopScan()
+                                        } else {
+                                            BleHeartRateManager.startScan()
+                                        }
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (isBleScanning) s.bleScanningStatus else s.bleScanAction,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onAccentFill
+                                    )
+                                )
+                            }
+
+                            if (discoveredBleDevices.isNotEmpty()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    discoveredBleDevices.forEach { dev ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(colors.surfaceVariant)
+                                                .clickable { BleHeartRateManager.connect(dev) }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = dev.name,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.textPrimary
+                                                )
+                                            )
+                                            Text(
+                                                text = s.smartwatchConnectAction,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.accentText
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

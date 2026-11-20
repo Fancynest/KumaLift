@@ -1075,4 +1075,12 @@ object IdStrings : AppStrings {
     override val smartwatchDisconnectedStatus = "Belum Ada Jam Tangan Terhubung"
     override val smartwatchConnectAction = "Hubungkan Jam"
     override val smartwatchDisconnectAction = "Putuskan Jam"
+
+    override val bleHeartRateTitle = "Sensor Detak Jantung (BLE)"
+    override val bleHeartRateSubtitle = "Hubungkan smartband atau strap dada (Mi Band, Polar, Garmin)"
+    override val bleScanAction = "Pindai Perangkat"
+    override val bleScanningStatus = "Mencari sensor Bluetooth terdekat..."
+    override val bleDisconnectAction = "Putuskan Sensor"
+    override val bleNoDevicesFound = "Tidak ada sensor detak jantung Bluetooth ditemukan di sekitar"
+    override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm Detak/mnt" }
 }

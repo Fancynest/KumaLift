@@ -957,4 +957,12 @@ interface AppStrings {
     val smartwatchDisconnectedStatus: String
     val smartwatchConnectAction: String
     val smartwatchDisconnectAction: String
+
+    val bleHeartRateTitle: String
+    val bleHeartRateSubtitle: String
+    val bleScanAction: String
+    val bleScanningStatus: String
+    val bleDisconnectAction: String
+    val bleNoDevicesFound: String
+    val bleConnectedDeviceFormat: (String, Int) -> String
 }

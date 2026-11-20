@@ -369,6 +369,14 @@ data class HealthSettings(
 )
 
 @Serializable
+data class SmartwatchSettings(
+    val companionEnabled: Boolean = false,
+    val liveTimerSync: Boolean = true,
+    val hapticAlertsOnWatch: Boolean = true,
+    val autoConnectOnWorkoutStart: Boolean = true
+)
+
+@Serializable
 data class UserSettings(
     val settingsVersion: Int = 1,
     val profile: ProfileSettings = ProfileSettings(),
@@ -380,5 +388,6 @@ data class UserSettings(
     val appearance: AppearanceSettings = AppearanceSettings(),
     val dataBackup: DataBackupSettings = DataBackupSettings(),
     val security: SecuritySettings = SecuritySettings(),
-    val health: HealthSettings = HealthSettings()
+    val health: HealthSettings = HealthSettings(),
+    val smartwatch: SmartwatchSettings = SmartwatchSettings()
 )

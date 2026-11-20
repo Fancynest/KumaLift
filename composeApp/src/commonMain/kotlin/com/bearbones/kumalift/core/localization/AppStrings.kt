@@ -931,4 +931,30 @@ interface AppStrings {
     val readinessNotesPlaceholder: String
     val autoRegulatePromptTitle: String
     val autoRegulatePromptMessage: String
+
+    // Ecosystem & Companion (P3)
+    val healthSettingsTitle: String
+    val healthSettingsSubtitle: String
+    val healthConnectLabel: String
+    val appleHealthLabel: String
+    val healthSyncEnabled: String
+    val healthSyncWorkouts: String
+    val healthSyncWorkoutsDesc: String
+    val healthSyncCaloriesDesc: String
+    val healthConnectedStatus: String
+    val healthPermissionRequiredStatus: String
+    val healthUnavailableStatus: String
+    val requestHealthPermissionButton: String
+
+    val smartwatchSettingsTitle: String
+    val smartwatchSettingsSubtitle: String
+    val smartwatchCompanionEnabled: String
+    val smartwatchLiveTimerSync: String
+    val smartwatchLiveTimerSyncDesc: String
+    val smartwatchHaptics: String
+    val smartwatchHapticsDesc: String
+    val smartwatchConnectedStatus: String
+    val smartwatchDisconnectedStatus: String
+    val smartwatchConnectAction: String
+    val smartwatchDisconnectAction: String
 }

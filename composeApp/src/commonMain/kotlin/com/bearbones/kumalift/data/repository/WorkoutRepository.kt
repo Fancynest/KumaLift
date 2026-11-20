@@ -1,6 +1,12 @@
 package com.bearbones.kumalift.data.repository
 
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.core.health.HealthSyncManager
+import com.bearbones.kumalift.core.smartwatch.SmartwatchCompanionManager
+import com.bearbones.kumalift.domain.model.WorkoutHealthRecord
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.bearbones.kumalift.core.util.IdGenerator
 import com.bearbones.kumalift.core.util.OneRepMaxCalculator
 import com.bearbones.kumalift.core.util.currentEpochMillis
@@ -1030,6 +1036,24 @@ class WorkoutRepository(
         }
 
         KumaLogger.i("WorkoutRepository", "Finished workout '${finished.title}' (${finished.id}) - duration ${durationSec}s, volume ${finished.totalVolumeKg}kg, sets ${finished.totalCompletedSets}")
+
+        val estCalories = activeCaloriesKcal ?: WorkoutHealthRecord.estimateCalories(durationSec / 60.0)
+        val healthRecord = WorkoutHealthRecord(
+            workoutId = finished.id,
+            title = finished.title,
+            startTimeEpochMs = finished.startTimeEpochMs,
+            endTimeEpochMs = now,
+            activeDurationSeconds = durationSec,
+            estimatedCaloriesBurned = estCalories,
+            totalTonnageKg = finished.totalVolumeKg,
+            totalSetsCompleted = finished.totalCompletedSets
+        )
+        CoroutineScope(Dispatchers.Default).launch {
+            try {
+                HealthSyncManager.syncWorkout(healthRecord)
+            } catch (_: Exception) {}
+        }
+        SmartwatchCompanionManager.sendHapticPulse()
 
         return finished
     }

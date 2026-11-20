@@ -68,7 +68,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Watch
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileDownload
@@ -158,6 +159,8 @@ enum class SettingsDestination {
     LANGUAGE,
     THEME,
     EXPORT_IMPORT,
+    HEALTH,
+    SMARTWATCH,
     ABOUT
 }
 
@@ -259,6 +262,18 @@ fun SettingsScreen(
                     ExportImportDataPage(
                         settingsRepository = settingsRepository,
                         databaseRepo = databaseRepo,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.HEALTH -> {
+                    HealthSettingsPage(
+                        settingsRepository = settingsRepository,
+                        onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.SMARTWATCH -> {
+                    SmartwatchSettingsPage(
+                        settingsRepository = settingsRepository,
                         onNavigateBack = popDestination
                     )
                 }
@@ -390,6 +405,18 @@ private fun SettingsMainMenu(
                             icon = Icons.AutoMirrored.Filled.Send,
                             title = s.exportImportSettingsRow,
                             onClick = { onNavigateTo(SettingsDestination.EXPORT_IMPORT) }
+                        )
+                        SettingsDivider()
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Favorite,
+                            title = s.healthSettingsTitle,
+                            onClick = { onNavigateTo(SettingsDestination.HEALTH) }
+                        )
+                        SettingsDivider()
+                        SettingsNavigationRow(
+                            icon = Icons.Default.Watch,
+                            title = s.smartwatchSettingsTitle,
+                            onClick = { onNavigateTo(SettingsDestination.SMARTWATCH) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(

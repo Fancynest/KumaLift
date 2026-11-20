@@ -5,6 +5,7 @@ import com.bearbones.kumalift.domain.model.CalculationSettings
 import com.bearbones.kumalift.domain.model.DataBackupSettings
 import com.bearbones.kumalift.domain.model.EquipmentSettings
 import com.bearbones.kumalift.domain.model.HealthSettings
+import com.bearbones.kumalift.domain.model.SmartwatchSettings
 import com.bearbones.kumalift.domain.model.LoggingSettings
 import com.bearbones.kumalift.domain.model.NotificationSettings
 import com.bearbones.kumalift.domain.model.ProfileSettings
@@ -80,5 +81,9 @@ class SettingsRepository(
 
     fun resetHealth() {
         update { it.copy(health = HealthSettings()) }
+    }
+
+    fun resetSmartwatch() {
+        update { it.copy(smartwatch = SmartwatchSettings()) }
     }
 }

@@ -1,11 +1,16 @@
 package com.bearbones.kumalift.core.timer
 
+import com.bearbones.kumalift.core.sound.PlatformSoundPlayer
+
 actual fun playTimerCompletionFeedback() {
-    // iOS platform timer feedback
+    PlatformSoundPlayer.playSystemDefaultSound(100)
+    PlatformSoundPlayer.playHaptic()
 }
 
 actual fun playTimerTickFeedback(secondsRemaining: Int) {
-    // iOS platform timer tick
+    if (secondsRemaining <= 3) {
+        PlatformSoundPlayer.playHaptic()
+    }
 }
 
 actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?) {

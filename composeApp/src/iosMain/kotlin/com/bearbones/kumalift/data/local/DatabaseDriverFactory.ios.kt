@@ -177,6 +177,29 @@ actual class DatabaseDriverFactory {
                 "CREATE INDEX IF NOT EXISTS idx_mesocycles_status ON mesocycles(status);",
                 0
             )
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS daily_readiness (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    dateString TEXT NOT NULL,
+                    sleepScore INTEGER NOT NULL,
+                    sorenessScore INTEGER NOT NULL,
+                    energyScore INTEGER NOT NULL,
+                    stressScore INTEGER NOT NULL,
+                    overallPercentage INTEGER NOT NULL,
+                    recommendation TEXT NOT NULL,
+                    notes TEXT NOT NULL DEFAULT '',
+                    createdAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+            driver.execute(
+                null,
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_readiness_date ON daily_readiness(dateString);",
+                0
+            )
         } catch (_: Exception) {}
     }
 }

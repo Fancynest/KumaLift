@@ -169,6 +169,19 @@ CREATE TABLE mesocycles (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE daily_readiness (
+    id TEXT NOT NULL PRIMARY KEY,
+    dateString TEXT NOT NULL,
+    sleepScore INTEGER NOT NULL,
+    sorenessScore INTEGER NOT NULL,
+    energyScore INTEGER NOT NULL,
+    stressScore INTEGER NOT NULL,
+    overallPercentage INTEGER NOT NULL,
+    recommendation TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    createdAtEpochMs INTEGER NOT NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
@@ -177,6 +190,7 @@ CREATE INDEX idx_prs_exercise ON personal_records(exerciseId);
 CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routineId);
 CREATE INDEX idx_workout_schedule_events_date ON workout_schedule_events(scheduledDate);
 CREATE INDEX idx_mesocycles_status ON mesocycles(status);
+CREATE UNIQUE INDEX idx_daily_readiness_date ON daily_readiness(dateString);
 
 -- Queries for Workouts
 selectAllCompletedWorkouts:
@@ -441,3 +455,21 @@ DELETE FROM mesocycles WHERE id = ?;
 
 clearAllMesocycles:
 DELETE FROM mesocycles;
+
+-- Queries for Daily Readiness
+selectAllReadinessCheckIns:
+SELECT * FROM daily_readiness ORDER BY dateString DESC;
+
+selectReadinessByDate:
+SELECT * FROM daily_readiness WHERE dateString = ? LIMIT 1;
+
+insertOrReplaceReadiness:
+INSERT OR REPLACE INTO daily_readiness(
+    id, dateString, sleepScore, sorenessScore, energyScore, stressScore, overallPercentage, recommendation, notes, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteReadinessById:
+DELETE FROM daily_readiness WHERE id = ?;
+
+clearAllDailyReadiness:
+DELETE FROM daily_readiness;

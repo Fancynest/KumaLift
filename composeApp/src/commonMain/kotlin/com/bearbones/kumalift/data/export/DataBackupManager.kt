@@ -35,7 +35,8 @@ data class KumaBackupData(
     val customExercises: List<Exercise> = emptyList(),
     val trainingPrograms: List<TrainingProgram> = emptyList(),
     val scheduledEvents: List<WorkoutScheduleEvent> = emptyList(),
-    val mesocycles: List<MesocycleBlock> = emptyList()
+    val mesocycles: List<MesocycleBlock> = emptyList(),
+    val dailyReadiness: List<com.bearbones.kumalift.domain.model.DailyReadinessCheckIn> = emptyList()
 )
 
 enum class ImportMode {
@@ -80,6 +81,7 @@ class DataBackupManager(
         val trainingPrograms = databaseRepo.getAllTrainingPrograms()
         val scheduledEvents = databaseRepo.getAllScheduleEvents()
         val mesocycles = databaseRepo.getAllMesocycles()
+        val dailyReadiness = databaseRepo.getAllDailyReadiness()
         return KumaBackupData(
             schemaVersion = 1,
             exportedAtEpochMs = currentEpochMillis(),
@@ -91,7 +93,8 @@ class DataBackupManager(
             customExercises = customExercises,
             trainingPrograms = trainingPrograms,
             scheduledEvents = scheduledEvents,
-            mesocycles = mesocycles
+            mesocycles = mesocycles,
+            dailyReadiness = dailyReadiness
         )
     }
 
@@ -274,6 +277,7 @@ class DataBackupManager(
                 backup.workouts.forEach { databaseRepo.saveCompletedWorkout(it) }
                 backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
                 backup.mesocycles.forEach { databaseRepo.insertOrReplaceMesocycle(it) }
+                backup.dailyReadiness.forEach { databaseRepo.insertOrReplaceDailyReadiness(it) }
 
                 // Step 4: Restore settings
                 databaseRepo.saveUserSettings(backup.settings)
@@ -350,6 +354,9 @@ class DataBackupManager(
                     if (meso.id !in existingMesocycleIds) {
                         databaseRepo.insertOrReplaceMesocycle(meso)
                     }
+                }
+                backup.dailyReadiness.forEach { read ->
+                    databaseRepo.insertOrReplaceDailyReadiness(read)
                 }
 
                 ImportResult(

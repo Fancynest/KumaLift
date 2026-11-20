@@ -58,6 +58,7 @@ import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.data.repository.WorkoutScheduleRepository
 import com.bearbones.kumalift.data.repository.MesocycleRepository
+import com.bearbones.kumalift.data.repository.DailyReadinessRepository
 import com.bearbones.kumalift.data.repository.rememberDatabaseRepository
 import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
@@ -94,6 +95,9 @@ fun App() {
     }
     val mesocycleRepository = remember(databaseRepo) {
         MesocycleRepository(databaseRepo)
+    }
+    val dailyReadinessRepository = remember(databaseRepo) {
+        DailyReadinessRepository(databaseRepo)
     }
     val workoutRepository = remember(personalRecordRepository, databaseRepo, workoutScheduleRepository, mesocycleRepository) {
         WorkoutRepository(
@@ -200,6 +204,7 @@ fun App() {
                             personalRecordRepository = personalRecordRepository,
                             workoutScheduleRepository = workoutScheduleRepository,
                             mesocycleRepository = mesocycleRepository,
+                            dailyReadinessRepository = dailyReadinessRepository,
                             onStartWorkout = { navigator.push(Overlay.ActiveLogger) },
                             onStartFreestyle = { navigator.push(Overlay.ActiveLogger) },
                             onOpenSettings = { navigator.push(Overlay.Settings) }

@@ -1032,4 +1032,21 @@ object IdStrings : AppStrings {
     override val matchReasonSecondary = "Otot Sinergis Pendukung"
     override val allEquipmentLabel = "Semua Alat"
     override val swapExerciseButton = "Ganti Gerakan"
+
+    // Daily Readiness Check (P2)
+    override val dailyReadinessTitle = "Pemeriksaan Kesiapan Harian"
+    override val dailyReadinessCardSubtitle = "Pantau tidur, nyeri otot, energi, dan stres"
+    override val checkInTodayAction = "Isi Kesiapan"
+    override val todayReadinessScore = "Kesiapan Hari Ini"
+    override val readinessScoreFullIntensity = "Kondisi Prima (Gas Maksimal)"
+    override val readinessScoreModerate = "Kondisi Normal (Ikuti Program)"
+    override val readinessScoreLightRecovery = "Kelelahan Tinggi (Auto-Regulasi)"
+    override val sleepQualityLabel = "Kualitas Tidur"
+    override val muscleSorenessLabel = "Nyeri Otot"
+    override val energyLevelLabel = "Tingkat Energi"
+    override val stressLevelLabel = "Tingkat Stres"
+    override val readinessNotesLabel = "Catatan (Opsional)"
+    override val readinessNotesPlaceholder = "Bagaimana kondisi fisik & mental hari ini?"
+    override val autoRegulatePromptTitle = "Kesiapan Rendah Terdeteksi"
+    override val autoRegulatePromptMessage = "Skor kesiapan Anda di bawah 55%. Apakah Anda ingin menjalankan sesi ini sebagai pemulihan aktif?"
 }

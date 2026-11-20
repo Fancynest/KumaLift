@@ -22,6 +22,8 @@ import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import com.bearbones.kumalift.domain.model.ScheduleStatus
 import com.bearbones.kumalift.domain.model.MesocycleBlock
 import com.bearbones.kumalift.domain.model.MesocycleStatus
+import com.bearbones.kumalift.domain.model.DailyReadinessCheckIn
+import com.bearbones.kumalift.domain.model.ReadinessRecommendation
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -612,6 +614,7 @@ class KumaDatabaseRepository(
             queries.clearAllTrainingPrograms()
             queries.clearAllWorkoutScheduleEvents()
             queries.clearAllMesocycles()
+            queries.clearAllDailyReadiness()
         }
         saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
     }
@@ -760,6 +763,52 @@ class KumaDatabaseRepository(
 
     fun clearAllMesocycles() {
         queries.clearAllMesocycles()
+    }
+
+    fun getAllDailyReadiness(): List<DailyReadinessCheckIn> {
+        return queries.selectAllReadinessCheckIns().executeAsList().map { it.toDomain() }
+    }
+
+    fun getDailyReadinessByDate(dateString: String): DailyReadinessCheckIn? {
+        return queries.selectReadinessByDate(dateString).executeAsOneOrNull()?.toDomain()
+    }
+
+    fun insertOrReplaceDailyReadiness(checkIn: DailyReadinessCheckIn) {
+        queries.insertOrReplaceReadiness(
+            id = checkIn.id,
+            dateString = checkIn.dateString,
+            sleepScore = checkIn.sleepScore.toLong(),
+            sorenessScore = checkIn.sorenessScore.toLong(),
+            energyScore = checkIn.energyScore.toLong(),
+            stressScore = checkIn.stressScore.toLong(),
+            overallPercentage = checkIn.overallPercentage.toLong(),
+            recommendation = checkIn.recommendation.name,
+            notes = checkIn.notes,
+            createdAtEpochMs = if (checkIn.createdAtEpochMs > 0L) checkIn.createdAtEpochMs else currentEpochMillis()
+        )
+    }
+
+    fun deleteDailyReadinessById(id: String) {
+        queries.deleteReadinessById(id)
+    }
+
+    fun clearAllDailyReadiness() {
+        queries.clearAllDailyReadiness()
+    }
+
+    private fun com.bearbones.kumalift.database.Daily_readiness.toDomain(): DailyReadinessCheckIn {
+        return DailyReadinessCheckIn(
+            id = id,
+            dateString = dateString,
+            sleepScore = sleepScore.toInt(),
+            sorenessScore = sorenessScore.toInt(),
+            energyScore = energyScore.toInt(),
+            stressScore = stressScore.toInt(),
+            overallPercentage = overallPercentage.toInt(),
+            recommendation = try { ReadinessRecommendation.valueOf(recommendation) } catch (_: Exception) { ReadinessRecommendation.MODERATE_LOAD },
+            notes = notes,
+            createdAtEpochMs = createdAtEpochMs
+        )
     }
 
     private fun com.bearbones.kumalift.database.Mesocycles.toDomain(): MesocycleBlock {

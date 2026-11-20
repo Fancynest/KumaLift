@@ -914,4 +914,21 @@ interface AppStrings {
     val matchReasonSecondary: String
     val allEquipmentLabel: String
     val swapExerciseButton: String
+
+    // Daily Readiness Check (P2)
+    val dailyReadinessTitle: String
+    val dailyReadinessCardSubtitle: String
+    val checkInTodayAction: String
+    val todayReadinessScore: String
+    val readinessScoreFullIntensity: String
+    val readinessScoreModerate: String
+    val readinessScoreLightRecovery: String
+    val sleepQualityLabel: String
+    val muscleSorenessLabel: String
+    val energyLevelLabel: String
+    val stressLevelLabel: String
+    val readinessNotesLabel: String
+    val readinessNotesPlaceholder: String
+    val autoRegulatePromptTitle: String
+    val autoRegulatePromptMessage: String
 }

@@ -1032,4 +1032,21 @@ object EnStrings : AppStrings {
     override val matchReasonSecondary = "Synergist Muscle Overlap"
     override val allEquipmentLabel = "All Equipment"
     override val swapExerciseButton = "Swap Exercise"
+
+    // Daily Readiness Check (P2)
+    override val dailyReadinessTitle = "Daily Readiness Check"
+    override val dailyReadinessCardSubtitle = "Track sleep, soreness, energy, and stress"
+    override val checkInTodayAction = "Log Readiness"
+    override val todayReadinessScore = "Today's Readiness"
+    override val readinessScoreFullIntensity = "Optimal Readiness (Push Intensity)"
+    override val readinessScoreModerate = "Normal Readiness (Follow Program)"
+    override val readinessScoreLightRecovery = "High Fatigue (Auto-Regulate / Deload)"
+    override val sleepQualityLabel = "Sleep Quality"
+    override val muscleSorenessLabel = "Muscle Soreness"
+    override val energyLevelLabel = "Energy Level"
+    override val stressLevelLabel = "Stress Level"
+    override val readinessNotesLabel = "Notes (Optional)"
+    override val readinessNotesPlaceholder = "How is your body feeling today?"
+    override val autoRegulatePromptTitle = "Low Readiness Detected"
+    override val autoRegulatePromptMessage = "Your readiness score is below 55%. Would you like to log this as an active recovery session?"
 }

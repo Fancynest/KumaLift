@@ -62,6 +62,7 @@ import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.data.repository.WorkoutScheduleRepository
+import com.bearbones.kumalift.data.repository.DailyReadinessRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.FirstDayOfWeek
 import com.bearbones.kumalift.domain.model.TrainingGoal
@@ -69,6 +70,7 @@ import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.features.calendar.WorkoutCalendarSection
 import com.bearbones.kumalift.features.mesocycle.MesocycleSection
+import com.bearbones.kumalift.features.readiness.DailyReadinessCard
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -87,6 +89,7 @@ fun HomeScreen(
     personalRecordRepository: com.bearbones.kumalift.data.repository.PersonalRecordRepository? = null,
     workoutScheduleRepository: WorkoutScheduleRepository? = null,
     mesocycleRepository: com.bearbones.kumalift.data.repository.MesocycleRepository? = null,
+    dailyReadinessRepository: DailyReadinessRepository? = null,
     onStartWorkout: () -> Unit,
     onStartFreestyle: () -> Unit,
     onOpenSettings: () -> Unit
@@ -722,6 +725,13 @@ fun HomeScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // Daily Readiness Check-In Card
+                if (dailyReadinessRepository != null) {
+                    item {
+                        DailyReadinessCard(readinessRepository = dailyReadinessRepository)
                     }
                 }
 

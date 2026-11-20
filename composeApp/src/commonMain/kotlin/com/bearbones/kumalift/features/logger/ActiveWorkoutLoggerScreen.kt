@@ -2,6 +2,13 @@ package com.bearbones.kumalift.features.logger
 
 import kotlinx.datetime.Clock
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -73,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
+import com.bearbones.kumalift.core.bluetooth.BleHeartRateManager
 import com.bearbones.kumalift.core.designsystem.KeepScreenOn
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
@@ -124,6 +132,9 @@ fun ActiveWorkoutLoggerScreen(
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
     var showLeaveLoggerDialog by remember { mutableStateOf(false) }
     var showCancelWorkoutDialog by remember { mutableStateOf(false) }
+
+    val connectedBleDevice by BleHeartRateManager.connectedDevice.collectAsState()
+    val currentBleBpm by BleHeartRateManager.currentHeartRateBpm.collectAsState()
 
     // T10: Handle back navigation in active workout logger
     KumaBackHandler(enabled = true) {
@@ -335,6 +346,50 @@ fun ActiveWorkoutLoggerScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        if (connectedBleDevice != null) {
+                                            val infiniteTransition = rememberInfiniteTransition()
+                                            val heartScale by infiniteTransition.animateFloat(
+                                                initialValue = 0.9f,
+                                                targetValue = 1.15f,
+                                                animationSpec = infiniteRepeatable(
+                                                    animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                                                    repeatMode = RepeatMode.Reverse
+                                                )
+                                            )
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(KumaColors.SurfaceContainerHigh)
+                                                    .border(
+                                                        1.dp,
+                                                        LocalKumaColors.current.error.copy(alpha = 0.35f),
+                                                        RoundedCornerShape(10.dp)
+                                                    )
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Favorite,
+                                                    contentDescription = null,
+                                                    tint = LocalKumaColors.current.error,
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .scale(heartScale)
+                                                )
+                                                Text(
+                                                    text = if (currentBleBpm != null && currentBleBpm!! > 0) "${currentBleBpm} ${s.bleBpmUnit}" else "--",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        color = LocalKumaColors.current.textPrimary,
+                                                        fontWeight = FontWeight.Bold
+                                                    ),
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                )
+                                            }
+                                        }
+
                                         // Timer Box (Interactive pause/resume with accurate wall-clock timer)
                                         Row(
                                             modifier = Modifier
@@ -527,7 +582,8 @@ fun ActiveWorkoutLoggerScreen(
                             onToggleSet = { setId ->
                                 workoutRepository.toggleSetCompletion(
                                     exerciseId = we.id,
-                                    setId = setId
+                                    setId = setId,
+                                    currentHeartRateBpm = currentBleBpm
                                 ) { completed ->
                                     if (completed) {
                                         val updatedSet = workoutRepository.activeWorkout.value?.exercises

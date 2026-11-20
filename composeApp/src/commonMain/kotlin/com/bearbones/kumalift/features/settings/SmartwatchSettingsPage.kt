@@ -1,5 +1,11 @@
 package com.bearbones.kumalift.features.settings
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,12 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -33,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -388,13 +400,114 @@ fun SmartwatchSettingsPage(
                         )
 
                         if (connectedBleDevice != null) {
+                            val infiniteTransition = rememberInfiniteTransition()
+                            val heartScale by infiniteTransition.animateFloat(
+                                initialValue = 0.92f,
+                                targetValue = 1.18f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                )
+                            )
+
+                            // Hero Live Telemetry Container
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(colors.surfaceVariant)
+                                    .padding(16.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(colors.recoveryFresh.copy(alpha = 0.15f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.BluetoothConnected,
+                                                    contentDescription = null,
+                                                    tint = colors.recoveryFresh,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            Column {
+                                                Text(
+                                                    text = connectedBleDevice?.name ?: "",
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = colors.textPrimary
+                                                    )
+                                                )
+                                                Text(
+                                                    text = s.bleBroadcastingStatus,
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        color = colors.recoveryFresh,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Live Pulse Counter
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Favorite,
+                                            contentDescription = null,
+                                            tint = colors.error,
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .scale(heartScale)
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.Bottom,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (currentBleBpm != null && currentBleBpm!! > 0) "${currentBleBpm}" else "--",
+                                                style = MaterialTheme.typography.headlineLarge.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = colors.textPrimary,
+                                                    fontSize = 38.sp
+                                                )
+                                            )
+                                            Text(
+                                                text = s.bleBpmUnit,
+                                                style = MaterialTheme.typography.titleSmall.copy(
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.textSecondary
+                                                ),
+                                                modifier = Modifier.padding(bottom = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(colors.surfaceVariant)
+                                    .border(1.dp, colors.error.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                                     .clickable { BleHeartRateManager.disconnect() }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -410,7 +523,7 @@ fun SmartwatchSettingsPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(colors.accentFill)
+                                    .background(if (isBleScanning) colors.surfaceVariant else colors.accentFill)
                                     .clickable {
                                         if (isBleScanning) {
                                             BleHeartRateManager.stopScan()
@@ -418,14 +531,50 @@ fun SmartwatchSettingsPage(
                                             BleHeartRateManager.startScan()
                                         }
                                     }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (isBleScanning) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = colors.accentText
+                                        )
+                                    }
+                                    Text(
+                                        text = if (isBleScanning) s.bleStopScanAction else s.bleScanAction,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isBleScanning) colors.accentText else colors.onAccentFill
+                                        )
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(colors.surfaceVariant.copy(alpha = 0.6f))
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = colors.accentText,
+                                    modifier = Modifier.size(18.dp).padding(top = 2.dp)
+                                )
                                 Text(
-                                    text = if (isBleScanning) s.bleScanningStatus else s.bleScanAction,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onAccentFill
+                                    text = s.bleBroadcastTip,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = colors.textSecondary,
+                                        lineHeight = 16.sp
                                     )
                                 )
                             }
@@ -436,29 +585,80 @@ fun SmartwatchSettingsPage(
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .clip(RoundedCornerShape(10.dp))
                                                 .background(colors.surfaceVariant)
                                                 .clickable { BleHeartRateManager.connect(dev) }
-                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                .padding(horizontal = 14.dp, vertical = 12.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = dev.name,
-                                                style = MaterialTheme.typography.bodyMedium.copy(
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = colors.textPrimary
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .clip(CircleShape)
+                                                        .background(KumaColors.SurfaceContainerHighest),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Bluetooth,
+                                                        contentDescription = null,
+                                                        tint = colors.accentText,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                                Column {
+                                                    Text(
+                                                        text = dev.name,
+                                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = colors.textPrimary
+                                                        )
+                                                    )
+                                                    Text(
+                                                        text = s.bleReadyToPair,
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            color = colors.textSecondary
+                                                        )
+                                                    )
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(colors.accentFill)
+                                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = s.smartwatchConnectAction,
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = colors.onAccentFill
+                                                    )
                                                 )
-                                            )
-                                            Text(
-                                                text = s.smartwatchConnectAction,
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = colors.accentText
-                                                )
-                                            )
+                                            }
                                         }
                                     }
+                                }
+                            } else if (isBleScanning) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = s.bleScanningStatus,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
                                 }
                             }
                         }

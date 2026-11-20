@@ -1083,4 +1083,10 @@ object EnStrings : AppStrings {
     override val bleDisconnectAction = "Disconnect"
     override val bleNoDevicesFound = "No Bluetooth heart rate monitors found nearby"
     override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm BPM" }
+    override val bleBroadcastTip = "Tip: Enable 'Heart Rate Broadcast' in your smartband app (Mi Fitness, Zepp, Garmin Connect) to make it discoverable."
+    override val bleStopScanAction = "Stop Scanning"
+    override val bleReadyToPair = "Ready to pair"
+    override val bleLiveHeartRate = "Live Pulse"
+    override val bleBroadcastingStatus = "Broadcasting"
+    override val bleBpmUnit = "BPM"
 }

@@ -965,4 +965,10 @@ interface AppStrings {
     val bleDisconnectAction: String
     val bleNoDevicesFound: String
     val bleConnectedDeviceFormat: (String, Int) -> String
+    val bleBroadcastTip: String
+    val bleStopScanAction: String
+    val bleReadyToPair: String
+    val bleLiveHeartRate: String
+    val bleBroadcastingStatus: String
+    val bleBpmUnit: String
 }

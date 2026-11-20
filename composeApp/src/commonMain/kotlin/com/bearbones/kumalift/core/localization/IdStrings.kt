@@ -1083,4 +1083,10 @@ object IdStrings : AppStrings {
     override val bleDisconnectAction = "Putuskan Sensor"
     override val bleNoDevicesFound = "Tidak ada sensor detak jantung Bluetooth ditemukan di sekitar"
     override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm Detak/mnt" }
+    override val bleBroadcastTip = "Tips: Aktifkan 'Detak Jantung Siaran' di aplikasi smartband (Mi Fitness, Zepp, Garmin Connect) agar terdeteksi."
+    override val bleStopScanAction = "Hentikan Pindai"
+    override val bleReadyToPair = "Siap dihubungkan"
+    override val bleLiveHeartRate = "Denyut Langsung"
+    override val bleBroadcastingStatus = "Siaran Aktif"
+    override val bleBpmUnit = "Detak/mnt"
 }

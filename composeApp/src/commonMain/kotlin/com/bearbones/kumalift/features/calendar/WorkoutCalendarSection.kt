@@ -79,7 +79,7 @@ fun WorkoutCalendarSection(
     onCancelEvent: ((eventId: String) -> Unit)? = null,
     onRestoreEvent: ((eventId: String) -> Unit)? = null,
     onDeleteEvent: ((eventId: String) -> Unit)? = null,
-    onStartScheduledWorkout: ((routineId: String) -> Unit)? = null,
+    onStartScheduledWorkout: ((eventId: String, routineId: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalKumaColors.current
@@ -600,7 +600,7 @@ private fun SelectedDayDetailCard(
     strings: AppStrings,
     onScheduleClick: () -> Unit,
     onEditEvent: (WorkoutScheduleEvent) -> Unit,
-    onStartScheduledWorkout: ((routineId: String) -> Unit)?
+    onStartScheduledWorkout: ((eventId: String, routineId: String) -> Unit)?
 ) {
     val colors = LocalKumaColors.current
 
@@ -757,7 +757,7 @@ private fun SelectedDayDetailCard(
                         ) {
                             if (event.isPlanned && event.routineId != null && onStartScheduledWorkout != null) {
                                 IconButton(
-                                    onClick = { onStartScheduledWorkout(event.routineId) },
+                                    onClick = { onStartScheduledWorkout(event.id, event.routineId) },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(

@@ -521,9 +521,9 @@ fun HomeScreen(
                             onDeleteEvent = { eventId ->
                                 workoutScheduleRepository?.deleteEvent(eventId)
                             },
-                            onStartScheduledWorkout = { routineId ->
+                            onStartScheduledWorkout = { eventId, routineId ->
                                 routineRepository?.getRoutineById(routineId)?.let { r ->
-                                    workoutRepository.startWorkoutFromRoutine(r)
+                                    workoutRepository.startWorkoutFromRoutine(r, scheduledEventId = eventId)
                                     onStartWorkout()
                                 }
                             }

@@ -120,4 +120,85 @@ class WorkoutScheduleRepositoryTests {
         repo.deleteEvent(event.id)
         assertEquals(0, repo.events.value.size)
     }
+
+    @Test
+    fun testWorkoutLinkageOnFinishCompletesExactEvent() {
+        val scheduleRepo = WorkoutScheduleRepository(databaseRepo = null)
+        val prRepo = PersonalRecordRepository(initialPrs = emptyList())
+        val workoutRepo = WorkoutRepository(
+            prRepository = prRepo,
+            scheduleRepository = scheduleRepo
+        )
+
+        val nov24 = LocalDate(2026, 11, 24)
+        val event1 = scheduleRepo.scheduleRoutine(
+            routineId = "rt_squat",
+            routineTitle = "Leg Day Heavy",
+            scheduledDate = nov24
+        )
+        val event2 = scheduleRepo.scheduleRoutine(
+            routineId = "rt_core",
+            routineTitle = "Core Session",
+            scheduledDate = nov24
+        )
+
+        val routine = com.bearbones.kumalift.domain.model.RoutineBlueprint(
+            id = "rt_squat",
+            title = "Leg Day Heavy",
+            splitCategory = "Legs",
+            muscleFocus = "Quadriceps · Hamstrings"
+        )
+
+        // Start workout linked to event1
+        workoutRepo.startWorkoutFromRoutine(routine, scheduledEventId = event1.id)
+        val active = workoutRepo.activeWorkout.value
+        assertNotNull(active)
+        assertEquals(event1.id, active.scheduledEventId)
+
+        // Finish workout
+        val finished = workoutRepo.finishWorkout()
+        assertNotNull(finished)
+
+        // Verify event1 is completed and linked to finished.id
+        val ev1After = scheduleRepo.events.value.first { it.id == event1.id }
+        assertTrue(ev1After.isCompleted)
+        assertEquals(finished.id, ev1After.linkedWorkoutId)
+
+        // Verify event2 on the SAME date remains PLANNED and UNTOUCHED
+        val ev2After = scheduleRepo.events.value.first { it.id == event2.id }
+        assertTrue(ev2After.isPlanned)
+        assertEquals(null, ev2After.linkedWorkoutId)
+    }
+
+    @Test
+    fun testCancelWorkoutLeavesScheduledEventPlanned() {
+        val scheduleRepo = WorkoutScheduleRepository(databaseRepo = null)
+        val prRepo = PersonalRecordRepository(initialPrs = emptyList())
+        val workoutRepo = WorkoutRepository(
+            prRepository = prRepo,
+            scheduleRepository = scheduleRepo
+        )
+
+        val date = LocalDate(2026, 11, 25)
+        val event = scheduleRepo.scheduleRoutine(
+            routineId = "rt_bench",
+            routineTitle = "Push Day",
+            scheduledDate = date
+        )
+
+        val routine = com.bearbones.kumalift.domain.model.RoutineBlueprint(
+            id = "rt_bench",
+            title = "Push Day",
+            splitCategory = "Push",
+            muscleFocus = "Chest · Triceps · Delts"
+        )
+
+        workoutRepo.startWorkoutFromRoutine(routine, scheduledEventId = event.id)
+        workoutRepo.cancelWorkout()
+
+        // Event must remain PLANNED
+        val evAfter = scheduleRepo.events.value.first { it.id == event.id }
+        assertTrue(evAfter.isPlanned)
+        assertEquals(null, evAfter.linkedWorkoutId)
+    }
 }

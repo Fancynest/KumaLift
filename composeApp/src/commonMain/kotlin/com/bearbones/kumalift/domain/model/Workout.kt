@@ -19,7 +19,8 @@ data class Workout(
     val totalPausedDurationMs: Long = 0L,
     val avgHeartRateBpm: Int? = null,
     val peakHeartRateBpm: Int? = null,
-    val activeCaloriesKcal: Double? = null
+    val activeCaloriesKcal: Double? = null,
+    val scheduledEventId: String? = null
 ) {
     val totalVolumeKg: Double
         get() = exercises.sumOf { it.totalVolumeKg }

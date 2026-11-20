@@ -17,6 +17,7 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.TrainingProgram
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
+import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -31,7 +32,8 @@ data class KumaBackupData(
     val personalRecords: List<PersonalRecord> = emptyList(),
     val customRoutines: List<RoutineBlueprint> = emptyList(),
     val customExercises: List<Exercise> = emptyList(),
-    val trainingPrograms: List<TrainingProgram> = emptyList()
+    val trainingPrograms: List<TrainingProgram> = emptyList(),
+    val scheduledEvents: List<WorkoutScheduleEvent> = emptyList()
 )
 
 enum class ImportMode {
@@ -74,6 +76,7 @@ class DataBackupManager(
             customExercises.find { it.id == id } ?: ExerciseDataset.allExercises.find { it.id == id }
         }
         val trainingPrograms = databaseRepo.getAllTrainingPrograms()
+        val scheduledEvents = databaseRepo.getAllScheduleEvents()
         return KumaBackupData(
             schemaVersion = 1,
             exportedAtEpochMs = currentEpochMillis(),
@@ -83,7 +86,8 @@ class DataBackupManager(
             personalRecords = prs,
             customRoutines = customRoutines,
             customExercises = customExercises,
-            trainingPrograms = trainingPrograms
+            trainingPrograms = trainingPrograms,
+            scheduledEvents = scheduledEvents
         )
     }
 
@@ -141,6 +145,14 @@ class DataBackupManager(
             exSb.append("\"${ex.id}\",\"${ex.name}\",\"${ex.primaryMuscle.name}\",\"${ex.equipment.name}\",\"${ex.movementType.name}\"\n")
         }
         files["custom_exercises.csv"] = exSb.toString()
+
+        // 6. schedule_events.csv
+        val schedSb = StringBuilder()
+        schedSb.append("id,routineId,scheduledDate,status,routineTitleSnapshot,splitTypeSnapshot,notes\n")
+        payload.scheduledEvents.forEach { ev ->
+            schedSb.append("\"${ev.id}\",\"${ev.routineId ?: ""}\",\"${ev.scheduledDate}\",\"${ev.status.name}\",\"${ev.routineTitleSnapshot}\",\"${ev.splitTypeSnapshot ?: ""}\",\"${ev.notes ?: ""}\"\n")
+        }
+        files["schedule_events.csv"] = schedSb.toString()
 
         return files
     }
@@ -256,6 +268,7 @@ class DataBackupManager(
                 backup.customRoutines.forEach { databaseRepo.saveCustomRoutine(it) }
                 backup.personalRecords.forEach { databaseRepo.savePersonalRecord(it) }
                 backup.workouts.forEach { databaseRepo.saveCompletedWorkout(it) }
+                backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
 
                 // Step 4: Restore settings
                 databaseRepo.saveUserSettings(backup.settings)
@@ -317,6 +330,13 @@ class DataBackupManager(
                 backup.trainingPrograms.forEach { prog ->
                     if (prog.id !in existingPrograms) {
                         databaseRepo.saveTrainingProgram(prog)
+                    }
+                }
+
+                val existingEventIds = databaseRepo.getAllScheduleEvents().map { it.id }.toSet()
+                backup.scheduledEvents.forEach { ev ->
+                    if (ev.id !in existingEventIds) {
+                        databaseRepo.insertScheduleEvent(ev)
                     }
                 }
 

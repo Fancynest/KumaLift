@@ -17,6 +17,7 @@ import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.PrMetricType
 import com.bearbones.kumalift.domain.model.PrefillSource
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.ScheduleStatus
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.Workout
@@ -404,6 +405,7 @@ class PersonalRecordRepository(
 class WorkoutRepository(
     private val prRepository: PersonalRecordRepository,
     private val databaseRepo: KumaDatabaseRepository? = null,
+    private val scheduleRepository: WorkoutScheduleRepository? = null,
     private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
     private val loggingSettingsProvider: () -> LoggingSettings = { LoggingSettings() },
     staleWorkoutHours: Int = 24
@@ -430,7 +432,8 @@ class WorkoutRepository(
 
     fun startWorkoutFromRoutine(
         routine: RoutineBlueprint,
-        prefillSource: PrefillSource = PrefillSource.LAST_SESSION
+        prefillSource: PrefillSource = PrefillSource.LAST_SESSION,
+        scheduledEventId: String? = null
     ) {
         val now = currentEpochMillis()
         val configs = routine.effectiveConfigs
@@ -479,7 +482,8 @@ class WorkoutRepository(
             splitType = routine.splitCategory,
             startTimeEpochMs = now,
             exercises = workoutExercises,
-            isFinished = false
+            isFinished = false,
+            scheduledEventId = scheduledEventId
         )
 
         _activeWorkout.value = newWorkout
@@ -962,6 +966,17 @@ class WorkoutRepository(
         // T1: Persist to database and clear active state
         databaseRepo?.saveCompletedWorkout(finished)
         databaseRepo?.clearActiveWorkout()
+
+        // Link scheduled event if present
+        finished.scheduledEventId?.let { eventId ->
+            scheduleRepository?.completeEvent(eventId, finished.id)
+            databaseRepo?.updateScheduleEventStatus(
+                id = eventId,
+                status = ScheduleStatus.COMPLETED,
+                linkedWorkoutId = finished.id
+            )
+        }
+
         KumaLogger.i("WorkoutRepository", "Finished workout '${finished.title}' (${finished.id}) - duration ${durationSec}s, volume ${finished.totalVolumeKg}kg, sets ${finished.totalCompletedSets}")
 
         return finished

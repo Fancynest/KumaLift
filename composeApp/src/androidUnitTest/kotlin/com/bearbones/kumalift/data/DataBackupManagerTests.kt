@@ -23,6 +23,8 @@ import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
+import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
+import com.bearbones.kumalift.domain.model.ScheduleStatus
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -368,5 +370,110 @@ class DataBackupManagerTests {
             result.message.contains("Password required"),
             "Expected failure message but got: ${result.message}"
         )
+    }
+
+    @Test
+    fun testScheduleEventsRoundTripReplace() {
+        val event = WorkoutScheduleEvent(
+            id = "sched_test_1",
+            routineId = "rt_1",
+            scheduledDate = "2026-11-28",
+            status = ScheduleStatus.PLANNED,
+            routineTitleSnapshot = "Leg Hypertrophy",
+            splitTypeSnapshot = "Legs",
+            notes = "Target 100kg squats",
+            createdAtEpochMs = 1732000000000L,
+            updatedAtEpochMs = 1732000000000L
+        )
+        repository.insertScheduleEvent(event)
+
+        val settings = UserSettings()
+        val jsonStr = backupManager.exportJson(settings)
+
+        // Wipe data
+        repository.wipeAllUserData()
+        assertEquals(0, repository.getAllScheduleEvents().size)
+
+        // Restore via replace
+        val result = backupManager.importBackup(jsonStr, ImportMode.REPLACE, settings)
+        assertTrue(result.success, "Replace import should succeed: ${result.message}")
+
+        val restoredEvents = repository.getAllScheduleEvents()
+        assertEquals(1, restoredEvents.size)
+        val restored = restoredEvents[0]
+        assertEquals("sched_test_1", restored.id)
+        assertEquals("rt_1", restored.routineId)
+        assertEquals("2026-11-28", restored.scheduledDate)
+        assertEquals(ScheduleStatus.PLANNED, restored.status)
+        assertEquals("Leg Hypertrophy", restored.routineTitleSnapshot)
+        assertEquals("Target 100kg squats", restored.notes)
+    }
+
+    @Test
+    fun testScheduleEventsRoundTripMerge() {
+        val existingEvent = WorkoutScheduleEvent(
+            id = "sched_existing",
+            routineId = "rt_existing",
+            scheduledDate = "2026-11-27",
+            status = ScheduleStatus.COMPLETED,
+            routineTitleSnapshot = "Chest Day",
+            createdAtEpochMs = 1731900000000L,
+            updatedAtEpochMs = 1731900000000L
+        )
+        repository.insertScheduleEvent(existingEvent)
+
+        val newEvent = WorkoutScheduleEvent(
+            id = "sched_imported",
+            routineId = "rt_new",
+            scheduledDate = "2026-11-29",
+            status = ScheduleStatus.PLANNED,
+            routineTitleSnapshot = "Back & Biceps",
+            createdAtEpochMs = 1732100000000L,
+            updatedAtEpochMs = 1732100000000L
+        )
+
+        val settings = UserSettings()
+        val backupData = com.bearbones.kumalift.data.export.KumaBackupData(
+            schemaVersion = 1,
+            exportedAtEpochMs = 1732100000000L,
+            settings = settings,
+            scheduledEvents = listOf(existingEvent, newEvent)
+        )
+        val jsonStr = kotlinx.serialization.json.Json { encodeDefaults = true }.encodeToString(
+            com.bearbones.kumalift.data.export.KumaBackupData.serializer(),
+            backupData
+        )
+
+        val result = backupManager.importBackup(jsonStr, ImportMode.MERGE, settings)
+        assertTrue(result.success, "Merge import should succeed: ${result.message}")
+
+        val allEvents = repository.getAllScheduleEvents()
+        assertEquals(2, allEvents.size)
+        assertTrue(allEvents.any { it.id == "sched_existing" })
+        assertTrue(allEvents.any { it.id == "sched_imported" })
+    }
+
+    @Test
+    fun testLegacyBackupWithoutScheduledEventsImportsCleanly() {
+        val settings = UserSettings()
+        // Legacy JSON without "scheduledEvents" field
+        val legacyJson = """
+            {
+              "schemaVersion": 1,
+              "exportedAtEpochMs": 1730000000000,
+              "appVersion": "1.9.0",
+              "settings": ${kotlinx.serialization.json.Json.encodeToString(UserSettings.serializer(), settings)},
+              "workouts": [],
+              "personalRecords": [],
+              "customRoutines": [],
+              "customExercises": [],
+              "trainingPrograms": []
+            }
+        """.trimIndent()
+
+        val result = backupManager.importBackup(legacyJson, ImportMode.REPLACE, settings)
+        assertTrue(result.success, "Legacy backup without scheduledEvents field must import without error")
+        val events = repository.getAllScheduleEvents()
+        assertEquals(0, events.size)
     }
 }

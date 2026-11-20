@@ -88,17 +88,18 @@ fun App() {
             dateFormatProvider = { settingsRepository.settings.value.units.dateFormat }
         )
     }
-    val workoutRepository = remember(personalRecordRepository, databaseRepo) {
+    val workoutScheduleRepository = remember(databaseRepo) {
+        WorkoutScheduleRepository(databaseRepo)
+    }
+    val workoutRepository = remember(personalRecordRepository, databaseRepo, workoutScheduleRepository) {
         WorkoutRepository(
             prRepository = personalRecordRepository,
             databaseRepo = databaseRepo,
+            scheduleRepository = workoutScheduleRepository,
             calculationSettingsProvider = { settingsRepository.settings.value.calculations },
             loggingSettingsProvider = { settingsRepository.settings.value.logging },
             staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
         )
-    }
-    val workoutScheduleRepository = remember(databaseRepo) {
-        WorkoutScheduleRepository(databaseRepo)
     }
 
     val coroutineScope = rememberCoroutineScope()

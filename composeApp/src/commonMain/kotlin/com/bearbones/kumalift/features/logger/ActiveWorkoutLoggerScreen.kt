@@ -213,12 +213,45 @@ fun ActiveWorkoutLoggerScreen(
             .background(KumaColors.CanvasLowest)
     ) {
         if (workout == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = s.noActiveSessionMessage,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = KumaColors.TextMuted
+                    color = KumaColors.TextMuted,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LocalKumaColors.current.accentFill,
+                        contentColor = LocalKumaColors.current.onAccentFill
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = s.freestyleWorkoutCardTitle,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = onNavigateBack
+                ) {
+                    Text(
+                        text = s.back,
+                        color = LocalKumaColors.current.textSecondary
+                    )
+                }
             }
         } else {
             Column(modifier = Modifier.fillMaxSize()) {

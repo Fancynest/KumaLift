@@ -244,7 +244,12 @@ fun App() {
                             onNavigateToProgress = { navigator.selectTab(Tab.PROGRESS) },
                             onNavigateToLibrary = { navigator.selectTab(Tab.LIBRARY) },
                             onNavigateToRoutines = { navigator.selectTab(Tab.ROUTINES) },
-                            onStartWorkout = { navigator.push(Overlay.ActiveLogger) }
+                            onStartWorkout = {
+                                if (activeWorkout == null) {
+                                    workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
+                                }
+                                navigator.push(Overlay.ActiveLogger)
+                            }
                         )
                     }
                 }

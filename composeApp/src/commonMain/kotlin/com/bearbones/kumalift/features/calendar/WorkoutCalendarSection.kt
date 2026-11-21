@@ -208,7 +208,9 @@ fun WorkoutCalendarSection(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
                                 fontSize = 11.sp
-                            )
+                            ),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
@@ -369,7 +371,9 @@ fun WorkoutCalendarSection(
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontSize = 11.sp
-                        )
+                        ),
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -636,7 +640,7 @@ private fun SelectedDayDetailCard(
             Row(
                 modifier = Modifier.weight(1f, fill = false),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = dateHeader,
@@ -645,7 +649,8 @@ private fun SelectedDayDetailCard(
                         color = colors.textPrimary
                     ),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
 
                 if (isToday) {
@@ -653,7 +658,7 @@ private fun SelectedDayDetailCard(
                         modifier = Modifier
                             .clip(PillShape)
                             .background(colors.accentTint)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = strings.todayLabel,
@@ -661,11 +666,15 @@ private fun SelectedDayDetailCard(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
                                 fontSize = 10.sp
-                            )
+                            ),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.width(6.dp))
 
             Row(
                 modifier = Modifier
@@ -689,7 +698,8 @@ private fun SelectedDayDetailCard(
                         color = colors.accentText,
                         fontSize = 10.sp
                     ),
-                    maxLines = 1
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

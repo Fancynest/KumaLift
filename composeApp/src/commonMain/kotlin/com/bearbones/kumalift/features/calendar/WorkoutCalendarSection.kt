@@ -62,6 +62,7 @@ import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
+import com.bearbones.kumalift.domain.model.localizedTitle
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
@@ -81,6 +82,7 @@ fun WorkoutCalendarSection(
     onRestoreEvent: ((eventId: String) -> Unit)? = null,
     onDeleteEvent: ((eventId: String) -> Unit)? = null,
     onStartScheduledWorkout: ((eventId: String, routineId: String) -> Unit)? = null,
+    onStartRoutine: ((routine: RoutineBlueprint) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalKumaColors.current
@@ -384,11 +386,14 @@ fun WorkoutCalendarSection(
             // 5. Selected Date Details
             val selectedWorkouts = workoutsByDate[selectedDate] ?: emptyList()
             val selectedEvents = scheduledByDate[selectedDate] ?: emptyList()
+            val selectedDayOfWeekIso = selectedDate.dayOfWeek.ordinal + 1
+            val selectedRecurringRoutines = routinesByDayOfWeek[selectedDayOfWeekIso] ?: emptyList()
 
             SelectedDayDetailCard(
                 date = selectedDate,
                 workouts = selectedWorkouts,
                 scheduledEvents = selectedEvents,
+                recurringRoutines = selectedRecurringRoutines,
                 isToday = (selectedDate == today),
                 isLb = isLb,
                 unitSuffix = unitSuffix,
@@ -402,7 +407,8 @@ fun WorkoutCalendarSection(
                     editingScheduleEvent = event
                     showScheduleDialog = true
                 },
-                onStartScheduledWorkout = onStartScheduledWorkout
+                onStartScheduledWorkout = onStartScheduledWorkout,
+                onStartRoutine = onStartRoutine
             )
         }
     }
@@ -498,7 +504,7 @@ private fun CalendarDayCell(
                             .background(if (cell.isSelected) colors.onAccentFill else colors.recoveryFresh)
                     )
                 }
-                if (cell.hasScheduledWorkout) {
+                if (cell.hasScheduledWorkout || cell.hasRecurringRoutine) {
                     Box(
                         modifier = Modifier
                             .size(4.dp)
@@ -594,6 +600,7 @@ private fun SelectedDayDetailCard(
     date: LocalDate,
     workouts: List<Workout>,
     scheduledEvents: List<WorkoutScheduleEvent>,
+    recurringRoutines: List<RoutineBlueprint> = emptyList(),
     isToday: Boolean,
     isLb: Boolean,
     unitSuffix: String,
@@ -601,13 +608,16 @@ private fun SelectedDayDetailCard(
     strings: AppStrings,
     onScheduleClick: () -> Unit,
     onEditEvent: (WorkoutScheduleEvent) -> Unit,
-    onStartScheduledWorkout: ((eventId: String, routineId: String) -> Unit)?
+    onStartScheduledWorkout: ((eventId: String, routineId: String) -> Unit)?,
+    onStartRoutine: ((routine: RoutineBlueprint) -> Unit)? = null
 ) {
     val colors = LocalKumaColors.current
 
     val dayOfWeekName = strings.dayNamesFull.getOrElse(date.dayOfWeek.ordinal) { "" }
     val monthName = strings.monthNamesFull.getOrElse(date.monthNumber - 1) { "" }
     val dateHeader = "$dayOfWeekName, ${date.dayOfMonth} $monthName ${date.year}"
+
+    val isEmpty = workouts.isEmpty() && scheduledEvents.isEmpty() && recurringRoutines.isEmpty()
 
     Column(
         modifier = Modifier
@@ -657,19 +667,18 @@ private fun SelectedDayDetailCard(
                 }
             }
 
-            IconButton(
-                onClick = onScheduleClick,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(colors.accentTint)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = strings.addScheduleWorkout,
-                    tint = colors.accentText,
-                    modifier = Modifier.size(18.dp)
-                )
+            if (!isEmpty) {
+                IconButton(
+                    onClick = onScheduleClick,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = strings.addScheduleWorkout,
+                        tint = colors.accentText,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
@@ -777,8 +786,83 @@ private fun SelectedDayDetailCard(
             }
         }
 
-        // Completed Workouts for this date
-        if (workouts.isEmpty() && scheduledEvents.isEmpty()) {
+        // Recurring Routines for this day of the week (when no explicit scheduled events exist)
+        if (recurringRoutines.isNotEmpty() && scheduledEvents.none { it.isPlanned }) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                recurringRoutines.forEach { routine ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surface)
+                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = routine.localizedTitle(strings),
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                                routine.splitCategory.takeIf { it.isNotBlank() }?.let { KumaBadge(text = it) }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(PillShape)
+                                        .background(colors.accentTint)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = strings.scheduledStatus,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.accentText,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 9.sp
+                                        )
+                                    )
+                                }
+                            }
+
+                            val exerciseCount = routine.effectiveConfigs.size
+                            Text(
+                                text = strings.routineSubtitle(exerciseCount, routine.estimatedDurationMinutes),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = colors.textSecondary,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+
+                        if (onStartRoutine != null) {
+                            IconButton(
+                                onClick = { onStartRoutine(routine) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = strings.startScheduledWorkout,
+                                    tint = colors.accentFill,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Empty state / Rest Day
+        if (isEmpty) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -788,12 +872,32 @@ private fun SelectedDayDetailCard(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = strings.noActivityOnDate,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = colors.textSecondary
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(colors.surfaceVariant)
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = strings.restDayTitle,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textSecondary,
+                                fontSize = 10.sp
+                            )
+                        )
+                    }
+                    Text(
+                        text = strings.noActivityOnDate,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = colors.textSecondary
+                        )
                     )
-                )
+                }
 
                 Row(
                     modifier = Modifier

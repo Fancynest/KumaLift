@@ -733,6 +733,10 @@ fun HomeScreen(
                                     workoutRepository.startWorkoutFromRoutine(r, scheduledEventId = eventId)
                                     onStartWorkout()
                                 }
+                            },
+                            onStartRoutine = { routine ->
+                                workoutRepository.startWorkoutFromRoutine(routine)
+                                onStartWorkout()
                             }
                         )
                     }

@@ -122,7 +122,6 @@ object KumaSoundPlayer {
 
         val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         audioManager?.let { am ->
-            ensureStreamVolume(am, volumeMultiplier)
             requestTransientDuckFocus(am)
         }
 
@@ -228,32 +227,6 @@ object KumaSoundPlayer {
     private var activeFocusRequest: AudioFocusRequest? = null
     private var pendingAbandonRunnable: Runnable? = null
 
-    private fun ensureStreamVolume(audioManager: AudioManager, volumeMultiplier: Float) {
-        if (volumeMultiplier <= 0f) return
-        try {
-            // Ensure STREAM_MUSIC is at least set to the user-chosen volume level,
-            // preventing silence when system media volume was previously 0.
-            val currentMusicVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val maxMusicVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            if (maxMusicVol > 0) {
-                val targetVol = (volumeMultiplier * maxMusicVol).roundToInt().coerceIn(1, maxMusicVol)
-                if (currentMusicVol < targetVol) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVol, 0)
-                }
-            }
-        } catch (t: Throwable) {
-            KumaLogger.w(TAG, "Could not ensure media stream volume: ${t.message}")
-        }
-        try {
-            // Also ensure alarm stream is non-zero as secondary safeguard
-            val currentAlarmVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
-            val maxAlarmVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            if (maxAlarmVol > 0 && currentAlarmVol < maxAlarmVol) {
-                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxAlarmVol, 0)
-            }
-        } catch (_: Throwable) {}
-    }
-
     private fun requestTransientDuckFocus(audioManager: AudioManager) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -341,7 +314,6 @@ object KumaSoundPlayer {
         try {
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.let { am ->
-                ensureStreamVolume(am, volumeMultiplier)
                 requestTransientDuckFocus(am)
             }
 
@@ -408,7 +380,6 @@ object KumaSoundPlayer {
 
             val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             audioManager?.let { am ->
-                ensureStreamVolume(am, volumeMultiplier)
                 requestTransientDuckFocus(am)
             }
 

@@ -240,9 +240,10 @@ private fun ProgramItemCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Metadata Chips
+            // Metadata Row: Category Chip (left) & Routines Count (right)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Category Chip
@@ -261,42 +262,38 @@ private fun ProgramItemCard(
                     )
                 }
 
-                // Target Days
-                val dayLabels = program.activeDays.mapNotNull { d ->
-                    s.dayNamesShort.getOrNull(d - 1)
-                }.joinToString(", ")
-                val targetDaysSummary = buildString {
-                    append(program.targetDaysPerWeek)
-                    append(" ")
-                    append(s.daysPerWeek)
-                    if (dayLabels.isNotBlank()) {
-                        append(" (")
-                        append(dayLabels)
-                        append(")")
-                    }
-                }
-                Text(
-                    text = targetDaysSummary,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.TextMuted
-                    )
-                )
-
-                Text(
-                    text = "•",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.TextMuted
-                    )
-                )
-
                 // Routines Count
                 Text(
                     text = s.routinesInProgramCount(routineCount),
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = KumaColors.TextMuted
+                        color = KumaColors.TextMuted,
+                        fontWeight = FontWeight.Medium
                     )
                 )
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Target Days Summary
+            val dayLabels = program.activeDays.mapNotNull { d ->
+                s.dayNamesShort.getOrNull(d - 1)
+            }.joinToString(", ")
+            val targetDaysSummary = buildString {
+                append(program.targetDaysPerWeek)
+                append(" ")
+                append(s.daysPerWeek)
+                if (dayLabels.isNotBlank()) {
+                    append(" (")
+                    append(dayLabels)
+                    append(")")
+                }
+            }
+            Text(
+                text = targetDaysSummary,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = KumaColors.TextMuted
+                )
+            )
 
             if (program.description.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))

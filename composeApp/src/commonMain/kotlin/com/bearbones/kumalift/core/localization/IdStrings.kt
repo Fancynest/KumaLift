@@ -963,7 +963,7 @@ object IdStrings : AppStrings {
     override val totalDurationLabel = "Total Durasi"
     override val noActivityOnDate = "Tidak ada riwayat latihan pada tanggal ini."
     override fun sessionsCount(count: Int) = "$count sesi"
-    override val addScheduleWorkout = "Jadwalkan Latihan"
+    override val addScheduleWorkout = "Jadwalkan"
     override val rescheduleWorkout = "Jadwalkan Ulang"
     override val cancelSchedule = "Batalkan Jadwal"
     override val restoreSchedule = "Pulihkan Jadwal"

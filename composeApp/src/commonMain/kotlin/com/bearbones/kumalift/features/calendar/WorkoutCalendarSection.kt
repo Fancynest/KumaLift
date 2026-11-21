@@ -398,6 +398,7 @@ fun WorkoutCalendarSection(
                 workouts = selectedWorkouts,
                 scheduledEvents = selectedEvents,
                 recurringRoutines = selectedRecurringRoutines,
+                today = today,
                 isToday = (selectedDate == today),
                 isLb = isLb,
                 unitSuffix = unitSuffix,
@@ -605,6 +606,7 @@ private fun SelectedDayDetailCard(
     workouts: List<Workout>,
     scheduledEvents: List<WorkoutScheduleEvent>,
     recurringRoutines: List<RoutineBlueprint> = emptyList(),
+    today: LocalDate,
     isToday: Boolean,
     isLb: Boolean,
     unitSuffix: String,
@@ -619,7 +621,11 @@ private fun SelectedDayDetailCard(
 
     val dayOfWeekName = strings.dayNamesFull.getOrElse(date.dayOfWeek.ordinal) { "" }
     val monthName = strings.monthNamesFull.getOrElse(date.monthNumber - 1) { "" }
-    val dateHeader = "$dayOfWeekName, ${date.dayOfMonth} $monthName ${date.year}"
+    val dateHeader = if (date.year == today.year) {
+        "$dayOfWeekName, ${date.dayOfMonth} $monthName"
+    } else {
+        "$dayOfWeekName, ${date.dayOfMonth} $monthName ${date.year}"
+    }
 
     val isEmpty = workouts.isEmpty() && scheduledEvents.isEmpty() && recurringRoutines.isEmpty()
 
@@ -733,17 +739,20 @@ private fun SelectedDayDetailCard(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Text(
+                                text = event.routineTitleSnapshot,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (event.isCancelled) colors.textSecondary else colors.textPrimary
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(
-                                    text = event.routineTitleSnapshot,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (event.isCancelled) colors.textSecondary else colors.textPrimary
-                                    )
-                                )
                                 event.splitTypeSnapshot?.let { KumaBadge(text = it) }
                                 Box(
                                     modifier = Modifier
@@ -757,19 +766,23 @@ private fun SelectedDayDetailCard(
                                             color = statusColor,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 9.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
-                            }
 
-                            event.notes?.let { note ->
-                                Text(
-                                    text = note,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = colors.textSecondary,
-                                        fontSize = 11.sp
+                                event.notes?.let { note ->
+                                    Text(
+                                        text = "· $note",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.textSecondary,
+                                            fontSize = 11.sp
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                )
+                                }
                             }
                         }
 
@@ -826,17 +839,20 @@ private fun SelectedDayDetailCard(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Text(
+                                text = routine.localizedTitle(strings),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(
-                                    text = routine.localizedTitle(strings),
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textPrimary
-                                    )
-                                )
                                 routine.splitCategory.takeIf { it.isNotBlank() }?.let { KumaBadge(text = it) }
                                 Box(
                                     modifier = Modifier
@@ -850,19 +866,23 @@ private fun SelectedDayDetailCard(
                                             color = colors.accentText,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 9.sp
-                                        )
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
-                            }
 
-                            val exerciseCount = routine.effectiveConfigs.size
-                            Text(
-                                text = strings.routineSubtitle(exerciseCount, routine.estimatedDurationMinutes),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = colors.textSecondary,
-                                    fontSize = 11.sp
+                                val exerciseCount = routine.effectiveConfigs.size
+                                Text(
+                                    text = "· ${strings.routineSubtitle(exerciseCount, routine.estimatedDurationMinutes)}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = colors.textSecondary,
+                                        fontSize = 11.sp
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            )
+                            }
                         }
 
                         if (onStartRoutine != null) {

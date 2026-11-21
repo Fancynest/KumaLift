@@ -963,7 +963,7 @@ object EnStrings : AppStrings {
     override val totalDurationLabel = "Total Duration"
     override val noActivityOnDate = "No workout activity on this date."
     override fun sessionsCount(count: Int) = if (count == 1) "1 session" else "$count sessions"
-    override val addScheduleWorkout = "Schedule Workout"
+    override val addScheduleWorkout = "Schedule"
     override val rescheduleWorkout = "Reschedule"
     override val cancelSchedule = "Cancel Schedule"
     override val restoreSchedule = "Restore Schedule"

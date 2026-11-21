@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
+import androidx.compose.runtime.Composable
 import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
 import com.bearbones.kumalift.domain.model.BleHeartRateDevice
@@ -35,6 +36,12 @@ actual object BleHeartRateManager {
 
     private val _currentHeartRateBpm = MutableStateFlow<Int?>(null)
     actual val currentHeartRateBpm: StateFlow<Int?> = _currentHeartRateBpm.asStateFlow()
+
+    actual val isBluetoothEnabled: Boolean
+        get() {
+            if (isTestMode || AndroidAppProvider.appContext == null) return true
+            return getBluetoothAdapter()?.isEnabled == true
+        }
 
     private var activeGatt: BluetoothGatt? = null
     var isTestMode: Boolean = false
@@ -205,5 +212,34 @@ actual object BleHeartRateManager {
         activeGatt = null
         _connectedDevice.value = null
         _currentHeartRateBpm.value = null
+    }
+}
+
+@Composable
+actual fun rememberBluetoothPermissionLauncher(
+    onResult: (Boolean) -> Unit
+): () -> Unit {
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        onResult(allGranted)
+    }
+
+    return {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            launcher.launch(
+                arrayOf(
+                    android.Manifest.permission.BLUETOOTH_SCAN,
+                    android.Manifest.permission.BLUETOOTH_CONNECT
+                )
+            )
+        } else {
+            launcher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            )
+        }
     }
 }

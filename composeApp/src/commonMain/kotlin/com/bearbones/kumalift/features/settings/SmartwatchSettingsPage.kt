@@ -41,6 +41,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.bluetooth.BleHeartRateManager
+import com.bearbones.kumalift.core.bluetooth.rememberBluetoothPermissionLauncher
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -81,8 +85,24 @@ fun SmartwatchSettingsPage(
     }
 
     val isConnected = watchStatus == SmartwatchConnectionStatus.CONNECTED
+    val isConnecting = watchStatus == SmartwatchConnectionStatus.CONNECTING
     val statusColor = if (isConnected) colors.recoveryFresh else colors.warning
     val statusText = if (isConnected) s.smartwatchConnectedStatus else s.smartwatchDisconnectedStatus
+
+    var bluetoothErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    val requestBluetoothPermission = rememberBluetoothPermissionLauncher { granted ->
+        if (granted) {
+            if (!BleHeartRateManager.isBluetoothEnabled) {
+                bluetoothErrorMessage = s.bluetoothTurnOnPrompt
+            } else {
+                bluetoothErrorMessage = null
+                BleHeartRateManager.startScan()
+            }
+        } else {
+            bluetoothErrorMessage = s.bluetoothPermissionRequired
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -191,6 +211,23 @@ fun SmartwatchSettingsPage(
                             )
                         )
 
+                        // Non-Wear OS notice (Huawei Band, Mi Band, Garmin)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(colors.surfaceVariant.copy(alpha = 0.6f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = s.wearOsNoticeText,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = colors.textSecondary,
+                                    fontSize = 10.sp
+                                )
+                            )
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -206,13 +243,33 @@ fun SmartwatchSettingsPage(
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (isConnected) s.smartwatchDisconnectAction else s.smartwatchConnectAction,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isConnected) colors.textPrimary else colors.onAccentFill
+                            if (isConnecting) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = colors.onAccentFill
+                                    )
+                                    Text(
+                                        text = s.smartwatchConnectingStatus,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onAccentFill
+                                        )
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = if (isConnected) s.smartwatchDisconnectAction else s.smartwatchConnectAction,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isConnected) colors.textPrimary else colors.onAccentFill
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -519,6 +576,27 @@ fun SmartwatchSettingsPage(
                                 )
                             }
                         } else {
+                            val currentBleError = bluetoothErrorMessage
+                            if (currentBleError != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(colors.error.copy(alpha = 0.15f))
+                                        .border(1.dp, colors.error.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = currentBleError,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.error,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 11.sp
+                                        )
+                                    )
+                                }
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -528,7 +606,7 @@ fun SmartwatchSettingsPage(
                                         if (isBleScanning) {
                                             BleHeartRateManager.stopScan()
                                         } else {
-                                            BleHeartRateManager.startScan()
+                                            requestBluetoothPermission()
                                         }
                                     }
                                     .padding(vertical = 12.dp),

@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.bluetooth
 
+import androidx.compose.runtime.Composable
 import com.bearbones.kumalift.domain.model.BleHeartRateDevice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ actual object BleHeartRateManager {
 
     private val _currentHeartRateBpm = MutableStateFlow<Int?>(null)
     actual val currentHeartRateBpm: StateFlow<Int?> = _currentHeartRateBpm.asStateFlow()
+    actual val isBluetoothEnabled: Boolean get() = true
 
     actual fun startScan() {
         _isScanning.value = true
@@ -43,4 +45,9 @@ actual object BleHeartRateManager {
         _connectedDevice.value = null
         _currentHeartRateBpm.value = null
     }
+}
+
+@Composable
+actual fun rememberBluetoothPermissionLauncher(onResult: (Boolean) -> Unit): () -> Unit {
+    return { onResult(true) }
 }

@@ -77,7 +77,6 @@ fun MesocycleSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
@@ -97,33 +96,6 @@ fun MesocycleSection(
                         color = colors.textPrimary
                     )
                 )
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(PillShape)
-                    .background(colors.accentFill.copy(alpha = 0.15f))
-                    .clickable { showCreateDialog = true }
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        tint = colors.accentText,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = s.startNewMesocycleAction,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentText
-                        )
-                    )
-                }
             }
         }
 

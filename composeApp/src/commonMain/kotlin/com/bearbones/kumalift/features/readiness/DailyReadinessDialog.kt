@@ -40,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -159,22 +161,24 @@ fun DailyReadinessDialog(
                         .border(1.dp, colors.border, RoundedCornerShape(14.dp))
                         .padding(14.dp)
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = s.todayReadinessScore,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = colors.textSecondary
                                 )
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "$percentage%",
-                                style = MaterialTheme.typography.headlineMedium.copy(
+                                style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = statusColor
                                 )
@@ -183,10 +187,12 @@ fun DailyReadinessDialog(
 
                         Box(
                             modifier = Modifier
+                                .fillMaxWidth()
                                 .clip(PillShape)
                                 .background(statusColor.copy(alpha = 0.15f))
                                 .border(1.dp, statusColor, PillShape)
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = statusText,
@@ -194,7 +200,9 @@ fun DailyReadinessDialog(
                                     fontWeight = FontWeight.Bold,
                                     color = statusColor,
                                     fontSize = 11.sp
-                                )
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -205,7 +213,10 @@ fun DailyReadinessDialog(
                     label = s.sleepQualityLabel,
                     icon = Icons.Default.Nightlight,
                     value = sleep,
-                    onValueChange = { sleep = it }
+                    onValueChange = { sleep = it },
+                    minLabel = s.readinessSleepPoor,
+                    midLabel = s.readinessLevelModerate,
+                    maxLabel = s.readinessSleepGreat
                 )
 
                 // 2. Muscle Soreness
@@ -213,7 +224,10 @@ fun DailyReadinessDialog(
                     label = s.muscleSorenessLabel,
                     icon = Icons.Default.Healing,
                     value = soreness,
-                    onValueChange = { soreness = it }
+                    onValueChange = { soreness = it },
+                    minLabel = s.readinessSorenessSore,
+                    midLabel = s.readinessLevelModerate,
+                    maxLabel = s.readinessSorenessFresh
                 )
 
                 // 3. Energy Level
@@ -221,7 +235,10 @@ fun DailyReadinessDialog(
                     label = s.energyLevelLabel,
                     icon = Icons.Default.Speed,
                     value = energy,
-                    onValueChange = { energy = it }
+                    onValueChange = { energy = it },
+                    minLabel = s.readinessLevelLow,
+                    midLabel = s.readinessLevelModerate,
+                    maxLabel = s.readinessLevelHigh
                 )
 
                 // 4. Stress Level
@@ -229,7 +246,10 @@ fun DailyReadinessDialog(
                     label = s.stressLevelLabel,
                     icon = Icons.Default.Psychology,
                     value = stress,
-                    onValueChange = { stress = it }
+                    onValueChange = { stress = it },
+                    minLabel = s.readinessStressHigh,
+                    midLabel = s.readinessLevelModerate,
+                    maxLabel = s.readinessStressCalm
                 )
 
                 // Notes Field
@@ -259,7 +279,10 @@ private fun ReadinessPillarRow(
     label: String,
     icon: ImageVector,
     value: Int,
-    onValueChange: (Int) -> Unit
+    onValueChange: (Int) -> Unit,
+    minLabel: String,
+    midLabel: String,
+    maxLabel: String
 ) {
     val colors = LocalKumaColors.current
 
@@ -296,34 +319,58 @@ private fun ReadinessPillarRow(
             )
         }
 
-        // 1 - 5 Pill Selector
+        // 1 - 5 Pill Selector with indicators for 1, 3, 5
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             for (level in 1..5) {
                 val isSelected = level == value
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(46.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) colors.accentFill else colors.surfaceVariant)
-                        .border(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) colors.accentFill else colors.border,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .clickable { onValueChange(level) },
-                    contentAlignment = Alignment.Center
+                val indicator = when (level) {
+                    1 -> minLabel
+                    3 -> midLabel
+                    5 -> maxLabel
+                    else -> null
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "$level",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isSelected) colors.onAccentFill else colors.textPrimary,
-                            fontSize = 14.sp
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) colors.accentFill else colors.surfaceVariant)
+                            .border(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) colors.accentFill else colors.border,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onValueChange(level) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$level",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isSelected) colors.onAccentFill else colors.textPrimary,
+                                fontSize = 14.sp
+                            )
                         )
+                    }
+
+                    Text(
+                        text = indicator ?: "",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (isSelected) colors.accentText else colors.textSecondary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 9.sp
+                        ),
+                        maxLines = 1,
+                        textAlign = TextAlign.Center
                     )
                 }
             }

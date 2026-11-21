@@ -931,6 +931,15 @@ interface AppStrings {
     val readinessNotesPlaceholder: String
     val autoRegulatePromptTitle: String
     val autoRegulatePromptMessage: String
+    val readinessLevelLow: String
+    val readinessLevelModerate: String
+    val readinessLevelHigh: String
+    val readinessSleepPoor: String
+    val readinessSleepGreat: String
+    val readinessSorenessSore: String
+    val readinessSorenessFresh: String
+    val readinessStressHigh: String
+    val readinessStressCalm: String
 
     // Ecosystem & Companion (P3)
     val healthSettingsTitle: String
@@ -971,4 +980,8 @@ interface AppStrings {
     val bleLiveHeartRate: String
     val bleBroadcastingStatus: String
     val bleBpmUnit: String
+    val smartwatchConnectingStatus: String
+    val bluetoothTurnOnPrompt: String
+    val bluetoothPermissionRequired: String
+    val wearOsNoticeText: String
 }

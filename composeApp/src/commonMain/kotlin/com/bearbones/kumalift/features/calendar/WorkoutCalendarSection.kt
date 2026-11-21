@@ -667,18 +667,30 @@ private fun SelectedDayDetailCard(
                 }
             }
 
-            if (!isEmpty) {
-                IconButton(
-                    onClick = onScheduleClick,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = strings.addScheduleWorkout,
-                        tint = colors.accentText,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+            Row(
+                modifier = Modifier
+                    .clip(PillShape)
+                    .background(colors.accentTint)
+                    .clickable(onClick = onScheduleClick)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = colors.accentText,
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = strings.addScheduleWorkout,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentText,
+                        fontSize = 10.sp
+                    ),
+                    maxLines = 1
+                )
             }
         }
 
@@ -863,66 +875,37 @@ private fun SelectedDayDetailCard(
 
         // Empty state / Rest Day
         if (isEmpty) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .background(colors.surface)
                     .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                     .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(PillShape)
-                            .background(colors.surfaceVariant)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = strings.restDayTitle,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.textSecondary,
-                                fontSize = 10.sp
-                            )
-                        )
-                    }
-                    Text(
-                        text = strings.noActivityOnDate,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = colors.textSecondary
-                        )
-                    )
-                }
-
-                Row(
+                Box(
                     modifier = Modifier
                         .clip(PillShape)
-                        .background(colors.accentTint)
-                        .clickable(onClick = onScheduleClick)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .background(colors.surfaceVariant)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        tint = colors.accentText,
-                        modifier = Modifier.size(14.dp)
-                    )
                     Text(
-                        text = strings.addScheduleWorkout,
+                        text = strings.restDayTitle,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentText,
-                            fontSize = 11.sp
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textSecondary,
+                            fontSize = 10.sp
                         )
                     )
                 }
+                Text(
+                    text = strings.noActivityOnDate,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = colors.textSecondary
+                    )
+                )
             }
         } else if (workouts.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -1049,6 +1049,15 @@ object EnStrings : AppStrings {
     override val readinessNotesPlaceholder = "How is your body feeling today?"
     override val autoRegulatePromptTitle = "Low Readiness Detected"
     override val autoRegulatePromptMessage = "Your readiness score is below 55%. Would you like to log this as an active recovery session?"
+    override val readinessLevelLow = "Low"
+    override val readinessLevelModerate = "Moderate"
+    override val readinessLevelHigh = "High"
+    override val readinessSleepPoor = "Poor"
+    override val readinessSleepGreat = "Great"
+    override val readinessSorenessSore = "Sore"
+    override val readinessSorenessFresh = "Fresh"
+    override val readinessStressHigh = "High"
+    override val readinessStressCalm = "Calm"
 
     // Ecosystem & Companion (P3)
     override val healthSettingsTitle = "Health Connect & HealthKit"
@@ -1083,10 +1092,14 @@ object EnStrings : AppStrings {
     override val bleDisconnectAction = "Disconnect"
     override val bleNoDevicesFound = "No Bluetooth heart rate monitors found nearby"
     override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm BPM" }
-    override val bleBroadcastTip = "Tip: Enable 'Heart Rate Broadcast' in your smartband app (Mi Fitness, Zepp, Garmin Connect) to make it discoverable."
+    override val bleBroadcastTip = "Tip: Enable 'Heart Rate Broadcast' in your smartband app (Huawei Health, Mi Fitness, Zepp, Garmin Connect) to make it discoverable."
     override val bleStopScanAction = "Stop Scanning"
     override val bleReadyToPair = "Ready to pair"
     override val bleLiveHeartRate = "Live Pulse"
     override val bleBroadcastingStatus = "Broadcasting"
     override val bleBpmUnit = "BPM"
+    override val smartwatchConnectingStatus = "Connecting..."
+    override val bluetoothTurnOnPrompt = "Bluetooth is turned off. Please enable Bluetooth."
+    override val bluetoothPermissionRequired = "Bluetooth permission is required to scan for heart rate devices."
+    override val wearOsNoticeText = "Note: Huawei Band & smartbands use Bluetooth LE (below), not Wear OS."
 }

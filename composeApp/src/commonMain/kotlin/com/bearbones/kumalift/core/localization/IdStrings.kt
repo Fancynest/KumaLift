@@ -1049,6 +1049,15 @@ object IdStrings : AppStrings {
     override val readinessNotesPlaceholder = "Bagaimana kondisi fisik & mental hari ini?"
     override val autoRegulatePromptTitle = "Kesiapan Rendah Terdeteksi"
     override val autoRegulatePromptMessage = "Skor kesiapan Anda di bawah 55%. Apakah Anda ingin menjalankan sesi ini sebagai pemulihan aktif?"
+    override val readinessLevelLow = "Rendah"
+    override val readinessLevelModerate = "Sedang"
+    override val readinessLevelHigh = "Tinggi"
+    override val readinessSleepPoor = "Buruk"
+    override val readinessSleepGreat = "Pulas"
+    override val readinessSorenessSore = "Pegal"
+    override val readinessSorenessFresh = "Segar"
+    override val readinessStressHigh = "Tinggi"
+    override val readinessStressCalm = "Tenang"
 
     // Ecosystem & Companion (P3)
     override val healthSettingsTitle = "Integrasi Health Connect & HealthKit"
@@ -1083,10 +1092,14 @@ object IdStrings : AppStrings {
     override val bleDisconnectAction = "Putuskan Sensor"
     override val bleNoDevicesFound = "Tidak ada sensor detak jantung Bluetooth ditemukan di sekitar"
     override val bleConnectedDeviceFormat: (String, Int) -> String = { name, bpm -> "$name • $bpm Detak/mnt" }
-    override val bleBroadcastTip = "Tips: Aktifkan 'Detak Jantung Siaran' di aplikasi smartband (Mi Fitness, Zepp, Garmin Connect) agar terdeteksi."
+    override val bleBroadcastTip = "Tips: Aktifkan 'Siarkan Detak Jantung' di aplikasi smartband (Huawei Health, Mi Fitness, Zepp, Garmin Connect) agar terdeteksi."
     override val bleStopScanAction = "Hentikan Pindai"
     override val bleReadyToPair = "Siap dihubungkan"
     override val bleLiveHeartRate = "Denyut Langsung"
     override val bleBroadcastingStatus = "Siaran Aktif"
     override val bleBpmUnit = "Detak/mnt"
+    override val smartwatchConnectingStatus = "Menghubungkan..."
+    override val bluetoothTurnOnPrompt = "Bluetooth mati. Harap aktifkan Bluetooth."
+    override val bluetoothPermissionRequired = "Izin Bluetooth dibutuhkan untuk memindai perangkat detak jantung."
+    override val wearOsNoticeText = "Catatan: Huawei Band & smartband menggunakan Bluetooth LE (di bawah), bukan Wear OS."
 }

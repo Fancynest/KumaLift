@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
@@ -154,7 +155,7 @@ fun WorkoutCalendarSection(
 
     KumaCard(
         modifier = modifier.fillMaxWidth(),
-        backgroundColor = KumaColors.SurfaceContainerLow,
+        backgroundColor = colors.surfaceVariant,
         cornerRadius = 18.dp
     ) {
         Column(
@@ -322,7 +323,7 @@ fun WorkoutCalendarSection(
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(KumaColors.ElectricLime)
+                            .background(colors.recoveryFresh)
                     )
                     Text(
                         text = s.completedStatus,
@@ -494,7 +495,7 @@ private fun CalendarDayCell(
                         modifier = Modifier
                             .size(4.dp)
                             .clip(CircleShape)
-                            .background(if (cell.isSelected) colors.onAccentFill else KumaColors.ElectricLime)
+                            .background(if (cell.isSelected) colors.onAccentFill else colors.recoveryFresh)
                     )
                 }
                 if (cell.hasScheduledWorkout) {
@@ -623,6 +624,7 @@ private fun SelectedDayDetailCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier.weight(1f, fill = false),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -631,7 +633,9 @@ private fun SelectedDayDetailCard(
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 if (isToday) {
@@ -653,33 +657,19 @@ private fun SelectedDayDetailCard(
                 }
             }
 
-            Box(
+            IconButton(
+                onClick = onScheduleClick,
                 modifier = Modifier
-                    .clip(PillShape)
-                    .background(colors.accentFill.copy(alpha = 0.15f))
-                    .clickable(onClick = onScheduleClick)
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(colors.accentTint)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = strings.addScheduleWorkout,
-                        tint = colors.accentText,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = strings.addScheduleWorkout,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = colors.accentText,
-                            fontSize = 11.sp
-                        )
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = strings.addScheduleWorkout,
+                    tint = colors.accentText,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
 
@@ -688,7 +678,7 @@ private fun SelectedDayDetailCard(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 scheduledEvents.forEach { event ->
                     val statusColor = when {
-                        event.isCompleted -> KumaColors.ElectricLime
+                        event.isCompleted -> colors.recoveryFresh
                         event.isCancelled -> colors.textSecondary.copy(alpha = 0.5f)
                         else -> colors.accentText
                     }
@@ -702,7 +692,8 @@ private fun SelectedDayDetailCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(KumaColors.SurfaceDim)
+                            .background(colors.surface)
+                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -788,13 +779,47 @@ private fun SelectedDayDetailCard(
 
         // Completed Workouts for this date
         if (workouts.isEmpty() && scheduledEvents.isEmpty()) {
-            Text(
-                text = strings.noActivityOnDate,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = colors.textSecondary
-                ),
-                modifier = Modifier.padding(vertical = 6.dp)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colors.surface)
+                    .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = strings.noActivityOnDate,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = colors.textSecondary
+                    )
+                )
+
+                Row(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(colors.accentTint)
+                        .clickable(onClick = onScheduleClick)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = null,
+                        tint = colors.accentText,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = strings.addScheduleWorkout,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentText,
+                            fontSize = 11.sp
+                        )
+                    )
+                }
+            }
         } else if (workouts.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 workouts.forEach { w ->
@@ -810,7 +835,8 @@ private fun SelectedDayDetailCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(KumaColors.SurfaceDim)
+                            .background(colors.surface)
+                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -855,7 +881,7 @@ private fun SelectedDayDetailCard(
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = strings.completedStatus,
-                            tint = KumaColors.ElectricLime,
+                            tint = colors.recoveryFresh,
                             modifier = Modifier.size(18.dp)
                         )
                     }

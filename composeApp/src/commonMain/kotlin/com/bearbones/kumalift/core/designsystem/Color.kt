@@ -95,12 +95,20 @@ data class KumaColors(
     val muscleCardio: Color,
     val muscleNeck: Color,
     val muscleOther: Color,
+
+    // Anatomy Model Tokens
+    val anatomyBase: Color,
+    val anatomyNeutral: Color,
+    val anatomyNeutralStroke: Color,
+    val anatomySilhouette: Color,
 ) {
     fun toHighContrast(): KumaColors {
         return copy(
             border = borderStrong,
             textSecondary = textPrimary.copy(alpha = 0.85f),
-            textSubtle = textPrimary.copy(alpha = 0.70f)
+            textSubtle = textPrimary.copy(alpha = 0.70f),
+            anatomyNeutralStroke = borderStrong,
+            anatomySilhouette = textPrimary
         )
     }
 
@@ -205,6 +213,11 @@ data class KumaColors(
 
         val MediaPlaceholder: Color @Composable get() = LocalKumaColors.current.mediaPlaceholder
         val MediaPlaceholderIcon: Color @Composable get() = LocalKumaColors.current.mediaPlaceholderIcon
+
+        val AnatomyBase: Color @Composable get() = LocalKumaColors.current.anatomyBase
+        val AnatomyNeutral: Color @Composable get() = LocalKumaColors.current.anatomyNeutral
+        val AnatomyNeutralStroke: Color @Composable get() = LocalKumaColors.current.anatomyNeutralStroke
+        val AnatomySilhouette: Color @Composable get() = LocalKumaColors.current.anatomySilhouette
     }
 }
 
@@ -292,6 +305,11 @@ val DarkColors = KumaColors(
     muscleCardio = Color(0xFFFF5252),
     muscleNeck = Color(0xFFE056FD),
     muscleOther = Color(0xFFBDBDBD),
+
+    anatomyBase = Color(0xFF1E2128),
+    anatomyNeutral = Color(0xFF383C46),
+    anatomyNeutralStroke = Color(0xFF5A6070),
+    anatomySilhouette = Color(0xFF8E97A8),
 )
 
 val LightColors = KumaColors(
@@ -378,6 +396,11 @@ val LightColors = KumaColors(
     muscleCardio = Color(0xFFE11D48),
     muscleNeck = Color(0xFF9333EA),
     muscleOther = Color(0xFF64748B),
+
+    anatomyBase = Color(0xFFF2F4EE),
+    anatomyNeutral = Color(0xFFECEEE8),
+    anatomyNeutralStroke = Color(0xFFD6DAE2),
+    anatomySilhouette = Color(0xFF9CA3AF),
 )
 
 val LocalKumaColors = staticCompositionLocalOf { DarkColors }

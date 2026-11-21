@@ -175,7 +175,7 @@ fun AnatomyBodyHighlighter(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(colors.surfaceVariant.copy(alpha = 0.25f))
+                .background(colors.anatomyBase)
                 .border(1.dp, colors.border, RoundedCornerShape(16.dp))
                 .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -185,7 +185,7 @@ fun AnatomyBodyHighlighter(
             Row(
                 modifier = Modifier
                     .clip(PillShape)
-                    .background(colors.surfaceBright)
+                    .background(if (colors.isDark) colors.surfaceVariant else colors.surfaceBright)
                     .border(1.dp, colors.border, PillShape)
                     .padding(3.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -198,7 +198,13 @@ fun AnatomyBodyHighlighter(
                     Box(
                         modifier = Modifier
                             .clip(PillShape)
-                            .background(if (isViewSelected) colors.surfaceVariant else Color.Transparent)
+                            .background(
+                                if (isViewSelected) {
+                                    if (colors.isDark) colors.surfaceBright else colors.surface
+                                } else {
+                                    Color.Transparent
+                                }
+                            )
                             .clickable {
                                 currentView = view
                                 if (view == BodyView.BACK && selectedMuscle == MuscleGroup.CHEST) {
@@ -303,7 +309,7 @@ fun AnatomyBodyHighlighter(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(colors.surfaceVariant.copy(alpha = 0.35f))
+                .background(colors.surfaceVariant)
                 .border(1.dp, colors.border, RoundedCornerShape(14.dp))
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -414,7 +420,7 @@ private fun MuscleVolumeDetailCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(colors.surfaceVariant.copy(alpha = 0.6f))
+            .background(colors.surfaceVariant)
             .border(1.dp, colors.border, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
@@ -625,13 +631,13 @@ private fun AnatomySvgBodyCanvas(
                     paths.forEach { path ->
                         drawPath(
                             path = path,
-                            color = colors.surfaceVariant.copy(alpha = 0.65f),
+                            color = colors.anatomyNeutral,
                             style = Fill
                         )
                         drawPath(
                             path = path,
-                            color = colors.border,
-                            style = Stroke(width = 1f)
+                            color = colors.anatomyNeutralStroke,
+                            style = Stroke(width = if (colors.isDark) 1.2f else 1f)
                         )
                     }
                 }
@@ -653,13 +659,13 @@ private fun AnatomySvgBodyCanvas(
                 val fillColor = when {
                     isSelected -> highlightColor.copy(alpha = 0.90f)
                     (stat?.weeklySets ?: 0) > 0 -> muscleStatusColor.copy(alpha = 0.40f)
-                    else -> colors.surfaceVariant.copy(alpha = 0.85f)
+                    else -> colors.anatomyNeutral
                 }
 
                 val strokeColor = when {
                     isSelected -> if (colors.isDark) highlightColor else colors.accentText
                     (stat?.weeklySets ?: 0) > 0 -> muscleStatusColor.copy(alpha = 0.70f)
-                    else -> colors.border
+                    else -> colors.anatomyNeutralStroke
                 }
 
                 paths.forEach { path ->
@@ -679,8 +685,8 @@ private fun AnatomySvgBodyCanvas(
             // 3. Draw overall body silhouette outline
             drawPath(
                 path = outlinePath,
-                color = colors.borderStrong,
-                style = Stroke(width = 2.5f)
+                color = colors.anatomySilhouette,
+                style = Stroke(width = if (colors.isDark) 2.2f else 2.5f)
             )
         }
     }

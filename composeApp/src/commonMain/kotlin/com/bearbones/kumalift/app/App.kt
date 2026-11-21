@@ -44,6 +44,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
@@ -246,7 +249,16 @@ fun App() {
                             onNavigateToRoutines = { navigator.selectTab(Tab.ROUTINES) },
                             onStartWorkout = {
                                 if (activeWorkout == null) {
-                                    workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
+                                    val nowDt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                    val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1
+                                    val todayRoutine = routineRepository.routines.value.firstOrNull {
+                                        it.scheduledDays.contains(todayDayOfWeek)
+                                    }
+                                    if (todayRoutine != null) {
+                                        workoutRepository.startWorkoutFromRoutine(todayRoutine)
+                                    } else {
+                                        workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
+                                    }
                                 }
                                 navigator.push(Overlay.ActiveLogger)
                             }

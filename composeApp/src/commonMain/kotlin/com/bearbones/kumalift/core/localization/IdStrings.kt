@@ -37,6 +37,9 @@ object IdStrings : AppStrings {
     override val tabProfile = "Profil"
     override val workoutInProgress = "SESI LATIHAN BERJALAN"
     override val resume = "LANJUT"
+    override val pause = "Jeda"
+    override val play = "Mulai"
+    override val complete = "Selesai"
 
     // Home Screen
     override val greetingMorning = "Selamat pagi"
@@ -276,7 +279,7 @@ object IdStrings : AppStrings {
     override val workoutDurationStat = "DURASI"
     override val activeSessionSubtext = "Sesi aktif"
     override val totalVolumeStat = "TOTAL BEBAN"
-    override val totalTonnageSubtext = "Total tonase"
+    override val totalTonnageSubtext = "Volume kerja sesi"
     override val totalSetsStat = "SET TUNTAS"
     override fun completedPercent(pct: Int) = "$pct% tuntas"
     override val targetRestStat = "TARGET REHAT"

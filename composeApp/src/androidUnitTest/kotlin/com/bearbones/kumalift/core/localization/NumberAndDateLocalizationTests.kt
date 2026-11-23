@@ -39,6 +39,18 @@ class NumberAndDateLocalizationTests {
     }
 
     @Test
+    fun testIntegerWithSeparatorsPerLanguage() {
+        val volume = 2064L
+        val largeVolume = 1245000L
+
+        assertEquals("2,064", NumberFormatUtils.formatIntegerWithSeparators(volume, AppLanguage.EN))
+        assertEquals("2.064", NumberFormatUtils.formatIntegerWithSeparators(volume, AppLanguage.ID))
+
+        assertEquals("1,245,000", NumberFormatUtils.formatIntegerWithSeparators(largeVolume, AppLanguage.EN))
+        assertEquals("1.245.000", NumberFormatUtils.formatIntegerWithSeparators(largeVolume, AppLanguage.ID))
+    }
+
+    @Test
     fun testDecimalInputParsingAcceptsBothCommaAndDot() {
         val parsedDot = NumberFormatUtils.parseDecimalInput("62.5")
         assertEquals(62.5, parsedDot!!, 0.0001)

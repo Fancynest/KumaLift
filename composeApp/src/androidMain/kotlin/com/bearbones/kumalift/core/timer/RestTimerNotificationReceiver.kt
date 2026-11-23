@@ -13,6 +13,12 @@ class RestTimerNotificationReceiver : BroadcastReceiver() {
             ACTION_REST_TIMER_ADD_30 -> {
                 RestTimerCoordinator.addSeconds(30)
             }
+            ACTION_REST_TIMER_PAUSE -> {
+                RestTimerCoordinator.pause()
+            }
+            ACTION_REST_TIMER_RESUME -> {
+                RestTimerCoordinator.resume()
+            }
             ACTION_REST_TIMER_SKIP -> {
                 RestTimerCoordinator.skip()
             }
@@ -25,6 +31,8 @@ class RestTimerNotificationReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_REST_TIMER_ADD_15 = "com.bearbones.kumalift.ACTION_REST_TIMER_ADD_15"
         const val ACTION_REST_TIMER_ADD_30 = "com.bearbones.kumalift.ACTION_REST_TIMER_ADD_30"
+        const val ACTION_REST_TIMER_PAUSE = "com.bearbones.kumalift.ACTION_REST_TIMER_PAUSE"
+        const val ACTION_REST_TIMER_RESUME = "com.bearbones.kumalift.ACTION_REST_TIMER_RESUME"
         const val ACTION_REST_TIMER_SKIP = "com.bearbones.kumalift.ACTION_REST_TIMER_SKIP"
         const val ACTION_REST_TIMER_DISMISS = "com.bearbones.kumalift.ACTION_REST_TIMER_DISMISS"
     }

@@ -92,6 +92,7 @@ object RestTimerCoordinator {
 expect fun playTimerCompletionFeedback()
 expect fun playTimerTickFeedback(secondsRemaining: Int)
 expect fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?)
+expect fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?)
 expect fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int)
 expect fun notifyRestTimerCompleted(exerciseName: String?)
 expect fun notifyRestTimerStopped()
@@ -154,6 +155,7 @@ class RestTimer(private val scope: CoroutineScope) {
         if (_state.value.status == TimerStatus.RUNNING) {
             countdownJob?.cancel()
             _state.value = _state.value.copy(status = TimerStatus.PAUSED)
+            notifyRestTimerPaused(_state.value.remainingSeconds, _state.value.exerciseName)
         }
     }
 

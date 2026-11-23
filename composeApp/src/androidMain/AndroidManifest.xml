@@ -81,6 +81,8 @@
             <intent-filter>
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_ADD_15" />
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_ADD_30" />
+                <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_PAUSE" />
+                <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_RESUME" />
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_SKIP" />
                 <action android:name="com.bearbones.kumalift.ACTION_REST_TIMER_DISMISS" />
             </intent-filter>

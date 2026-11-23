@@ -284,6 +284,50 @@ class LogicStabilizationTests {
     }
 
     @Test
+    fun testRestTimerPlayPauseAndResumeFlow() = runBlocking<Unit> {
+        val timer = RestTimer(this)
+        timer.start(10, "Dumbbell Bench Press")
+        assertTrue(timer.state.value.isRunning)
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+
+        // Pause timer
+        timer.pause()
+        assertEquals(TimerStatus.PAUSED, timer.state.value.status)
+        assertFalse(timer.state.value.isRunning)
+        val pausedSec = timer.state.value.remainingSeconds
+
+        // Wait to verify countdown is halted
+        delay(500)
+        assertEquals(pausedSec, timer.state.value.remainingSeconds)
+
+        // Resume timer
+        timer.resume()
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.isRunning)
+
+        // Dismiss timer
+        timer.dismiss()
+        assertEquals(TimerStatus.DISMISSED, timer.state.value.status)
+        assertFalse(timer.state.value.isVisible)
+    }
+
+    @Test
+    fun testWorkingVolumeExcludesWarmupAndUncompletedSets() {
+        val exercise = Exercise(id = "e1", name = "Dumbbell Bench Press", primaryMuscle = MuscleGroup.CHEST, equipment = Equipment.DUMBBELL)
+        val sets = listOf(
+            com.bearbones.kumalift.domain.model.SetLog(id = "s1", setNumber = 1, setType = com.bearbones.kumalift.domain.model.SetType.WARMUP, weightKg = 20.0, reps = 15, isCompleted = true),
+            com.bearbones.kumalift.domain.model.SetLog(id = "s2", setNumber = 2, setType = com.bearbones.kumalift.domain.model.SetType.NORMAL, weightKg = 40.0, reps = 12, isCompleted = true), // 480
+            com.bearbones.kumalift.domain.model.SetLog(id = "s3", setNumber = 3, setType = com.bearbones.kumalift.domain.model.SetType.NORMAL, weightKg = 40.0, reps = 10, isCompleted = true), // 400
+            com.bearbones.kumalift.domain.model.SetLog(id = "s4", setNumber = 4, setType = com.bearbones.kumalift.domain.model.SetType.DROP, weightKg = 30.0, reps = 8, isCompleted = true),    // 240
+            com.bearbones.kumalift.domain.model.SetLog(id = "s5", setNumber = 5, setType = com.bearbones.kumalift.domain.model.SetType.NORMAL, weightKg = 45.0, reps = 8, isCompleted = false) // Not completed
+        )
+        val we = com.bearbones.kumalift.domain.model.WorkoutExercise(id = "we1", exercise = exercise, sets = sets)
+
+        // 480 + 400 + 240 = 1120.0 (warmup 300.0 and uncompleted 360.0 excluded)
+        assertEquals(1120.0, we.totalVolumeKg, 0.001)
+    }
+
+    @Test
     fun testDiagnosticLoggingBufferAndToggle() {
         KumaLogger.clear()
         KumaLogger.isEnabled = false

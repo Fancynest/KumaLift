@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
@@ -73,7 +74,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.unit.dp
@@ -129,6 +133,11 @@ fun ActiveWorkoutLoggerScreen(
     val timerState by restTimer.state.collectAsState()
 
     var showRestTimerBar by remember { mutableStateOf(restTimer.state.value.isVisible) }
+    LaunchedEffect(timerState.status) {
+        if (timerState.isVisible) {
+            showRestTimerBar = true
+        }
+    }
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
     var showLeaveLoggerDialog by remember { mutableStateOf(false) }
     var showCancelWorkoutDialog by remember { mutableStateOf(false) }
@@ -793,6 +802,13 @@ fun ActiveWorkoutLoggerScreen(
                 subtractStepSec = settings.logging.restTimerSubtractStepSec,
                 onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
                 onMinus = { restTimer.addSeconds(-settings.logging.restTimerSubtractStepSec) },
+                onTogglePlayPause = {
+                    if (timerState.isRunning) {
+                        restTimer.pause()
+                    } else {
+                        restTimer.resume()
+                    }
+                },
                 onCustomTimer = { customSec ->
                     restTimer.start(customSec)
                 },
@@ -1229,12 +1245,12 @@ fun ExerciseLoggingCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.recoveryFresh.copy(alpha = 0.12f))
-                            .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -1244,14 +1260,16 @@ fun ExerciseLoggingCard(
                                     color = LocalKumaColors.current.recoveryFresh
                                 )
                             )
+                            Spacer(modifier = Modifier.height(3.dp))
                             val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
                             val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
                             val e1RmText = if (progressionAdvice.projectedE1RmKg != null) " • ${s.estimatedOneRmLabel}: ${progressionAdvice.projectedE1RmKg} ${s.unitKg}" else ""
                             Text(
                                 text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)$e1RmText",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    color = KumaColors.TextMuted,
-                                    fontSize = 11.sp
+                                    color = LocalKumaColors.current.textSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
                                 )
                             )
                         }
@@ -1260,7 +1278,7 @@ fun ExerciseLoggingCard(
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.recoveryFresh)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = s.applyProgressionAction,
@@ -1277,12 +1295,12 @@ fun ExerciseLoggingCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.accentFill.copy(alpha = 0.12f))
-                            .border(1.dp, LocalKumaColors.current.accentFill.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .border(1.dp, LocalKumaColors.current.accentFill.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -1292,13 +1310,15 @@ fun ExerciseLoggingCard(
                                     color = LocalKumaColors.current.accentFill
                                 )
                             )
+                            Spacer(modifier = Modifier.height(3.dp))
                             val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
                             val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
                             Text(
                                 text = detailsText,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    color = KumaColors.TextMuted,
-                                    fontSize = 11.sp
+                                    color = LocalKumaColors.current.textSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
                                 )
                             )
                         }
@@ -1307,7 +1327,7 @@ fun ExerciseLoggingCard(
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.accentFill)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = s.applyRepTargetAction,
@@ -1324,12 +1344,12 @@ fun ExerciseLoggingCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.recoveryTired.copy(alpha = 0.12f))
-                            .border(1.dp, LocalKumaColors.current.recoveryTired.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .border(1.dp, LocalKumaColors.current.recoveryTired.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -1339,13 +1359,15 @@ fun ExerciseLoggingCard(
                                     color = LocalKumaColors.current.recoveryTired
                                 )
                             )
+                            Spacer(modifier = Modifier.height(3.dp))
                             val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
                             val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
                             Text(
                                 text = detailsText,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    color = KumaColors.TextMuted,
-                                    fontSize = 11.sp
+                                    color = LocalKumaColors.current.textSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
                                 )
                             )
                         }
@@ -1354,7 +1376,7 @@ fun ExerciseLoggingCard(
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.recoveryTired)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = s.applyProgressionAction,
@@ -1495,6 +1517,7 @@ fun ExerciseLoggingCard(
 
             var isEditingNotes by remember { mutableStateOf(workoutExercise.notes.isNotBlank()) }
             var notesText by remember(workoutExercise.notes) { mutableStateOf(workoutExercise.notes) }
+            val focusManager = LocalFocusManager.current
 
             if (isEditingNotes) {
                 OutlinedTextField(
@@ -1514,6 +1537,10 @@ fun ExerciseLoggingCard(
                     textStyle = MaterialTheme.typography.bodySmall.copy(
                         color = LocalKumaColors.current.textPrimary
                     ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                    }),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = LocalKumaColors.current.accentText,
                         unfocusedBorderColor = KumaColors.BorderDefault,
@@ -1865,6 +1892,7 @@ fun FloatingRestTimerCard(
     subtractStepSec: Int = 15,
     onAdd: () -> Unit,
     onMinus: () -> Unit,
+    onTogglePlayPause: () -> Unit,
     onCustomTimer: ((Int) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -1897,7 +1925,13 @@ fun FloatingRestTimerCard(
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Box(
-            modifier = Modifier.clickable { showCustomDialog = true },
+            modifier = Modifier.clickable {
+                if (isCompleted) {
+                    onDismiss()
+                } else {
+                    onTogglePlayPause()
+                }
+            },
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(
@@ -1907,8 +1941,16 @@ fun FloatingRestTimerCard(
                 trackColor = colors.surfaceVariant
             )
             Icon(
-                imageVector = if (isCompleted) Icons.Default.Check else Icons.Default.PlayArrow,
-                contentDescription = null,
+                imageVector = when {
+                    isCompleted -> Icons.Default.Check
+                    timerState.isRunning -> Icons.Default.Pause
+                    else -> Icons.Default.PlayArrow
+                },
+                contentDescription = when {
+                    isCompleted -> s.complete
+                    timerState.isRunning -> s.pause
+                    else -> s.play
+                },
                 tint = colors.accentText,
                 modifier = Modifier.size(16.dp)
             )
@@ -1975,7 +2017,7 @@ fun FloatingRestTimerCard(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = s.close,
-                    tint = KumaColors.TextMuted,
+                    tint = colors.textSubtle,
                     modifier = Modifier.size(18.dp)
                 )
             }

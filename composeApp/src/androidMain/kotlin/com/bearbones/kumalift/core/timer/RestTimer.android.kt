@@ -10,11 +10,14 @@ import com.bearbones.kumalift.MainActivity
 import com.bearbones.kumalift.core.localization.AppStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.notification.PlatformNotificationChannels
+import com.bearbones.kumalift.core.sound.AppForegroundTracker
 import com.bearbones.kumalift.core.sound.PlatformSoundPlayer
 import com.bearbones.kumalift.core.sound.SoundEvent
 import com.bearbones.kumalift.core.sound.SoundManager
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_15
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_30
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_PAUSE
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_RESUME
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.UserSettings
@@ -89,6 +92,102 @@ actual fun notifyRestTimerStopped() {
     PlatformSoundPlayer.cancelRestFinishedNotification()
 }
 
+actual fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?) {
+    val context = AndroidAppProvider.appContext ?: return
+    val settings = getUserSettings()
+    if (!settings.notifications.ongoingWorkout && !settings.notifications.restTimerAlert) {
+        notifyRestTimerStopped()
+        return
+    }
+
+    try {
+        val strings = getStrings(context)
+        val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
+        val langStr = prefs.getString("language_code", null)
+        val appLanguage = try {
+            if (langStr != null) AppLanguage.valueOf(langStr) else AppLanguage.SYSTEM
+        } catch (_: Exception) {
+            AppLanguage.SYSTEM
+        }
+        PlatformNotificationChannels.ensureChannels(context, appLanguage)
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val appIconRes = context.applicationInfo.icon.let { if (it != 0) it else android.R.drawable.ic_dialog_info }
+
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            100,
+            Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val resumeIntent = PendingIntent.getBroadcast(
+            context,
+            105,
+            Intent(context, RestTimerNotificationReceiver::class.java).apply {
+                action = ACTION_REST_TIMER_RESUME
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val skipIntent = PendingIntent.getBroadcast(
+            context,
+            102,
+            Intent(context, RestTimerNotificationReceiver::class.java).apply {
+                action = ACTION_REST_TIMER_SKIP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val mins = remainingSeconds / 60
+        val secs = remainingSeconds % 60
+        val formattedTime = "${if (mins < 10) "0$mins" else "$mins"}:${if (secs < 10) "0$secs" else "$secs"}"
+
+        val title = if (!exerciseName.isNullOrBlank()) "${strings.pause} · $exerciseName" else "${strings.pause} · ${strings.restTimerChannelName}"
+        val text = "${strings.pause} · $formattedTime"
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+
+        builder.setSmallIcon(appIconRes)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setContentIntent(contentIntent)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setUsesChronometer(false)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+            val resumeAction = Notification.Action.Builder(
+                null,
+                strings.play,
+                resumeIntent
+            ).build()
+
+            val skipAction = Notification.Action.Builder(
+                null,
+                strings.restTimerActionSkip,
+                skipIntent
+            ).build()
+
+            builder.addAction(resumeAction)
+            builder.addAction(skipAction)
+        }
+
+        manager.notify(NOTIF_ID_ONGOING, builder.build())
+    } catch (_: Throwable) {
+        // Fallback gracefully
+    }
+}
+
 actual fun notifyRestTimerCompleted(exerciseName: String?) {
     val context = AndroidAppProvider.appContext ?: return
     val settings = getUserSettings()
@@ -145,8 +244,21 @@ actual fun notifyRestTimerCompleted(exerciseName: String?) {
             strings.restTimerNotificationText
         }
 
+        val isForeground = AppForegroundTracker.isForeground
+        val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!isForeground && settings.notifications.soundProfile == com.bearbones.kumalift.domain.model.SoundProfile.KUMA) {
+                PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_KUMA
+            } else if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT) {
+                PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_VIBRATE
+            } else {
+                PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_SILENT
+            }
+        } else {
+            PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING
+        }
+
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(context, PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING)
+            Notification.Builder(context, channelId)
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(context)
@@ -210,7 +322,17 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 1: +30s
+        // Action 1: Pause
+        val pauseIntent = PendingIntent.getBroadcast(
+            context,
+            104,
+            Intent(context, RestTimerNotificationReceiver::class.java).apply {
+                action = ACTION_REST_TIMER_PAUSE
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action 2: +30s
         val add30Intent = PendingIntent.getBroadcast(
             context,
             101,
@@ -220,7 +342,7 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action 2: Skip
+        // Action 3: Skip
         val skipIntent = PendingIntent.getBroadcast(
             context,
             102,
@@ -262,6 +384,12 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
 
         // Add action buttons
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+            val pauseAction = Notification.Action.Builder(
+                null,
+                strings.pause,
+                pauseIntent
+            ).build()
+
             val addAction = Notification.Action.Builder(
                 null,
                 strings.restTimerActionAdd30,
@@ -274,6 +402,7 @@ private fun updateOngoingNotification(context: Context, targetEndEpochMs: Long, 
                 skipIntent
             ).build()
 
+            builder.addAction(pauseAction)
             builder.addAction(addAction)
             builder.addAction(skipAction)
         }

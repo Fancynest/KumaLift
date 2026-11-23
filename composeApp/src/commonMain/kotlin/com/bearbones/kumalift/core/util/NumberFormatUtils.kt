@@ -80,6 +80,31 @@ object NumberFormatUtils {
     }
 
     /**
+     * Formats integer with thousand separators:
+     * - English: comma (e.g. "2,064")
+     * - Indonesian: period (e.g. "2.064")
+     */
+    fun formatIntegerWithSeparators(
+        value: Long,
+        language: AppLanguage = AppLanguage.EN
+    ): String {
+        val followsEnglish = resolveIsEnglish(language)
+        val separator = if (followsEnglish) ',' else '.'
+        val sign = if (value < 0) "-" else ""
+        val absStr = kotlin.math.abs(value).toString()
+        val sb = StringBuilder()
+        val len = absStr.length
+        for (i in 0 until len) {
+            sb.append(absStr[i])
+            val remaining = len - i - 1
+            if (remaining > 0 && remaining % 3 == 0) {
+                sb.append(separator)
+            }
+        }
+        return "$sign$sb"
+    }
+
+    /**
      * Cleanly parses decimal inputs accepting both comma (',') and period ('.').
      */
     fun parseDecimalInput(input: String): Double? {

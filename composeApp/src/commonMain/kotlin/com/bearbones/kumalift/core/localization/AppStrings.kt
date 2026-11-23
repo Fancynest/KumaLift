@@ -41,6 +41,9 @@ interface AppStrings {
     val tabProfile: String
     val workoutInProgress: String
     val resume: String
+    val pause: String
+    val play: String
+    val complete: String
 
     // Home Screen
     val greetingMorning: String

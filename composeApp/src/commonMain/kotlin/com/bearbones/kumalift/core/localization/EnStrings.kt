@@ -37,6 +37,9 @@ object EnStrings : AppStrings {
     override val tabProfile = "Profile"
     override val workoutInProgress = "WORKOUT IN PROGRESS"
     override val resume = "RESUME"
+    override val pause = "Pause"
+    override val play = "Play"
+    override val complete = "Complete"
 
     // Home Screen
     override val greetingMorning = "Good morning"
@@ -276,7 +279,7 @@ object EnStrings : AppStrings {
     override val workoutDurationStat = "DURATION"
     override val activeSessionSubtext = "Active session"
     override val totalVolumeStat = "TOTAL VOLUME"
-    override val totalTonnageSubtext = "Total tonnage"
+    override val totalTonnageSubtext = "Session working volume"
     override val totalSetsStat = "COMPLETED SETS"
     override fun completedPercent(pct: Int) = "$pct% completed"
     override val targetRestStat = "TARGET REST"

@@ -58,14 +58,6 @@ object SoundManager {
             ) {
                 PlatformSoundPlayer.playHaptic()
             }
-
-            // In background or screen off, post non-duplicate notification (sound handled above)
-            val isForegroundAndInteractive = appInForeground && screenInteractive
-            if (!isForegroundAndInteractive && settings.notifications.restTimerAlert && notifPerm) {
-                PlatformSoundPlayer.postRestFinishedNotification(
-                    if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT) ChannelVariant.VIBRATE else ChannelVariant.SILENT
-                )
-            }
             return
         }
 

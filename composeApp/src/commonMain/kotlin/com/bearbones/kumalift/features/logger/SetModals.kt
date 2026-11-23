@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -48,7 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -69,12 +72,18 @@ fun WeightInputDialog(
 ) {
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
+    val focusManager = LocalFocusManager.current
     val initialStr = if (initialWeight > 0.0) {
         if (initialWeight == initialWeight.toLong().toDouble()) initialWeight.toLong().toString() else initialWeight.toString()
     } else ""
     var textValue by remember { mutableStateOf(initialStr) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showPlateCalcModal by remember { mutableStateOf(false) }
+
+    val handleConfirm = {
+        val parsed = NumberFormatUtils.parseDecimalInput(textValue) ?: 0.0
+        onConfirm(parsed)
+    }
 
     if (showPlateCalcModal) {
         PlateCalculatorDialog(
@@ -118,7 +127,11 @@ fun WeightInputDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("0", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        handleConfirm()
+                    }),
                     singleLine = true,
                     isError = errorMessage != null,
                     supportingText = {
@@ -190,10 +203,7 @@ fun WeightInputDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    val weight = NumberFormatUtils.parseDecimalInput(textValue) ?: 0.0
-                    onConfirm(weight)
-                },
+                onClick = handleConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentFill,
                     contentColor = colors.onAccentFill
@@ -218,8 +228,14 @@ fun RepsInputDialog(
 ) {
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
+    val focusManager = LocalFocusManager.current
     var textValue by remember { mutableStateOf(if (initialReps > 0) initialReps.toString() else "") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val handleConfirm = {
+        val reps = textValue.toIntOrNull() ?: 0
+        onConfirm(reps)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -251,7 +267,11 @@ fun RepsInputDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("0", style = MaterialTheme.typography.bodyLarge.copy(color = KumaColors.TextMuted)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        focusManager.clearFocus()
+                        handleConfirm()
+                    }),
                     singleLine = true,
                     isError = errorMessage != null,
                     supportingText = {
@@ -303,10 +323,7 @@ fun RepsInputDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    val reps = textValue.toIntOrNull() ?: 0
-                    onConfirm(reps)
-                },
+                onClick = handleConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.accentFill,
                     contentColor = colors.onAccentFill

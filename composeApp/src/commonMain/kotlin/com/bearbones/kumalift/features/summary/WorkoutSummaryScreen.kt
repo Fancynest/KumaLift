@@ -43,6 +43,7 @@ import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.util.NumberFormatUtils
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -67,8 +68,8 @@ fun WorkoutSummaryScreen(
     val durSecs = durationSec % 60
     val durationFormatted = "${durMins}:${if (durSecs < 10) "0$durSecs" else "$durSecs"}"
 
-    val volVal = ((workout?.totalVolumeKg ?: 0.0) * mult).toInt()
-    val volFormatted = "$volVal $unitStr"
+    val volVal = ((workout?.totalVolumeKg ?: 0.0) * mult).toLong()
+    val volFormatted = "${NumberFormatUtils.formatIntegerWithSeparators(volVal, settings?.appearance?.language ?: AppLanguage.EN)} $unitStr"
 
     val completedSets = workout?.totalCompletedSets ?: 0
     val totalSets = workout?.totalSets ?: 0

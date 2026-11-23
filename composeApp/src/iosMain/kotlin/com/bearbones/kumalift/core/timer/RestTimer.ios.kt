@@ -17,6 +17,10 @@ actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exe
     // iOS Live Activity / Dynamic Island placeholder
 }
 
+actual fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?) {
+    // iOS pause
+}
+
 actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int) {
     // iOS update
 }

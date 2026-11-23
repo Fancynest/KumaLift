@@ -76,6 +76,11 @@ import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.core.util.NumberFormatUtils
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AthleteSex
 import com.bearbones.kumalift.domain.model.ExperienceLevel
@@ -590,11 +595,31 @@ fun MeScreen(
                     } else {
                         // List completed workouts
                         completedWorkouts.take(5).forEach { workout ->
+                            val durationMin = (workout.durationSeconds / 60).coerceAtLeast(1)
+                            val vol = if (isLb) workout.totalVolumeKg * 2.20462 else workout.totalVolumeKg
+                            val volFormatted = "${NumberFormatUtils.formatIntegerWithSeparators(vol.toLong(), settings.appearance.language)} $unitSuffix"
+
+                            val timeZone = TimeZone.currentSystemDefault()
+                            val workoutDate = Instant.fromEpochMilliseconds(workout.startTimeEpochMs)
+                                .toLocalDateTime(timeZone)
+                                .date
+                            val todayDate = Clock.System.now().toLocalDateTime(timeZone).date
+                            val dateText = if (workoutDate == todayDate) {
+                                s.todayLabel
+                            } else {
+                                val dayOfWeekName = s.dayNamesFull.getOrElse(workoutDate.dayOfWeek.ordinal) { "" }
+                                val monthName = s.monthNamesFull.getOrElse(workoutDate.monthNumber - 1) { "" }
+                                if (workoutDate.year == todayDate.year) {
+                                    "$dayOfWeekName, ${workoutDate.dayOfMonth} $monthName"
+                                } else {
+                                    "$dayOfWeekName, ${workoutDate.dayOfMonth} $monthName ${workoutDate.year}"
+                                }
+                            }
                             WorkoutSummaryCard(
                                 title = workout.title,
-                                date = "Hari ini",
-                                duration = "${workout.durationSeconds / 60} mnt",
-                                volume = "14.200 kg",
+                                date = dateText,
+                                duration = "$durationMin ${s.minAbbrev}",
+                                volume = volFormatted,
                                 exerciseCount = workout.exercises.size
                             )
                             Spacer(modifier = Modifier.height(10.dp))

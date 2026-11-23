@@ -208,8 +208,27 @@ fun App() {
                             workoutScheduleRepository = workoutScheduleRepository,
                             mesocycleRepository = mesocycleRepository,
                             dailyReadinessRepository = dailyReadinessRepository,
-                            onStartWorkout = { navigator.push(Overlay.ActiveLogger) },
-                            onStartFreestyle = { navigator.push(Overlay.ActiveLogger) },
+                            onStartWorkout = {
+                                if (activeWorkout == null) {
+                                    val nowDt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                                    val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1
+                                    val todayRoutine = routineRepository.routines.value.firstOrNull {
+                                        it.scheduledDays.contains(todayDayOfWeek)
+                                    }
+                                    if (todayRoutine != null) {
+                                        workoutRepository.startWorkoutFromRoutine(todayRoutine)
+                                    } else {
+                                        workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
+                                    }
+                                }
+                                navigator.push(Overlay.ActiveLogger)
+                            },
+                            onStartFreestyle = {
+                                if (activeWorkout == null) {
+                                    workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
+                                }
+                                navigator.push(Overlay.ActiveLogger)
+                            },
                             onOpenSettings = { navigator.push(Overlay.Settings) }
                         )
                         Tab.ROUTINES -> RoutinesScreen(

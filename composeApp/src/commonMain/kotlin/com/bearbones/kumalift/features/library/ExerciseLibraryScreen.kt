@@ -89,6 +89,7 @@ fun ExerciseLibraryScreen(
     var selectedExerciseId by rememberSaveable { mutableStateOf<String?>(null) }
     var isCreatingExercise by rememberSaveable { mutableStateOf(false) }
     val allExercises by exerciseRepository.exercises.collectAsState()
+    val activeWorkout by (workoutRepository?.activeWorkout ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }).collectAsState()
     val selectedExerciseForDetail = allExercises.find { it.id == selectedExerciseId }
 
     // T10: Sub-navigation back handlers
@@ -116,9 +117,9 @@ fun ExerciseLibraryScreen(
                         exercise = liveExercise,
                         settingsRepository = settingsRepository,
                         onNavigateBack = { selectedExerciseId = null },
-                        onAddExercise = if (workoutRepository?.activeWorkout?.collectAsState()?.value != null) {
+                        onAddExercise = if (activeWorkout != null) {
                             {
-                                workoutRepository.addExerciseToActiveWorkout(liveExercise)
+                                workoutRepository?.addExerciseToActiveWorkout(liveExercise)
                                 onExerciseSelected?.invoke(liveExercise)
                             }
                         } else null,

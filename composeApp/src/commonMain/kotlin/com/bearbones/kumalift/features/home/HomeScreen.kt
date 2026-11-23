@@ -729,8 +729,24 @@ fun HomeScreen(
                                 workoutScheduleRepository?.deleteEvent(eventId)
                             },
                             onStartScheduledWorkout = { eventId, routineId ->
-                                routineRepository?.getRoutineById(routineId)?.let { r ->
-                                    workoutRepository.startWorkoutFromRoutine(r, scheduledEventId = eventId)
+                                val routine = routineRepository?.getRoutineById(routineId)
+                                    ?: routineRepository?.routines?.value?.firstOrNull { it.id == routineId }
+                                if (routine != null) {
+                                    workoutRepository.startWorkoutFromRoutine(routine, scheduledEventId = eventId)
+                                    onStartWorkout()
+                                } else {
+                                    val event = workoutScheduleRepository?.events?.value?.firstOrNull { it.id == eventId }
+                                    val routineByTitle = event?.let { ev ->
+                                        routineRepository?.routines?.value?.firstOrNull {
+                                            it.title.equals(ev.routineTitleSnapshot, ignoreCase = true)
+                                        }
+                                    }
+                                    if (routineByTitle != null) {
+                                        workoutRepository.startWorkoutFromRoutine(routineByTitle, scheduledEventId = eventId)
+                                    } else {
+                                        val title = event?.routineTitleSnapshot?.takeIf { it.isNotBlank() } ?: s.freestyleWorkoutName
+                                        workoutRepository.startEmptyWorkout(title)
+                                    }
                                     onStartWorkout()
                                 }
                             },

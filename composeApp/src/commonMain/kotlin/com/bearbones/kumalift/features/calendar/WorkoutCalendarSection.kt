@@ -725,12 +725,18 @@ private fun SelectedDayDetailCard(
                         else -> strings.scheduledStatus
                     }
 
+                    val canStartScheduledEvent = event.isPlanned && event.routineId != null && onStartScheduledWorkout != null
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(colors.surface)
                             .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                            .clickable(enabled = canStartScheduledEvent) {
+                                if (canStartScheduledEvent) {
+                                    onStartScheduledWorkout?.invoke(event.id, event.routineId!!)
+                                }
+                            }
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -831,6 +837,9 @@ private fun SelectedDayDetailCard(
                             .clip(RoundedCornerShape(10.dp))
                             .background(colors.surface)
                             .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+                            .clickable(enabled = onStartRoutine != null) {
+                                onStartRoutine?.invoke(routine)
+                            }
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically

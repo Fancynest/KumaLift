@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -101,15 +102,15 @@ fun AnatomyBodyHighlighter(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 1. Weekly Hypertrophy KPI Summary Bar
-        Row(
+        FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(colors.surfaceVariant.copy(alpha = 0.45f))
                 .border(1.dp, colors.border, RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -123,6 +124,8 @@ fun AnatomyBodyHighlighter(
                 )
                 Text(
                     text = "$totalWeeklySets ${s.weeklySetsCountLabel}",
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -141,6 +144,8 @@ fun AnatomyBodyHighlighter(
                     ) {
                         Text(
                             text = "$optimalCount ${s.volumeStatusOptimal}",
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.recoveryFresh,
@@ -159,6 +164,8 @@ fun AnatomyBodyHighlighter(
                     ) {
                         Text(
                             text = "$maintenanceCount ${s.volumeStatusMaintenance}",
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.info,
@@ -191,8 +198,8 @@ fun AnatomyBodyHighlighter(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 listOf(
-                    BodyView.FRONT to "Front View",
-                    BodyView.BACK to "Back View"
+                    BodyView.FRONT to s.bodyViewFront,
+                    BodyView.BACK to s.bodyViewBack
                 ).forEach { (view, label) ->
                     val isViewSelected = currentView == view
                     Box(
@@ -359,11 +366,13 @@ fun AnatomyBodyHighlighter(
 
                     Text(
                         text = muscle.label(s),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = colors.textPrimary
                         ),
-                        modifier = Modifier.width(76.dp)
+                        modifier = Modifier.width(88.dp)
                     )
 
                     // Compact Volume Progress Bar
@@ -385,6 +394,8 @@ fun AnatomyBodyHighlighter(
 
                     Text(
                         text = "${mStat.weeklySets} / ${mStat.landmark.mavMin}-${mStat.landmark.mavMax}",
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textSecondary,
@@ -397,6 +408,7 @@ fun AnatomyBodyHighlighter(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MuscleVolumeDetailCard(
     stat: MuscleVolumeStats,
@@ -428,12 +440,14 @@ private fun MuscleVolumeDetailCard(
             // Header Row: Muscle Title + Status Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stat.muscleGroup.label(s),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -456,6 +470,8 @@ private fun MuscleVolumeDetailCard(
                 ) {
                     Text(
                         text = statusText,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = statusColor
@@ -466,9 +482,10 @@ private fun MuscleVolumeDetailCard(
 
             // Landmark Progress Indicator (Israetel Hypertrophy Gauge: MEV -> MAV -> MRV)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
                         text = s.targetVolumeLandmarkLabel,
@@ -547,9 +564,10 @@ private fun MuscleVolumeDetailCard(
                             color = colors.textSecondary
                         )
                     )
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         stat.topExercises.take(3).forEach { (exName, count) ->
                             Box(
@@ -560,6 +578,8 @@ private fun MuscleVolumeDetailCard(
                             ) {
                                 Text(
                                     text = "$exName ($count)",
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 10.sp,
                                         color = colors.textPrimary

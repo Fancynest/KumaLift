@@ -476,4 +476,73 @@ class DataBackupManagerTests {
         val events = repository.getAllScheduleEvents()
         assertEquals(0, events.size)
     }
+
+    @Test
+    fun testDuplicateBackupGuardBlocksSameDayUnchangedAndAllowsAnyChangeOrNewDay() {
+        val baseSettings = UserSettings()
+        val initialHash = backupManager.computeContentHash(baseSettings)
+        val todayNoonMs = 1764244800000L // fixed UTC timestamp
+
+        val afterTodayBackup = baseSettings.copy(
+            dataBackup = baseSettings.dataBackup.copy(
+                lastBackupEpochMs = todayNoonMs,
+                lastBackupResultSuccess = true,
+                lastBackupFileName = "KumaLift-backup-test.kumalift",
+                lastBackupContentHash = initialHash
+            )
+        )
+
+        // Same day + unchanged data (ignoring transient lastBackupEpochMs/FileName) => duplicate detected!
+        assertTrue(
+            backupManager.isSameDataBackedUpToday(
+                settings = afterTodayBackup,
+                nowEpochMs = todayNoonMs + 3_600_000L, // +1 hour same day
+                timeZone = kotlinx.datetime.TimeZone.UTC
+            )
+        )
+
+        // Different day (+24 hours) with identical data => NOT duplicate, new daily backup allowed!
+        assertEquals(
+            false,
+            backupManager.isSameDataBackedUpToday(
+                settings = afterTodayBackup,
+                nowEpochMs = todayNoonMs + 86_400_000L,
+                timeZone = kotlinx.datetime.TimeZone.UTC
+            )
+        )
+
+        // Tiny change in settings (e.g. bodyweight updated by 0.1 kg) => NOT duplicate!
+        val tinySettingChange = afterTodayBackup.copy(
+            profile = afterTodayBackup.profile.copy(bodyweightKg = 72.5)
+        )
+        assertEquals(
+            false,
+            backupManager.isSameDataBackedUpToday(
+                settings = tinySettingChange,
+                nowEpochMs = todayNoonMs + 3_600_000L,
+                timeZone = kotlinx.datetime.TimeZone.UTC
+            )
+        )
+
+        // Tiny change in DB data (e.g. 1 new schedule event added) => NOT duplicate!
+        repository.insertScheduleEvent(
+            WorkoutScheduleEvent(
+                id = "sched_tiny_change",
+                routineId = "rt_1",
+                scheduledDate = "2026-11-28",
+                status = ScheduleStatus.PLANNED,
+                routineTitleSnapshot = "Push Day",
+                createdAtEpochMs = todayNoonMs,
+                updatedAtEpochMs = todayNoonMs
+            )
+        )
+        assertEquals(
+            false,
+            backupManager.isSameDataBackedUpToday(
+                settings = afterTodayBackup,
+                nowEpochMs = todayNoonMs + 3_600_000L,
+                timeZone = kotlinx.datetime.TimeZone.UTC
+            )
+        )
+    }
 }

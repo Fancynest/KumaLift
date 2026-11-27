@@ -110,11 +110,14 @@ fun TrainingProgramSelectorModal(
                     // Header Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = s.trainingProgramsTitle,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = KumaColors.TextWhite
@@ -243,18 +246,21 @@ private fun ProgramItemCard(
             // Metadata Row: Category Chip (left) & Routines Count (right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Category Chip
                 Box(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .clip(PillShape)
                         .background(KumaColors.SurfaceDim)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = program.category.label(s),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = KumaColors.TextSecondary
@@ -265,6 +271,8 @@ private fun ProgramItemCard(
                 // Routines Count
                 Text(
                     text = s.routinesInProgramCount(routineCount),
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.TextMuted,
                         fontWeight = FontWeight.Medium
@@ -312,28 +320,31 @@ private fun ProgramItemCard(
             // Bottom Actions Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!isActive) {
-                    Box(
-                        modifier = Modifier
-                            .clip(PillShape)
-                            .background(colors.accentFill.copy(alpha = 0.15f))
-                            .border(1.dp, colors.accentFill, PillShape)
-                            .clickable { onSelect() }
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = s.useProgramButton,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = colors.accentFill
+                Box(modifier = Modifier.weight(1f)) {
+                    if (!isActive) {
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(colors.accentFill.copy(alpha = 0.15f))
+                                .border(1.dp, colors.accentFill, PillShape)
+                                .clickable { onSelect() }
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = s.useProgramButton,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accentFill
+                                )
                             )
-                        )
+                        }
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(4.dp))
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

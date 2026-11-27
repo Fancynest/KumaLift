@@ -101,10 +101,11 @@ fun SmartAlternativeDialog(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -116,6 +117,8 @@ fun SmartAlternativeDialog(
                         )
                         Text(
                             text = s.smartAlternativesTitle,
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary
@@ -125,7 +128,7 @@ fun SmartAlternativeDialog(
                     IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = null,
+                            contentDescription = s.close,
                             tint = colors.textSecondary
                         )
                     }
@@ -149,7 +152,7 @@ fun SmartAlternativeDialog(
                 ) {
                     equipmentFilters.forEach { equip ->
                         val isSelected = equip == selectedEquipmentFilter
-                        val label = equip?.code ?: s.allEquipmentLabel
+                        val label = equip?.label(s) ?: s.allEquipmentLabel
                         Box(
                             modifier = Modifier
                                 .clip(PillShape)
@@ -165,6 +168,8 @@ fun SmartAlternativeDialog(
                         ) {
                             Text(
                                 text = label,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSelected) colors.accentText else colors.textSecondary,
@@ -205,20 +210,22 @@ fun SmartAlternativeDialog(
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = item.exercise.name,
+                                        maxLines = 2,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.titleSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
                                         )
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    FlowRow(
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
                                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                                     ) {
                                         // Reason Pill
@@ -230,6 +237,8 @@ fun SmartAlternativeDialog(
                                         ) {
                                             Text(
                                                 text = reasonText,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = reasonColor,
                                                     fontSize = 10.sp,
@@ -241,6 +250,8 @@ fun SmartAlternativeDialog(
                                         // Equipment Label Badge
                                         Text(
                                             text = "• ${item.exercise.equipment.label(s)}",
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = colors.textSecondary,
                                                 fontSize = 11.sp
@@ -250,6 +261,8 @@ fun SmartAlternativeDialog(
                                         // Movement Type Badge
                                         Text(
                                             text = "• ${item.exercise.movementType.label(s)}",
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = colors.textSecondary,
                                                 fontSize = 11.sp
@@ -257,8 +270,6 @@ fun SmartAlternativeDialog(
                                         )
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.width(8.dp))
 
                                 // Select / Swap Button
                                 Box(
@@ -270,6 +281,8 @@ fun SmartAlternativeDialog(
                                 ) {
                                     Text(
                                         text = s.swapExerciseButton,
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.onAccentFill,

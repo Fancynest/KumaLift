@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="ai_chat_images" path="ai_chat_images/" />
+    <cache-path name="ai_chat_camera" path="ai_chat_camera/" />
+</paths>

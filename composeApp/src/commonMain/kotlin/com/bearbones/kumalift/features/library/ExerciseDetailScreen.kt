@@ -7,8 +7,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -94,17 +98,18 @@ enum class MetricSwitcherType {
     BEST_SET_VOLUME
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ExerciseDetailScreen(
     exercise: Exercise,
     settingsRepository: SettingsRepository? = null,
+    initialTab: ExerciseDetailTab = ExerciseDetailTab.SUMMARY,
     onNavigateBack: () -> Unit,
     onAddExercise: (() -> Unit)? = null,
     onSaveNote: ((String) -> Unit)? = null
 ) {
     val s = LocalStrings.current
-    var selectedTab by rememberSaveable { mutableStateOf(ExerciseDetailTab.SUMMARY) }
+    var selectedTab by rememberSaveable(exercise.id, initialTab) { mutableStateOf(initialTab) }
     var selectedMetric by rememberSaveable { mutableStateOf(MetricSwitcherType.HEAVIEST_WEIGHT) }
     var showNoteDialog by rememberSaveable { mutableStateOf(false) }
     var currentNote by remember(exercise.pinnedNote) { mutableStateOf(exercise.pinnedNote) }
@@ -334,11 +339,14 @@ fun ExerciseDetailScreen(
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
                                                 text = s.trainingGoalTitle.uppercase(),
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = FontWeight.Bold,
                                                     color = colors.accentText,
@@ -360,104 +368,145 @@ fun ExerciseDetailScreen(
 
                                         Spacer(modifier = Modifier.height(12.dp))
 
-                                        // Metric Pills: Sets, Reps, Rest, RPE
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Box(
+                                        // Metric Pills: Sets, Reps, Rest, RPE (2x2 balanced grid)
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(
                                                 modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(KumaColors.SurfaceContainer)
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
+                                                    .fillMaxWidth()
+                                                    .height(IntrinsicSize.Max),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = s.setColumnHeader,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = KumaColors.TextMuted
-                                                    )
-                                                    Text(
-                                                        text = goalRec.setsRangeText,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = colors.textPrimary
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(KumaColors.SurfaceContainer)
+                                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Text(
+                                                            text = s.setColumnHeader,
+                                                            maxLines = 1,
+                                                            softWrap = false,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = KumaColors.TextMuted
                                                         )
-                                                    )
+                                                        Text(
+                                                            text = goalRec.setsRangeText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = colors.textPrimary
+                                                            )
+                                                        )
+                                                    }
+                                                }
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(KumaColors.SurfaceContainer)
+                                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Text(
+                                                            text = s.repsColumnHeader,
+                                                            maxLines = 1,
+                                                            softWrap = false,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = KumaColors.TextMuted
+                                                        )
+                                                        Text(
+                                                            text = goalRec.repsRangeText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = colors.textPrimary
+                                                            )
+                                                        )
+                                                    }
                                                 }
                                             }
 
-                                            Box(
+                                            Row(
                                                 modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(KumaColors.SurfaceContainer)
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
+                                                    .fillMaxWidth()
+                                                    .height(IntrinsicSize.Max),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = s.repsColumnHeader,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = KumaColors.TextMuted
-                                                    )
-                                                    Text(
-                                                        text = goalRec.repsRangeText,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = colors.textPrimary
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(KumaColors.SurfaceContainer)
+                                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Text(
+                                                            text = s.targetRestStat,
+                                                            maxLines = 1,
+                                                            softWrap = false,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = KumaColors.TextMuted
                                                         )
-                                                    )
+                                                        Text(
+                                                            text = goalRec.restRangeText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = colors.textPrimary
+                                                            )
+                                                        )
+                                                    }
                                                 }
-                                            }
 
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(KumaColors.SurfaceContainer)
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = s.targetRestStat,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = KumaColors.TextMuted
-                                                    )
-                                                    Text(
-                                                        text = goalRec.restRangeText,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = colors.textPrimary
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(KumaColors.SurfaceContainer)
+                                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Text(
+                                                            text = s.targetLabel,
+                                                            maxLines = 1,
+                                                            softWrap = false,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = KumaColors.TextMuted
                                                         )
-                                                    )
-                                                }
-                                            }
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(KumaColors.SurfaceContainer)
-                                                    .padding(vertical = 8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text(
-                                                        text = s.targetLabel,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = KumaColors.TextMuted
-                                                    )
-                                                    Text(
-                                                        text = goalRec.targetRpe,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = colors.textPrimary
+                                                        Text(
+                                                            text = goalRec.targetRpe,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = colors.textPrimary
+                                                            )
                                                         )
-                                                    )
+                                                    }
                                                 }
                                             }
                                         }
@@ -512,9 +561,10 @@ fun ExerciseDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 // Toggle Pills: Heaviest Weight | One Rep Max | Best Set Volume
-                                Row(
+                                FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     listOf(
                                         MetricSwitcherType.HEAVIEST_WEIGHT to s.heaviestWeightTab,
@@ -531,6 +581,8 @@ fun ExerciseDetailScreen(
                                         ) {
                                             Text(
                                                 text = label,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                     color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -551,10 +603,11 @@ fun ExerciseDetailScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -566,6 +619,8 @@ fun ExerciseDetailScreen(
                                         )
                                         Text(
                                             text = s.personalRecordsSection,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = colors.textPrimary
@@ -608,11 +663,14 @@ fun ExerciseDetailScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = s.strengthLevelTitle,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -745,11 +803,14 @@ fun ExerciseDetailScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = s.pinnedNoteSection,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -758,6 +819,8 @@ fun ExerciseDetailScreen(
 
                                     Text(
                                         text = if (currentNote.isNotBlank()) s.edit else s.add,
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.accentText
@@ -795,6 +858,7 @@ fun ExerciseDetailScreen(
                                             } else {
                                                 s.pinnedNotePlaceholder
                                             },
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 color = if (currentNote.isNotBlank()) colors.textPrimary else colors.textSecondary,
                                                 fontSize = 14.sp

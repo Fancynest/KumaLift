@@ -219,6 +219,7 @@ class LanguageGuardTests {
         // Bounded allowlist of properties that are identical across languages (brand, ISO units, universal metrics)
         val allowlistedIdenticalKeys = setOf(
             "appName",                      // Brand name "KumaLift"
+            "aiTitle",                      // Brand name "Kuma AI"
             "unitKg",                       // ISO metric unit "kg"
             "unitLb",                       // Imperial unit "lb"
             "sizeUnitCm",                   // ISO metric unit "cm"
@@ -236,6 +237,7 @@ class LanguageGuardTests {
             "setTypeFailureBadge",          // Badge glyph "F"
             "setTypeDropMenuLabel",         // Drop set menu item "D · Drop Set"
             "targetLabel",                  // Universal word "Target"
+            "aiNutritionProteinLabel",      // Universal macronutrient term "Protein"
             "prBadge",                      // Universal athletic badge "PR"
             "languageOptionIndonesian",     // Native autonym "Bahasa Indonesia"
             "languageOptionEnglish"         // Native autonym "English"

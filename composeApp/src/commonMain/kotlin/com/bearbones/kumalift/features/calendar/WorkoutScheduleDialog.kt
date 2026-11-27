@@ -6,10 +6,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
@@ -51,6 +54,9 @@ import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
+import com.bearbones.kumalift.domain.model.localizeSplitCategory
+import com.bearbones.kumalift.domain.model.localizedSplitCategory
+import com.bearbones.kumalift.domain.model.localizedTitle
 import kotlinx.datetime.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,11 +101,14 @@ fun WorkoutScheduleDialog(
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = if (existingEvent != null) s.rescheduleWorkout else s.scheduleRoutineTitle,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -174,18 +183,23 @@ fun WorkoutScheduleDialog(
                                     .border(1.dp, itemBorder, RoundedCornerShape(12.dp))
                                     .clickable { selectedRoutineId = routine.id }
                                     .padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
-                                        text = routine.title,
+                                        text = routine.localizedTitle(s),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.textPrimary
                                         )
                                     )
-                                    KumaBadge(text = routine.splitCategory)
+                                    KumaBadge(text = routine.localizedSplitCategory(s))
                                 }
 
                                 if (isSelected) {
@@ -230,7 +244,7 @@ fun WorkoutScheduleDialog(
                         )
                     )
                     existingEvent.splitTypeSnapshot?.let { split ->
-                        KumaBadge(text = split)
+                        KumaBadge(text = localizeSplitCategory(split, s))
                     }
                 }
             }
@@ -262,7 +276,7 @@ fun WorkoutScheduleDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp),
+                        .heightIn(min = 48.dp),
                     enabled = selectedRoutine != null,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.accentFill,
@@ -272,6 +286,9 @@ fun WorkoutScheduleDialog(
                 ) {
                     Text(
                         text = s.addScheduleWorkout,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -289,14 +306,21 @@ fun WorkoutScheduleDialog(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp),
+                                .heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.accentFill,
                                 contentColor = colors.onAccentFill
                             ),
                             shape = PillShape
                         ) {
-                            Text(s.restoreSchedule, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = s.restoreSchedule,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     } else if (existingEvent.isPlanned) {
                         Button(
@@ -306,14 +330,21 @@ fun WorkoutScheduleDialog(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp),
+                                .heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.surfaceBright,
                                 contentColor = colors.textPrimary
                             ),
                             shape = PillShape
                         ) {
-                            Text(s.cancelSchedule, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = s.cancelSchedule,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
 
@@ -324,8 +355,9 @@ fun WorkoutScheduleDialog(
                                 onDismiss()
                             },
                             modifier = Modifier
-                                .weight(0.7f)
-                                .height(48.dp),
+                                .weight(0.75f)
+                                .heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.errorTint,
                                 contentColor = colors.error
@@ -338,7 +370,13 @@ fun WorkoutScheduleDialog(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.size(4.dp))
-                            Text(s.deleteSchedule, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = s.deleteSchedule,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

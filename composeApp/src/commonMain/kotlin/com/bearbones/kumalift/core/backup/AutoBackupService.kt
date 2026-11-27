@@ -7,7 +7,9 @@ data class AutoBackupExecutionResult(
     val success: Boolean,
     val fileName: String? = null,
     val errorMessage: String? = null,
-    val errorCode: BackupErrorCode? = null
+    val errorCode: BackupErrorCode? = null,
+    val contentHash: String? = null,
+    val skippedDuplicate: Boolean = false
 )
 
 expect object AutoBackupService {

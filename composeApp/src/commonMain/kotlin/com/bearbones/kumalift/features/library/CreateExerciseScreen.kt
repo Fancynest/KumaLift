@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -92,6 +94,7 @@ fun CreateExerciseScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -110,10 +113,10 @@ fun CreateExerciseScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
-
                 Text(
                     text = s.createExerciseTitle,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
@@ -144,6 +147,8 @@ fun CreateExerciseScreen(
                 ) {
                     Text(
                         text = s.save,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     )
                 }
@@ -189,6 +194,8 @@ fun CreateExerciseScreen(
                             if (nameInput.isEmpty()) {
                                 Text(
                                     text = s.exerciseNamePlaceholder,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp),
                                     color = colors.textSecondary.copy(alpha = 0.6f)
                                 )
@@ -446,7 +453,9 @@ fun CreateExerciseScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             listOf(
@@ -457,6 +466,7 @@ fun CreateExerciseScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
+                                        .fillMaxHeight()
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
                                         .border(
@@ -470,6 +480,8 @@ fun CreateExerciseScreen(
                                     Column {
                                         Text(
                                             text = type.label,
+                                            maxLines = 2,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isSelected) colors.onAccentFill else colors.textPrimary

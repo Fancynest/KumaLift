@@ -25,6 +25,9 @@ class RestTimerNotificationReceiver : BroadcastReceiver() {
             ACTION_REST_TIMER_DISMISS -> {
                 RestTimerCoordinator.dismiss()
             }
+            ACTION_REST_TIMER_EXPIRED -> {
+                RestTimerCoordinator.onAlarmExpired()
+            }
         }
     }
 
@@ -35,5 +38,6 @@ class RestTimerNotificationReceiver : BroadcastReceiver() {
         const val ACTION_REST_TIMER_RESUME = "com.bearbones.kumalift.ACTION_REST_TIMER_RESUME"
         const val ACTION_REST_TIMER_SKIP = "com.bearbones.kumalift.ACTION_REST_TIMER_SKIP"
         const val ACTION_REST_TIMER_DISMISS = "com.bearbones.kumalift.ACTION_REST_TIMER_DISMISS"
+        const val ACTION_REST_TIMER_EXPIRED = "com.bearbones.kumalift.ACTION_REST_TIMER_EXPIRED"
     }
 }

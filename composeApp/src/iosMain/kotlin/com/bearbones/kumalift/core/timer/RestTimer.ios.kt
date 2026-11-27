@@ -25,7 +25,7 @@ actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int)
     // iOS update
 }
 
-actual fun notifyRestTimerCompleted(exerciseName: String?) {
+actual fun notifyRestTimerCompleted(exerciseName: String?, targetEndEpochMs: Long) {
     // iOS completion notification placeholder
 }
 

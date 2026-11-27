@@ -1,5 +1,11 @@
 package com.bearbones.kumalift.app
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import com.bearbones.kumalift.core.ai.rememberAiSecretStore
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
@@ -67,7 +75,11 @@ import com.bearbones.kumalift.data.repository.rememberExerciseRepository
 import com.bearbones.kumalift.data.repository.rememberRoutineRepository
 import com.bearbones.kumalift.data.repository.rememberSettingsRepository
 import com.bearbones.kumalift.data.repository.rememberTrainingProgramRepository
+import com.bearbones.kumalift.domain.ai.GeminiApiClient
+import com.bearbones.kumalift.domain.ai.KumaAiAgentService
+import com.bearbones.kumalift.domain.ai.KumaAiToolExecutor
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.features.ai.KumaAiChatScreen
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.library.rememberLibraryFilterState
@@ -75,6 +87,7 @@ import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
 import com.bearbones.kumalift.features.profile.MeScreen
 import com.bearbones.kumalift.features.progress.ProgressAnalyticsScreen
 import com.bearbones.kumalift.features.routines.RoutinesScreen
+import com.bearbones.kumalift.features.settings.SettingsDestination
 import com.bearbones.kumalift.features.settings.SettingsScreen
 import com.bearbones.kumalift.features.summary.WorkoutSummaryScreen
 
@@ -111,6 +124,28 @@ fun App() {
             calculationSettingsProvider = { settingsRepository.settings.value.calculations },
             loggingSettingsProvider = { settingsRepository.settings.value.logging },
             staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
+        )
+    }
+    val aiSecretStore = rememberAiSecretStore()
+    val aiAgentService = remember(databaseRepo, settingsRepository, aiSecretStore) {
+        val executor = KumaAiToolExecutor(
+            exerciseRepository = exerciseRepository,
+            routineRepository = routineRepository,
+            trainingProgramRepository = trainingProgramRepository,
+            workoutScheduleRepository = workoutScheduleRepository,
+            mesocycleRepository = mesocycleRepository,
+            dailyReadinessRepository = dailyReadinessRepository,
+            personalRecordRepository = personalRecordRepository,
+            workoutRepository = workoutRepository,
+            settingsRepository = settingsRepository,
+            databaseRepo = databaseRepo
+        )
+        KumaAiAgentService(
+            geminiClient = GeminiApiClient(),
+            toolExecutor = executor,
+            secretStore = aiSecretStore,
+            settingsRepository = settingsRepository,
+            databaseRepo = databaseRepo
         )
     }
 
@@ -229,7 +264,11 @@ fun App() {
                                 }
                                 navigator.push(Overlay.ActiveLogger)
                             },
-                            onOpenSettings = { navigator.push(Overlay.Settings) }
+                            onOpenSettings = {
+                                navigator.pendingSettingsDestinationName = null
+                                navigator.push(Overlay.Settings)
+                            },
+                            onOpenAiChat = { navigator.push(Overlay.AiChat) }
                         )
                         Tab.ROUTINES -> RoutinesScreen(
                             routineRepository = routineRepository,
@@ -296,6 +335,7 @@ fun App() {
                                 ActiveWorkoutLoggerScreen(
                                     workoutRepository = workoutRepository,
                                     settingsRepository = settingsRepository,
+                                    exerciseRepository = exerciseRepository,
                                     onNavigateBack = { navigator.back() },
                                     onFinishWorkout = {
                                         navigator.popOverlay()
@@ -320,11 +360,38 @@ fun App() {
                                 )
                             }
                             is Overlay.Settings -> {
+                                val initialDest = navigator.pendingSettingsDestinationName?.let { raw ->
+                                    runCatching { SettingsDestination.valueOf(raw) }.getOrNull()
+                                } ?: SettingsDestination.MAIN
                                 SettingsScreen(
                                     settingsRepository = settingsRepository,
                                     databaseRepo = databaseRepo,
                                     workoutRepository = workoutRepository,
-                                    onNavigateBack = { navigator.back() }
+                                    secretStore = aiSecretStore,
+                                    initialDestination = initialDest,
+                                    onOpenAiChat = {
+                                        navigator.pendingSettingsDestinationName = null
+                                        navigator.popOverlay()
+                                        if (navigator.currentOverlay != Overlay.AiChat) {
+                                            navigator.push(Overlay.AiChat)
+                                        }
+                                    },
+                                    onNavigateBack = {
+                                        navigator.pendingSettingsDestinationName = null
+                                        navigator.back()
+                                    }
+                                )
+                            }
+                            is Overlay.AiChat -> {
+                                KumaAiChatScreen(
+                                    agentService = aiAgentService,
+                                    secretStore = aiSecretStore,
+                                    settingsRepository = settingsRepository,
+                                    onNavigateBack = { navigator.back() },
+                                    onOpenAiSettings = {
+                                        navigator.pendingSettingsDestinationName = SettingsDestination.AI_ASSISTANT.name
+                                        navigator.push(Overlay.Settings)
+                                    }
                                 )
                             }
                             null -> Unit
@@ -354,6 +421,15 @@ fun KumaBottomNavigation(
     ) {
         // Floating Active Session Banner if workout is currently active
         if (hasActiveWorkout) {
+            val infiniteTransition = rememberInfiniteTransition()
+            val dotAlpha by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 0.15f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                )
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -364,15 +440,24 @@ fun KumaBottomNavigation(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
+                            .alpha(dotAlpha)
                             .clip(CircleShape)
                             .background(KumaColors.OnElectricLime)
                     )
                     Text(
                         text = "  ${s.workoutInProgress}",
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime,
@@ -383,6 +468,8 @@ fun KumaBottomNavigation(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = s.resume,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.ExtraBold,
                             color = KumaColors.OnElectricLime
@@ -403,9 +490,9 @@ fun KumaBottomNavigation(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(68.dp)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceAround
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             NavItem(
                 icon = Icons.Default.Home,
@@ -453,7 +540,7 @@ fun NavItem(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -465,6 +552,9 @@ fun NavItem(
         )
         Text(
             text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,

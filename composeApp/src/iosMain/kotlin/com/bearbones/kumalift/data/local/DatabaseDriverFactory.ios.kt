@@ -200,6 +200,23 @@ actual class DatabaseDriverFactory {
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_readiness_date ON daily_readiness(dateString);",
                 0
             )
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS ai_chat_messages (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    role TEXT NOT NULL,
+                    messageText TEXT NOT NULL,
+                    imagePath TEXT,
+                    stepLogsJson TEXT NOT NULL DEFAULT '[]',
+                    proposalJson TEXT,
+                    nutritionJson TEXT,
+                    isError INTEGER NOT NULL DEFAULT 0,
+                    createdAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
         } catch (_: Exception) {}
     }
 }

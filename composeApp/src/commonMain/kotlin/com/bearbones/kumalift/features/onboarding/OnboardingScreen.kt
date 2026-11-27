@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -358,6 +359,7 @@ fun OnboardingScreen(
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
@@ -367,6 +369,9 @@ fun OnboardingScreen(
                                             ) {
                                                 Text(
                                                     text = info.first,
+                                                    modifier = Modifier.weight(1f, fill = false),
+                                                    maxLines = 2,
+                                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                     style = MaterialTheme.typography.titleMedium.copy(
                                                         fontWeight = FontWeight.Bold,
                                                         color = if (isSelected) colors.accentText else colors.textPrimary
@@ -381,6 +386,8 @@ fun OnboardingScreen(
                                                     ) {
                                                         Text(
                                                             text = info.third!!,
+                                                            maxLines = 1,
+                                                            softWrap = false,
                                                             style = MaterialTheme.typography.labelSmall.copy(
                                                                 color = colors.accentText,
                                                                 fontSize = 10.sp,
@@ -484,14 +491,15 @@ fun OnboardingScreen(
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 val dayNames = s.dayNamesShort
                                 (1..7).forEach { dayNum ->
                                     val isPicked = selectedDays.contains(dayNum)
                                     Box(
                                         modifier = Modifier
-                                            .size(42.dp)
+                                            .weight(1f)
+                                            .aspectRatio(1f)
                                             .clip(CircleShape)
                                             .background(if (isPicked) colors.accentFill else KumaColors.SurfaceContainer)
                                         .clickable {
@@ -506,8 +514,11 @@ fun OnboardingScreen(
                                     ) {
                                         Text(
                                             text = dayNames[dayNum - 1],
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
+                                                letterSpacing = 0.sp,
                                                 color = if (isPicked) colors.onAccentFill else colors.textPrimary
                                             )
                                         )
@@ -538,17 +549,17 @@ fun OnboardingScreen(
                                 Triple(
                                     ExperienceLevel.BEGINNER,
                                     s.levelBeginner,
-                                    "${s.levelBeginner} · ${s.onboardingExpBeginnerDesc}"
+                                    s.onboardingExpBeginnerDesc
                                 ),
                                 Triple(
                                     ExperienceLevel.INTERMEDIATE,
                                     s.levelIntermediate,
-                                    "${s.levelIntermediate} · ${s.onboardingExpIntermediateDesc}"
+                                    s.onboardingExpIntermediateDesc
                                 ),
                                 Triple(
                                     ExperienceLevel.ADVANCED,
                                     s.levelAdvanced,
-                                    "${s.levelAdvanced} · ${s.onboardingExpAdvancedDesc}"
+                                    s.onboardingExpAdvancedDesc
                                 )
                             ).forEach { (exp, title, desc) ->
                                 val isSelected = selectedExperience == exp

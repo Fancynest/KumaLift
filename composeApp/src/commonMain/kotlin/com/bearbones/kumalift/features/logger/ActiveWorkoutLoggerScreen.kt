@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,7 +61,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,8 +102,11 @@ import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.timer.RestTimer
 import com.bearbones.kumalift.core.util.UnitConverters
+import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.features.library.ExerciseDetailScreen
+import com.bearbones.kumalift.features.library.ExerciseDetailTab
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
@@ -120,23 +124,23 @@ import kotlin.math.roundToInt
 fun ActiveWorkoutLoggerScreen(
     workoutRepository: WorkoutRepository,
     settingsRepository: SettingsRepository? = null,
+    exerciseRepository: ExerciseRepository? = null,
     onNavigateBack: () -> Unit,
     onFinishWorkout: () -> Unit,
     onAddExerciseClick: () -> Unit
 ) {
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
+    val repoExercises by (exerciseRepository?.exercises ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyList()) }).collectAsState()
     val settings = settingsRepository?.settings?.collectAsState()?.value ?: UserSettings()
     val s = LocalStrings.current
     val isLb = settings.units.weightUnit == WeightUnit.LB
-    val scope = rememberCoroutineScope()
-    val restTimer = remember { RestTimerCoordinator.activeRestTimer ?: RestTimer(scope) }
+    val restTimer = remember { RestTimerCoordinator.getOrCreateTimer() }
     val timerState by restTimer.state.collectAsState()
 
-    var showRestTimerBar by remember { mutableStateOf(restTimer.state.value.isVisible) }
-    LaunchedEffect(timerState.status) {
-        if (timerState.isVisible) {
-            showRestTimerBar = true
-        }
+    var inspectedExerciseId by rememberSaveable { mutableStateOf<String?>(null) }
+    val inspectedExercise = inspectedExerciseId?.let { id ->
+        repoExercises.find { it.id == id }
+            ?: activeWorkout?.exercises?.find { it.exercise.id == id }?.exercise
     }
     var showConfirmFinishDialog by remember { mutableStateOf(false) }
     var showLeaveLoggerDialog by remember { mutableStateOf(false) }
@@ -147,7 +151,9 @@ fun ActiveWorkoutLoggerScreen(
 
     // T10: Handle back navigation in active workout logger
     KumaBackHandler(enabled = true) {
-        if (showConfirmFinishDialog) {
+        if (inspectedExerciseId != null) {
+            inspectedExerciseId = null
+        } else if (showConfirmFinishDialog) {
             showConfirmFinishDialog = false
         } else if (showCancelWorkoutDialog) {
             showCancelWorkoutDialog = false
@@ -171,7 +177,6 @@ fun ActiveWorkoutLoggerScreen(
 
     val doFinishWorkout = {
         if (workout != null) {
-            showRestTimerBar = false
             restTimer.dismiss()
             workoutRepository.finishWorkout(
                 sessionRpe = 8.5
@@ -320,6 +325,8 @@ fun ActiveWorkoutLoggerScreen(
                     ) {
                         Text(
                             text = s.finish,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = KumaColors.OnElectricLime
@@ -522,7 +529,7 @@ fun ActiveWorkoutLoggerScreen(
                                         .fillMaxWidth()
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Row(
                                         modifier = Modifier.weight(1f),
@@ -543,9 +550,11 @@ fun ActiveWorkoutLoggerScreen(
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = s.pauseWorkoutButton.uppercase(),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelMedium.copy(
                                                     fontWeight = FontWeight.Bold,
                                                     color = LocalKumaColors.current.warning
@@ -553,6 +562,8 @@ fun ActiveWorkoutLoggerScreen(
                                             )
                                             Text(
                                                 text = s.resumeWorkoutButton,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.bodySmall.copy(
                                                     color = KumaColors.TextSecondary
                                                 )
@@ -569,6 +580,8 @@ fun ActiveWorkoutLoggerScreen(
                                     ) {
                                         Text(
                                             text = s.resumeWorkoutButton,
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = LocalKumaColors.current.onWarning
@@ -626,9 +639,9 @@ fun ActiveWorkoutLoggerScreen(
                                     currentHeartRateBpm = currentBleBpm
                                 ) { completed ->
                                     if (completed) {
-                                        val updatedSet = workoutRepository.activeWorkout.value?.exercises
+                                        val updatedExercise = workoutRepository.activeWorkout.value?.exercises
                                             ?.find { it.id == we.id || it.exercise.id == we.exercise.id }
-                                            ?.sets?.find { it.id == setId }
+                                        val updatedSet = updatedExercise?.sets?.find { it.id == setId }
                                         val isPr = updatedSet?.isPr == true
                                         SoundManager.trigger(
                                             if (isPr) SoundEvent.PR else SoundEvent.SET_DONE,
@@ -636,13 +649,12 @@ fun ActiveWorkoutLoggerScreen(
                                         )
 
                                         if (settings.logging.restTimerAutoStart) {
-                                            showRestTimerBar = true
-                                            val completedSet = we.sets.firstOrNull { it.id == setId }
-                                            val durationSec = completedSet?.restTimerSeconds
-                                                ?: if (we.restTimerSeconds > 0) {
-                                                    we.restTimerSeconds
-                                                } else if (settings.logging.restTimerSeparateByType) {
-                                                    if (we.exercise.movementType == MovementType.COMPOUND) {
+                                            val liveExercise = updatedExercise ?: we
+                                            val completedSet = updatedSet ?: liveExercise.sets.firstOrNull { it.id == setId }
+                                            val durationSec = completedSet?.restTimerSeconds?.takeIf { it > 0 }
+                                                ?: liveExercise.restTimerSeconds.takeIf { it > 0 }
+                                                ?: if (settings.logging.restTimerSeparateByType) {
+                                                    if (liveExercise.exercise.movementType == MovementType.COMPOUND) {
                                                         settings.logging.restTimerCompoundSec
                                                     } else {
                                                         settings.logging.restTimerIsolationSec
@@ -650,7 +662,7 @@ fun ActiveWorkoutLoggerScreen(
                                                 } else {
                                                     settings.logging.restTimerDefaultSec
                                                 }
-                                            restTimer.start(durationSec, we.exercise.name)
+                                            restTimer.start(durationSec.coerceAtLeast(1), liveExercise.exercise.name)
                                         }
                                     }
                                 }
@@ -708,6 +720,9 @@ fun ActiveWorkoutLoggerScreen(
                                     else -> null
                                 }
                                 workoutRepository.updateExerciseSupersetGroup(we.id, nextSs)
+                            },
+                            onViewExercise = {
+                                inspectedExerciseId = we.exercise.id
                             }
                         )
                     }
@@ -790,7 +805,7 @@ fun ActiveWorkoutLoggerScreen(
 
         // Persistent Floating Rest Timer Pill
         AnimatedVisibility(
-            visible = showRestTimerBar && timerState.isVisible,
+            visible = timerState.isVisible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -810,10 +825,9 @@ fun ActiveWorkoutLoggerScreen(
                     }
                 },
                 onCustomTimer = { customSec ->
-                    restTimer.start(customSec)
+                    restTimer.start(customSec, timerState.exerciseName)
                 },
                 onDismiss = {
-                    showRestTimerBar = false
                     restTimer.dismiss()
                 }
             )
@@ -925,7 +939,6 @@ fun ActiveWorkoutLoggerScreen(
                     TextButton(
                         onClick = {
                             showCancelWorkoutDialog = false
-                            showRestTimerBar = false
                             restTimer.dismiss()
                             workoutRepository.cancelWorkout()
                             onNavigateBack()
@@ -950,6 +963,23 @@ fun ActiveWorkoutLoggerScreen(
                 titleContentColor = KumaColors.TextWhite,
                 textContentColor = KumaColors.TextSecondary
             )
+        }
+
+        if (inspectedExercise != null) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = KumaColors.CanvasLowest
+            ) {
+                ExerciseDetailScreen(
+                    exercise = inspectedExercise,
+                    settingsRepository = settingsRepository,
+                    initialTab = ExerciseDetailTab.HOW_TO,
+                    onNavigateBack = { inspectedExerciseId = null },
+                    onSaveNote = if (exerciseRepository != null) {
+                        { note -> exerciseRepository.updatePinnedNote(inspectedExercise.id, note) }
+                    } else null
+                )
+            }
         }
     }
 }
@@ -998,7 +1028,8 @@ fun ExerciseLoggingCard(
     onAddWarmupSets: () -> Unit = {},
     onReplaceExercise: (Exercise) -> Unit = {},
     onApplyProgression: (Double, Int?) -> Unit = { _, _ -> },
-    onToggleSuperset: () -> Unit = {}
+    onToggleSuperset: () -> Unit = {},
+    onViewExercise: () -> Unit = {}
 ) {
     val exercise = workoutExercise.exercise
     val s = LocalStrings.current
@@ -1124,7 +1155,11 @@ fun ExerciseLoggingCard(
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
-                        )
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable(onClick = onViewExercise)
+                            .padding(vertical = 2.dp)
                     )
                 }
 
@@ -1242,17 +1277,16 @@ fun ExerciseLoggingCard(
             when (progressionAdvice) {
                 is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseWeight -> {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.recoveryFresh.copy(alpha = 0.12f))
                             .border(1.dp, LocalKumaColors.current.recoveryFresh.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = s.progressionReady,
                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1275,13 +1309,16 @@ fun ExerciseLoggingCard(
                         }
                         Box(
                             modifier = Modifier
+                                .align(Alignment.End)
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.recoveryFresh)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = s.applyProgressionAction,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = LocalKumaColors.current.onRecoveryFresh
@@ -1292,17 +1329,16 @@ fun ExerciseLoggingCard(
                 }
                 is com.bearbones.kumalift.domain.model.ProgressionAdvice.IncreaseReps -> {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.accentFill.copy(alpha = 0.12f))
                             .border(1.dp, LocalKumaColors.current.accentFill.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = s.progressionRepTarget,
                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1324,13 +1360,16 @@ fun ExerciseLoggingCard(
                         }
                         Box(
                             modifier = Modifier
+                                .align(Alignment.End)
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.accentFill)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = s.applyRepTargetAction,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = LocalKumaColors.current.onAccentFill
@@ -1341,17 +1380,16 @@ fun ExerciseLoggingCard(
                 }
                 is com.bearbones.kumalift.domain.model.ProgressionAdvice.Deload -> {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(LocalKumaColors.current.recoveryTired.copy(alpha = 0.12f))
                             .border(1.dp, LocalKumaColors.current.recoveryTired.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                             .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = s.progressionDeload,
                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -1373,13 +1411,16 @@ fun ExerciseLoggingCard(
                         }
                         Box(
                             modifier = Modifier
+                                .align(Alignment.End)
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.recoveryTired)
                                 .clickable { onApplyProgression(progressionAdvice.suggestedWeightKg, progressionAdvice.targetReps) }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
                                 text = s.applyProgressionAction,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = LocalKumaColors.current.onRecoveryFresh
@@ -1404,7 +1445,10 @@ fun ExerciseLoggingCard(
             ) {
                 Text(
                     text = s.setColumnHeader,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                     color = KumaColors.TextMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(36.dp)
@@ -1412,7 +1456,10 @@ fun ExerciseLoggingCard(
                 if (settings.logging.showPreviousColumn) {
                     Text(
                         text = s.prevColumnHeader,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1.1f)
@@ -1420,14 +1467,20 @@ fun ExerciseLoggingCard(
                 }
                 Text(
                     text = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb.uppercase() else s.unitKg.uppercase(),
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                     color = KumaColors.TextMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1.2f).padding(horizontal = 4.dp)
                 )
                 Text(
                     text = s.repsColumnHeader,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                     color = KumaColors.TextMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1.0f).padding(horizontal = 4.dp)
@@ -1435,7 +1488,10 @@ fun ExerciseLoggingCard(
                 if (settings.logging.trackIntensity) {
                     Text(
                         text = if (settings.logging.intensityScale == IntensityScale.RIR) "RIR" else "RPE",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(0.9f).padding(horizontal = 4.dp)
@@ -1443,7 +1499,10 @@ fun ExerciseLoggingCard(
                 }
                 Text(
                     text = s.checkColumnHeader,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                     color = KumaColors.TextMuted,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(48.dp)
@@ -1900,6 +1959,8 @@ fun FloatingRestTimerCard(
     val s = LocalStrings.current
     var showCustomDialog by remember { mutableStateOf(false) }
     val isCompleted = timerState.status == com.bearbones.kumalift.core.timer.TimerStatus.COMPLETED
+    val isOvertime = isCompleted && timerState.remainingSeconds < 0
+    val overtimeOrAccentText = if (isOvertime) colors.error else colors.accentText
 
     if (showCustomDialog && onCustomTimer != null) {
         CustomRestTimerDialog(
@@ -1917,12 +1978,17 @@ fun FloatingRestTimerCard(
             .background(colors.surfaceBright)
             .border(
                 1.5.dp,
-                if (isCompleted) colors.accentFill else if (colors.isDark) colors.accentFill else colors.accentChart,
+                when {
+                    isOvertime -> colors.error
+                    isCompleted -> colors.accentFill
+                    colors.isDark -> colors.accentFill
+                    else -> colors.accentChart
+                },
                 PillShape
             )
-            .padding(horizontal = 18.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(
             modifier = Modifier.clickable {
@@ -1937,7 +2003,7 @@ fun FloatingRestTimerCard(
             CircularProgressIndicator(
                 progress = { if (isCompleted) 1f else timerState.progressFraction },
                 modifier = Modifier.size(32.dp),
-                color = colors.accentChart,
+                color = if (isOvertime) colors.error else colors.accentChart,
                 trackColor = colors.surfaceVariant
             )
             Icon(
@@ -1951,43 +2017,55 @@ fun FloatingRestTimerCard(
                     timerState.isRunning -> s.pause
                     else -> s.play
                 },
-                tint = colors.accentText,
+                tint = overtimeOrAccentText,
                 modifier = Modifier.size(16.dp)
             )
         }
 
         Column(
-            modifier = Modifier.clickable { showCustomDialog = true }
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .clickable { showCustomDialog = true }
         ) {
             Text(
                 text = if (isCompleted) s.restTimerNotificationTitle else s.restTimerHeader,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontSize = 10.sp,
-                    color = if (isCompleted) colors.accentText else colors.textSubtle,
-                    letterSpacing = 0.5.sp,
+                    color = if (isCompleted) overtimeOrAccentText else colors.textSubtle,
+                    letterSpacing = 0.sp,
                     fontWeight = if (isCompleted) FontWeight.Bold else FontWeight.Normal
                 )
             )
             Text(
                 text = timerState.formattedTime,
+                maxLines = 1,
+                softWrap = false,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    color = colors.accentText
+                    color = overtimeOrAccentText
                 )
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             if (!isCompleted) {
                 Box(
                     modifier = Modifier
                         .clip(PillShape)
                         .background(colors.surfaceVariant)
                         .clickable(onClick = onMinus)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .padding(horizontal = 9.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = "-${s.secondsShort(subtractStepSec)}",
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textPrimary,
                             fontWeight = FontWeight.Bold
@@ -2000,10 +2078,12 @@ fun FloatingRestTimerCard(
                     .clip(PillShape)
                     .background(colors.surfaceVariant)
                     .clickable(onClick = onAdd)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 9.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = "+${s.secondsShort(addStepSec)}",
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.accentText,
                         fontWeight = FontWeight.Bold
@@ -2012,7 +2092,7 @@ fun FloatingRestTimerCard(
             }
             IconButton(
                 onClick = onDismiss,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,

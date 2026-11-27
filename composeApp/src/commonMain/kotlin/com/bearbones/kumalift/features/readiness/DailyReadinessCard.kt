@@ -93,10 +93,11 @@ fun DailyReadinessCard(
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -108,6 +109,8 @@ fun DailyReadinessCard(
                     )
                     Text(
                         text = s.dailyReadinessTitle,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -125,6 +128,8 @@ fun DailyReadinessCard(
                     ) {
                         Text(
                             text = "${current.overallPercentage}%",
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = statusColor
@@ -141,6 +146,8 @@ fun DailyReadinessCard(
                     ) {
                         Text(
                             text = s.checkInTodayAction,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onAccentFill

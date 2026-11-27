@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
@@ -463,7 +466,12 @@ fun RpePickerDialog(
                         onConfirm(null)
                     }
                 ) {
-                    Text(s.clearValueButton, style = MaterialTheme.typography.labelLarge.copy(color = KumaColors.ErrorRed))
+                    Text(
+                        text = s.clearValueButton,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelLarge.copy(color = KumaColors.ErrorRed)
+                    )
                 }
                 Button(
                     onClick = {
@@ -476,13 +484,23 @@ fun RpePickerDialog(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        text = s.save,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                    )
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
+                Text(
+                    text = s.cancel,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary)
+                )
             }
         }
     )
@@ -652,7 +670,12 @@ fun PrevInputDialog(
                         onConfirm(null, null)
                     }
                 ) {
-                    Text(s.clearValueButton, style = MaterialTheme.typography.labelLarge.copy(color = KumaColors.ErrorRed))
+                    Text(
+                        text = s.clearValueButton,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelLarge.copy(color = KumaColors.ErrorRed)
+                    )
                 }
                 Button(
                     onClick = {
@@ -666,13 +689,23 @@ fun PrevInputDialog(
                         contentColor = colors.onAccentFill
                     )
                 ) {
-                    Text(s.save, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        text = s.save,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                    )
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
+                Text(
+                    text = s.cancel,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary)
+                )
             }
         }
     )
@@ -911,6 +944,7 @@ fun ExerciseRestTimerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(IntrinsicSize.Max)
                         .clip(RoundedCornerShape(10.dp))
                         .background(KumaColors.SurfaceContainer)
                         .padding(3.dp)
@@ -918,14 +952,19 @@ fun ExerciseRestTimerDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (selectedTab == 0) colors.accentFill else KumaColors.SurfaceContainer)
                             .clickable { selectedTab = 0 }
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = s.restTimerAllSetsTab,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedTab == 0) colors.onAccentFill else colors.textPrimary
@@ -935,14 +974,19 @@ fun ExerciseRestTimerDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (selectedTab == 1) colors.accentFill else KumaColors.SurfaceContainer)
                             .clickable { selectedTab = 1 }
-                            .padding(vertical = 8.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = s.restTimerPerSetTab,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedTab == 1) colors.onAccentFill else colors.textPrimary
@@ -1029,9 +1073,10 @@ fun ExerciseRestTimerDialog(
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -1052,6 +1097,8 @@ fun ExerciseRestTimerDialog(
                                         }
                                         Text(
                                             text = s.setRepsTimerLabel(setNum, reps),
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.bodySmall.copy(
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = colors.textPrimary
@@ -1106,6 +1153,8 @@ fun ExerciseRestTimerDialog(
                                                 )
                                                 Text(
                                                     text = s.secondsShort(currentSec),
+                                                    maxLines = 1,
+                                                    softWrap = false,
                                                     style = MaterialTheme.typography.labelSmall.copy(
                                                         fontWeight = FontWeight.ExtraBold,
                                                         color = colors.accentText

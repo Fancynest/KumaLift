@@ -6,9 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CalendarToday
@@ -93,7 +96,8 @@ fun HomeScreen(
     dailyReadinessRepository: DailyReadinessRepository? = null,
     onStartWorkout: () -> Unit,
     onStartFreestyle: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenAiChat: (() -> Unit)? = null
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
@@ -353,6 +357,8 @@ fun HomeScreen(
                                     ) {
                                         Text(
                                             text = s.backupButton,
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = LocalKumaColors.current.accentText
@@ -390,11 +396,14 @@ fun HomeScreen(
                             if (todayScheduledPrograms.size > 1) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = s.todaysSchedule,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -409,6 +418,8 @@ fun HomeScreen(
                                         val countLabel = "${todayScheduledPrograms.size} ${s.trainingProgramsTitle}"
                                         Text(
                                             text = countLabel,
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = FontWeight.Bold,
                                                 color = LocalKumaColors.current.accentText
@@ -429,10 +440,11 @@ fun HomeScreen(
                                     Column(modifier = Modifier.padding(20.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(
+                                                modifier = Modifier.weight(1f),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
@@ -440,6 +452,9 @@ fun HomeScreen(
                                                 if (todayScheduledPrograms.size == 1) {
                                                     Text(
                                                         text = s.todaysSchedule,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false),
                                                         style = MaterialTheme.typography.labelSmall,
                                                         color = LocalKumaColors.current.accentText
                                                     )
@@ -447,6 +462,8 @@ fun HomeScreen(
                                             }
                                             Text(
                                                 text = routine?.localizedRpeTier(s) ?: s.readyToTrain,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = KumaColors.TextMuted
                                             )
@@ -513,12 +530,17 @@ fun HomeScreen(
                             Column(modifier = Modifier.padding(20.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    KumaBadge(text = s.restDayTitle)
+                                    Box(modifier = Modifier.weight(1f, fill = false)) {
+                                        KumaBadge(text = s.restDayTitle)
+                                    }
                                     Text(
                                         text = s.trainingProgramsTitle,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.labelSmall,
                                         color = KumaColors.TextMuted
                                     )
@@ -575,6 +597,75 @@ fun HomeScreen(
                     }
                 }
 
+                // 4. Kuma AI Entry Card (matches DailyReadinessCard compact utilitarian rhythm)
+                if (onOpenAiChat != null) {
+                    item {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            cornerRadius = 18.dp
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Chat,
+                                            contentDescription = null,
+                                            tint = colors.accentText,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = s.aiTitle,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.textPrimary
+                                            )
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(colors.accentFill)
+                                            .clickable(onClick = onOpenAiChat)
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = s.aiHomeCardAction,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.onAccentFill
+                                            )
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = s.aiHomeCardSubtitle,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = KumaColors.TextSecondary
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // 4. Mesocycle & Deload Block Section
                 if (mesocycleRepository != null) {
                     item {
@@ -595,10 +686,11 @@ fun HomeScreen(
                             Column(modifier = Modifier.padding(18.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -610,6 +702,8 @@ fun HomeScreen(
                                         )
                                         Text(
                                             text = s.thisWeekLabel,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.titleMedium.copy(
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -632,6 +726,8 @@ fun HomeScreen(
                                         }
                                         Text(
                                             text = s.workoutsTargetCount(weekWorkoutsCount, targetWeeklyDays),
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = KumaColors.OnElectricLime,
                                                 fontWeight = FontWeight.Bold
@@ -767,23 +863,31 @@ fun HomeScreen(
                 if (settings.appearance.showMonthlyGlance) {
                     item {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             MetricTile(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.totalSessionsLabel,
                                 value = "${completedWorkouts.size}",
                                 subtext = s.totalSessionsSubtext
                             )
                             MetricTile(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.totalVolumeLabel,
                                 value = totalVolFormatted,
                                 subtext = s.totalVolumeSubtext
                             )
                             MetricTile(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.recordsPrLabel,
                                 value = "${prList.size}",
                                 subtext = s.recordsPrSubtext,
@@ -841,12 +945,14 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(18.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = workout.title,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.titleMedium.copy(
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -854,6 +960,8 @@ fun HomeScreen(
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text = "$volText · $durationText",
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = KumaColors.TextMuted
                                             )
@@ -1008,7 +1116,9 @@ fun MetricTile(
                     fontSize = 20.sp,
                     color = if (isAccent) colors.accentText else colors.textPrimary
                 ),
-                maxLines = 1
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(

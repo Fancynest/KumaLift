@@ -206,10 +206,13 @@ private fun ExerciseCatalogList(
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = s.exercisesTitle,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = colors.textPrimary,
@@ -219,6 +222,8 @@ private fun ExerciseCatalogList(
 
                 Text(
                     text = s.createExerciseButton,
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.accentText
@@ -373,11 +378,14 @@ private fun ExerciseCatalogList(
                 // Section Header: "Exercises (count)" + Reset Filter
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = s.exercisesCountHeader(filteredExercises.size),
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary,
@@ -388,6 +396,8 @@ private fun ExerciseCatalogList(
                     if (filterState.isActive) {
                         Text(
                             text = s.resetFilters,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText,
@@ -500,6 +510,8 @@ private fun ExerciseRowItem(
             ) {
                 Text(
                     text = s.addExerciseToWorkout,
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.onAccentFill

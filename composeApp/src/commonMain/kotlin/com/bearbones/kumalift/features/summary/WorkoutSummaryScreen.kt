@@ -4,8 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +53,7 @@ import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Workout
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutSummaryScreen(
     workout: Workout? = null,
@@ -164,18 +169,24 @@ fun WorkoutSummaryScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SummaryMetricCard(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.workoutDurationStat,
                                 value = durationFormatted,
                                 subtext = s.activeSessionSubtext,
                                 icon = Icons.Default.Timer
                             )
                             SummaryMetricCard(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.totalVolumeStat,
                                 value = volFormatted,
                                 subtext = s.totalTonnageSubtext,
@@ -185,18 +196,24 @@ fun WorkoutSummaryScreen(
                         }
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Max),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             SummaryMetricCard(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.totalSetsStat,
                                 value = setsFormatted,
                                 subtext = setsSubtext,
                                 icon = Icons.Default.CheckCircle
                             )
                             SummaryMetricCard(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
                                 label = s.targetRestStat,
                                 value = restFormatted,
                                 subtext = s.perSetIntervalSubtext,
@@ -226,11 +243,14 @@ fun WorkoutSummaryScreen(
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
                                                 text = s.newRecordPrBadge,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = LocalKumaColors.current.accentText,
                                                     fontWeight = FontWeight.Bold,
@@ -320,13 +340,16 @@ fun WorkoutSummaryScreen(
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                Row(
+                                FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     for ((idx, pair) in muscleMap.withIndex()) {
                                         Text(
                                             text = "${pair.first}: ${pair.second}%",
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 color = if (idx == 0) colors.accentText else KumaColors.TextMuted,
                                                 fontWeight = if (idx == 0) FontWeight.Bold else FontWeight.Normal
@@ -376,11 +399,14 @@ fun SummaryMetricCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = label,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontSize = 10.sp,
                         color = KumaColors.TextMuted

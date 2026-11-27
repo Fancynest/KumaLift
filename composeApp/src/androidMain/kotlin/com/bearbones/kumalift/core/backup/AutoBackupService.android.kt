@@ -78,6 +78,18 @@ object AutoBackupRunner {
 
         return try {
             val backupManager = DataBackupManager(databaseRepo)
+            if (backupManager.isSameDataBackedUpToday(settings)) {
+                KumaLogger.i(TAG, "Auto-backup skipped: identical data already backed up today")
+                return AutoBackupExecutionResult(
+                    success = true,
+                    fileName = settings.dataBackup.lastBackupFileName,
+                    errorMessage = null,
+                    errorCode = null,
+                    contentHash = settings.dataBackup.lastBackupContentHash,
+                    skippedDuplicate = true
+                )
+            }
+            val contentHash = backupManager.computeContentHash(settings)
             val packageBytes = backupManager.exportPackage(settings)
 
             val sdf = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
@@ -116,12 +128,13 @@ object AutoBackupRunner {
                     lastBackupEpochMs = now,
                     lastBackupResultSuccess = true,
                     lastBackupResultError = null,
-                    lastBackupFileName = fileName
+                    lastBackupFileName = fileName,
+                    lastBackupContentHash = contentHash
                 )
             )
             databaseRepo.saveUserSettings(updated)
             KumaLogger.i(TAG, "Auto-backup succeeded: $fileName")
-            AutoBackupExecutionResult(true, fileName, null, null)
+            AutoBackupExecutionResult(true, fileName, null, null, contentHash = contentHash, skippedDuplicate = false)
         } catch (e: Exception) {
             val code = (e as? BackupException)?.errorCode ?: BackupErrorCode.WRITE_FAILED
             KumaLogger.e(TAG, "Auto-backup failed: ${e.message}", e)

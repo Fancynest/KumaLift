@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -36,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -90,15 +93,19 @@ fun MuscleRecoveryCard(
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = s.muscleRecoveryTitle,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -114,6 +121,8 @@ fun MuscleRecoveryCard(
 
                 Text(
                     text = s.recoveryWindow72h,
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 11.sp
@@ -152,6 +161,8 @@ fun MuscleRecoveryCard(
                         )
                         Text(
                             text = state.muscleGroup.label(s),
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textPrimary
@@ -159,6 +170,8 @@ fun MuscleRecoveryCard(
                         )
                         Text(
                             text = "${state.readinessPercentage}%",
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = statusColor
@@ -209,6 +222,7 @@ fun MuscleRecoveryDetailDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(IntrinsicSize.Max)
                         .clip(PillShape)
                         .background(colors.surfaceVariant)
                         .padding(3.dp),
@@ -217,14 +231,18 @@ fun MuscleRecoveryDetailDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clip(PillShape)
                             .background(if (selectedTab == 0) colors.surfaceBright else Color.Transparent)
                             .clickable { selectedTab = 0 }
-                            .padding(vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = s.muscleRecoveryTitle,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 0) colors.accentText else colors.textSecondary
@@ -235,14 +253,18 @@ fun MuscleRecoveryDetailDialog(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .fillMaxHeight()
                             .clip(PillShape)
                             .background(if (selectedTab == 1) colors.surfaceBright else Color.Transparent)
                             .clickable { selectedTab = 1 }
-                            .padding(vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = s.muscleVolumeIntelligenceTitle,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
                                 color = if (selectedTab == 1) colors.accentText else colors.textSecondary
@@ -278,11 +300,14 @@ fun MuscleRecoveryDetailDialog(
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = state.muscleGroup.label(s),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = colors.textPrimary
@@ -300,6 +325,8 @@ fun MuscleRecoveryDetailDialog(
                                     )
                                     Text(
                                         text = s.recoveryStatusFormat(statusText, state.readinessPercentage),
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = statusColor

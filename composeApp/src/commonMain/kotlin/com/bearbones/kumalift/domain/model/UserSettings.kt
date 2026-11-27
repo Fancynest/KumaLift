@@ -343,7 +343,8 @@ data class DataBackupSettings(
     val lastReminderDismissedEpochMs: Long? = null,
     val lastBackupResultSuccess: Boolean? = null,
     val lastBackupResultError: String? = null,
-    val lastBackupFileName: String? = null
+    val lastBackupFileName: String? = null,
+    val lastBackupContentHash: String? = null
 ) {
     fun localizedError(s: AppStrings): String? {
         val err = lastBackupResultError ?: return null
@@ -377,6 +378,12 @@ data class SmartwatchSettings(
 )
 
 @Serializable
+data class AiSettings(
+    val modelId: String = "gemini-2.5-flash",
+    val preferencesNote: String = ""
+)
+
+@Serializable
 data class UserSettings(
     val settingsVersion: Int = 1,
     val profile: ProfileSettings = ProfileSettings(),
@@ -389,5 +396,6 @@ data class UserSettings(
     val dataBackup: DataBackupSettings = DataBackupSettings(),
     val security: SecuritySettings = SecuritySettings(),
     val health: HealthSettings = HealthSettings(),
-    val smartwatch: SmartwatchSettings = SmartwatchSettings()
+    val smartwatch: SmartwatchSettings = SmartwatchSettings(),
+    val ai: AiSettings = AiSettings()
 )

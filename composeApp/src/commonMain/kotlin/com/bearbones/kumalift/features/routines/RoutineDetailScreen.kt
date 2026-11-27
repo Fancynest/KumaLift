@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +62,7 @@ import com.bearbones.kumalift.domain.model.localizedSplitCategory
 import com.bearbones.kumalift.domain.model.localizedTitle
 import com.bearbones.kumalift.features.library.ExerciseThumbnail
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RoutineDetailScreen(
     routine: RoutineBlueprint,
@@ -87,10 +90,13 @@ fun RoutineDetailScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -111,6 +117,9 @@ fun RoutineDetailScreen(
 
                     Text(
                         text = s.routineDetailTitle,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -138,6 +147,8 @@ fun RoutineDetailScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = s.editRoutineButton,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.onAccentFill
@@ -184,10 +195,11 @@ fun RoutineDetailScreen(
                         Column(modifier = Modifier.padding(20.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(
+                                    modifier = Modifier.weight(1f),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
@@ -196,12 +208,15 @@ fun RoutineDetailScreen(
                                         val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
                                         Box(
                                             modifier = Modifier
+                                                .weight(1f, fill = false)
                                                 .clip(PillShape)
                                                 .background(LocalKumaColors.current.accentTint)
                                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                                         ) {
                                             Text(
                                                 text = dayLabels,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = FontWeight.Bold,
                                                     color = LocalKumaColors.current.accentText
@@ -212,6 +227,8 @@ fun RoutineDetailScreen(
                                 }
                                 Text(
                                     text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = KumaColors.TextMuted
                                 )
@@ -275,11 +292,14 @@ fun RoutineDetailScreen(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = s.exercisesInRoutineHeader.uppercase(),
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold,
@@ -288,6 +308,8 @@ fun RoutineDetailScreen(
                         )
                         Text(
                             text = s.exerciseCountLabel(configs.size),
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.textSecondary,
                                 fontWeight = FontWeight.Medium
@@ -351,6 +373,7 @@ fun RoutineDetailScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RoutineExerciseDetailCard(config: RoutineExerciseConfig) {
     val colors = LocalKumaColors.current
@@ -399,9 +422,10 @@ private fun RoutineExerciseDetailCard(config: RoutineExerciseConfig) {
             Spacer(modifier = Modifier.height(12.dp))
 
             // Configuration Badges (Sets, Reps, Weight, Rest Time)
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val effectiveSets = config.effectiveSets
                 val repsLabel = if (config.setConfigs.isNotEmpty()) {
@@ -456,6 +480,8 @@ private fun ConfigBadge(
     ) {
         Text(
             text = label,
+            maxLines = 1,
+            softWrap = false,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.SemiBold,
                 color = colors.textPrimary,

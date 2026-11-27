@@ -3,6 +3,7 @@ package com.bearbones.kumalift.features.logger
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -171,21 +172,27 @@ fun PlateCalculatorDialog(
                         // Quick weight delta buttons
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
                         ) {
                             listOf(-10.0, -5.0, 5.0, 10.0).forEach { delta ->
                                 val label = if (delta > 0) "+${delta.toInt()}" else "${delta.toInt()}"
                                 Box(
                                     modifier = Modifier
+                                        .weight(1f)
                                         .clip(PillShape)
                                         .background(KumaColors.SurfaceContainerHigh)
                                         .clickable {
                                             targetWeight = (targetWeight + delta).coerceAtLeast(selectedBarWeight)
                                         }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = label,
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -230,6 +237,8 @@ fun PlateCalculatorDialog(
                             ) {
                                 Text(
                                     text = "${barWeight.toInt()} ${s.unitKg}",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) colors.onAccentFill else colors.textPrimary
@@ -250,7 +259,8 @@ fun PlateCalculatorDialog(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${s.loadEachSide}: ${calcResult.weightPerSideKg} ${s.unitKg}",
+                        text = "${s.loadEachSide}: ${formatWeightDisplay(calcResult.weightPerSideKg, language)} ${s.unitKg}",
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -276,6 +286,7 @@ fun PlateCalculatorDialog(
 
                         // Center Barbell Sleeve with Plates
                         Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -291,6 +302,9 @@ fun PlateCalculatorDialog(
                             if (calcResult.platesPerSide.isEmpty()) {
                                 Text(
                                     text = s.bareBarbellLabel,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = KumaColors.TextMuted,
                                         fontSize = 11.sp
@@ -322,6 +336,8 @@ fun PlateCalculatorDialog(
                                         ) {
                                             Text(
                                                 text = plateCount.weightKg.toString().removeSuffix(".0"),
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = onPlateColor,
                                                     fontSize = 9.sp,
@@ -384,13 +400,24 @@ fun PlateCalculatorDialog(
             }
         },
         confirmButton = {
-            KumaPrimaryButton(
-                text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg, language)} ${s.unitKg})",
+            androidx.compose.material3.Button(
                 onClick = {
                     onConfirm(calcResult.totalCalculatedWeightKg)
                     onDismiss()
-                }
-            )
+                },
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = colors.accentFill,
+                    contentColor = colors.onAccentFill
+                ),
+                shape = PillShape
+            ) {
+                Text(
+                    text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg, language)} ${s.unitKg})",
+                    maxLines = 1,
+                    softWrap = false,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                )
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {

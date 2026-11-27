@@ -7,8 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -39,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaCard
@@ -148,12 +151,14 @@ private fun ActiveMesocycleCard(
             // Header: Block Name & Phase Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = block.name,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -176,6 +181,8 @@ private fun ActiveMesocycleCard(
                 ) {
                     Text(
                         text = phaseLabel,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = phaseColor
@@ -235,7 +242,9 @@ private fun ActiveMesocycleCard(
                             }
                         }
                         Text(
-                            text = "W$w",
+                            text = s.mesocycleWeekShort(w),
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 10.sp,
                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
@@ -250,17 +259,20 @@ private fun ActiveMesocycleCard(
 
             // Action Buttons
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Advance Week
                 Box(
                     modifier = Modifier
                         .weight(1f)
+                        .fillMaxHeight()
                         .clip(RoundedCornerShape(8.dp))
                         .background(colors.accentFill)
                         .clickable(onClick = onAdvanceWeek)
-                        .padding(vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -275,6 +287,9 @@ private fun ActiveMesocycleCard(
                         )
                         Text(
                             text = if (block.currentWeek < block.totalWeeks) s.advanceWeekAction else s.completeMesocycleAction,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onAccentFill
@@ -286,6 +301,7 @@ private fun ActiveMesocycleCard(
                 // Toggle Deload
                 Box(
                     modifier = Modifier
+                        .fillMaxHeight()
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (block.isDeloadActive) colors.recoveryFresh else colors.surfaceVariant)
                         .clickable(onClick = onToggleDeload)
@@ -304,6 +320,8 @@ private fun ActiveMesocycleCard(
                         )
                         Text(
                             text = s.toggleDeloadAction,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (block.isDeloadActive) colors.onRecoveryFresh else colors.textPrimary

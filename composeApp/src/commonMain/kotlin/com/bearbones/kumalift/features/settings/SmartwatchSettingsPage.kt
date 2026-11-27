@@ -12,6 +12,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -63,6 +65,7 @@ import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.SmartwatchConnectionStatus
 import com.bearbones.kumalift.domain.model.SmartwatchDeviceType
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SmartwatchSettingsPage(
     settingsRepository: SettingsRepository,
@@ -162,10 +165,10 @@ fun SmartwatchSettingsPage(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -195,6 +198,8 @@ fun SmartwatchSettingsPage(
                             ) {
                                 Text(
                                     text = statusText,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = statusColor,
@@ -287,7 +292,7 @@ fun SmartwatchSettingsPage(
                         // Master Toggle
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -321,7 +326,7 @@ fun SmartwatchSettingsPage(
                         // Live Timer Sync
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -357,7 +362,7 @@ fun SmartwatchSettingsPage(
                         // Haptics on Watch
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -402,10 +407,10 @@ fun SmartwatchSettingsPage(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Row(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -439,6 +444,8 @@ fun SmartwatchSettingsPage(
                                             connectedBleDevice?.name ?: "",
                                             currentBleBpm ?: 0
                                         ),
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.recoveryFresh,
@@ -667,7 +674,7 @@ fun SmartwatchSettingsPage(
                                                 .background(colors.surfaceVariant)
                                                 .clickable { BleHeartRateManager.connect(dev) }
                                                 .padding(horizontal = 14.dp, vertical = 12.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Row(
@@ -689,9 +696,11 @@ fun SmartwatchSettingsPage(
                                                         modifier = Modifier.size(18.dp)
                                                     )
                                                 }
-                                                Column {
+                                                Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = dev.name,
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                         style = MaterialTheme.typography.bodyMedium.copy(
                                                             fontWeight = FontWeight.SemiBold,
                                                             color = colors.textPrimary
@@ -715,6 +724,8 @@ fun SmartwatchSettingsPage(
                                             ) {
                                                 Text(
                                                     text = s.smartwatchConnectAction,
+                                                    maxLines = 1,
+                                                    softWrap = false,
                                                     style = MaterialTheme.typography.labelSmall.copy(
                                                         fontWeight = FontWeight.Bold,
                                                         color = colors.onAccentFill

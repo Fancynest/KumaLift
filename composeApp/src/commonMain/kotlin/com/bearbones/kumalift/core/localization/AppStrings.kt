@@ -297,12 +297,18 @@ interface AppStrings {
     val metricVolumeLabel: String
     val metricRepsLabel: String
     val avgPrefix: String
+    fun progressActualLiftLabel(liftSummary: String): String
+    fun progressRecentSessionsCount(count: Int): String
+    val todayShortLabel: String
     fun avgMinutesLabel(mins: Int): String
     val prRecordsStatLabel: String
     fun volumeStatLabel(unit: String): String
     val workoutDurationMetricLabel: String
     val totalVolumeLiftedMetricLabel: String
     val totalRepetitionsMetricLabel: String
+    val profileDurationChartSubtitle: String
+    val profileVolumeChartSubtitle: String
+    val profileRepsChartSubtitle: String
     val noWorkoutDataChartMessage: String
 
     // Profile (Me) Screen
@@ -987,4 +993,106 @@ interface AppStrings {
     val bluetoothTurnOnPrompt: String
     val bluetoothPermissionRequired: String
     val wearOsNoticeText: String
+
+    // Compact Timeframe, Mesocycle & Media Accessibility Labels
+    val hourAbbrev: String
+    val defaultMesocycleName: String
+    fun mesocycleWeekShort(week: Int): String
+    fun timeframeMonthShort(months: Int): String
+    fun timeframeYearShort(years: Int): String
+    val pauseAnimationDesc: String
+    val playAnimationDesc: String
+
+    // Kuma AI Assistant & Gemini BYOK
+    val aiTitle: String
+    val aiOpenChatTooltip: String
+    val aiNewChatAction: String
+    val aiSettingsTitle: String
+    val aiSettingsSubtitle: String
+    val aiApiKeyLabel: String
+    val aiApiKeyPlaceholder: String
+    val aiApiKeyHelper: String
+    val aiApiKeyConfiguredBadge: String
+    val aiApiKeyMissingBadge: String
+    val aiSaveApiKeyAction: String
+    val aiClearApiKeyAction: String
+    val aiTestConnectionAction: String
+    val aiTestingConnectionStatus: String
+    val aiConnectionSuccessStatus: String
+    fun aiConnectionSuccessSwitched(modelId: String): String
+    val aiGetApiKeyAction: String
+    val aiGetApiKeySubtitle: String
+    val aiModelLabel: String
+    val aiModelGroupRecommended: String
+    val aiModelGroupRecommendedDesc: String
+    val aiModelGroupFree: String
+    val aiModelGroupFreeDesc: String
+    val aiModelGroupPaid: String
+    val aiModelGroupPaidDesc: String
+    fun aiModelCountBadge(count: Int): String
+    fun aiActiveModelSummary(modelId: String): String
+    val aiPreferencesLabel: String
+    val aiPreferencesPlaceholder: String
+    val aiPreferencesHelper: String
+    val aiSetupNeededTitle: String
+    val aiSetupNeededDesc: String
+    val aiOpenSettingsAction: String
+    val aiEmptyStarterTitle: String
+    val aiEmptyStarterDesc: String
+    val aiComposerPlaceholder: String
+    val aiSendDesc: String
+    val aiStopDesc: String
+    val aiCameraDesc: String
+    val aiGalleryDesc: String
+    val aiRemoveAttachmentDesc: String
+    val aiQuickChipRoutine: String
+    val aiQuickChipProgress: String
+    val aiQuickChipSwap: String
+    val aiQuickChipMeal: String
+    val aiRunningInBackground: String
+    val aiThinkingStatus: String
+    fun aiStepsCompletedLabel(count: Int): String
+    val aiReviewProposalBadge: String
+    val aiAppliedBadge: String
+    val aiCancelledBadge: String
+    val aiFailedBadge: String
+    val aiProposalApproveAction: String
+    val aiProposalCancelAction: String
+    val aiNutritionBadge: String
+    val aiNutritionCaloriesLabel: String
+    val aiNutritionProteinLabel: String
+    val aiNutritionCarbsLabel: String
+    val aiNutritionFatLabel: String
+    val aiErrorInvalidKey: String
+    val aiErrorQuotaExceeded: String
+    val aiErrorModelUnavailable: String
+    val aiErrorLocationUnsupported: String
+    val aiErrorBadRequest: String
+    val aiErrorOffline: String
+    val aiErrorTimeout: String
+    val aiErrorServerBusy: String
+    val aiErrorNetwork: String
+    val aiErrorEmptyResponse: String
+    val aiErrorCancelled: String
+    fun aiHttpStatusCodeLabel(statusCode: Int): String
+    val aiHomeCardSubtitle: String
+    val aiHomeCardAction: String
+    val aiWebSourcesPrefix: String
+    val aiSectionConnection: String
+    val aiSectionModel: String
+    val aiSectionNotes: String
+    val aiApiKeyStatusLabel: String
+    val aiStepReadingRoutines: String
+    val aiStepReadingSchedule: String
+    val aiStepReadingProgress: String
+    val aiStepReadingExercises: String
+    val aiStepStagingDraft: String
+    val aiStepPreparingNutrition: String
+    val aiStepCallingGemini: String
+    val aiCommitSuccessPrefix: String
+    val aiClearChatConfirmTitle: String
+    val aiClearChatConfirmMessage: String
+    val aiClearChatConfirmAction: String
+    val duplicateBackupDialogTitle: String
+    fun duplicateBackupDialogBody(backupInfo: String): String
 }

@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -66,8 +68,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaSessionBarChart
+import com.bearbones.kumalift.core.designsystem.KumaSessionBarItem
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.buildDistinctChartDateLabels
+import com.bearbones.kumalift.core.designsystem.formatCompactChartValue
+import com.bearbones.kumalift.core.designsystem.formatIntegerChartValue
 import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
@@ -83,6 +90,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AthleteSex
+import com.bearbones.kumalift.domain.model.DateFormatPreference
 import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
@@ -109,6 +117,8 @@ fun MeScreen(
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
+    val language = settings.appearance.language
+    val dateFormat = settings.units.dateFormat
 
     var selectedMetric by rememberSaveable { mutableStateOf(AnalyticsMetric.VOLUME) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
@@ -239,16 +249,18 @@ fun MeScreen(
                         // Stats counters (Workouts, PRs, Total Volume)
                         Row(
                             modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.SpaceAround,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             StatCounter(
                                 value = "$workoutCount",
-                                label = s.tabWorkouts
+                                label = s.tabWorkouts,
+                                modifier = Modifier.weight(1f)
                             )
                             StatCounter(
                                 value = "$prCount",
-                                label = s.prRecordsStatLabel
+                                label = s.prRecordsStatLabel,
+                                modifier = Modifier.weight(1f)
                             )
                             StatCounter(
                                 value = if (totalVolumeDisplay >= 1000.0) {
@@ -257,7 +269,8 @@ fun MeScreen(
                                 } else {
                                     "${totalVolumeDisplay.toInt()}"
                                 },
-                                label = s.volumeStatLabel(unitSuffix)
+                                label = s.volumeStatLabel(unitSuffix),
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -300,17 +313,20 @@ fun MeScreen(
                         MetricPill(
                             label = s.metricDurationLabel,
                             isSelected = selectedMetric == AnalyticsMetric.DURATION,
-                            onClick = { selectedMetric = AnalyticsMetric.DURATION }
+                            onClick = { selectedMetric = AnalyticsMetric.DURATION },
+                            modifier = Modifier.weight(1f)
                         )
                         MetricPill(
                             label = s.metricVolumeLabel,
                             isSelected = selectedMetric == AnalyticsMetric.VOLUME,
-                            onClick = { selectedMetric = AnalyticsMetric.VOLUME }
+                            onClick = { selectedMetric = AnalyticsMetric.VOLUME },
+                            modifier = Modifier.weight(1f)
                         )
                         MetricPill(
                             label = s.metricRepsLabel,
                             isSelected = selectedMetric == AnalyticsMetric.REPS,
-                            onClick = { selectedMetric = AnalyticsMetric.REPS }
+                            onClick = { selectedMetric = AnalyticsMetric.REPS },
+                            modifier = Modifier.weight(1f)
                         )
                     }
 
@@ -327,25 +343,43 @@ fun MeScreen(
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Text(
-                                    text = when (selectedMetric) {
-                                        AnalyticsMetric.DURATION -> s.workoutDurationMetricLabel
-                                        AnalyticsMetric.VOLUME -> s.totalVolumeLiftedMetricLabel
-                                        AnalyticsMetric.REPS -> s.totalRepetitionsMetricLabel
-                                    },
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.textSecondary
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = when (selectedMetric) {
+                                            AnalyticsMetric.DURATION -> s.workoutDurationMetricLabel
+                                            AnalyticsMetric.VOLUME -> s.totalVolumeLiftedMetricLabel
+                                            AnalyticsMetric.REPS -> s.totalRepetitionsMetricLabel
+                                        },
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.textPrimary
+                                        )
                                     )
-                                )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = when (selectedMetric) {
+                                            AnalyticsMetric.DURATION -> s.profileDurationChartSubtitle
+                                            AnalyticsMetric.VOLUME -> s.profileVolumeChartSubtitle
+                                            AnalyticsMetric.REPS -> s.profileRepsChartSubtitle
+                                        },
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = KumaColors.TextMuted
+                                        )
+                                    )
+                                }
 
                                 Text(
                                     text = if (completedWorkouts.isEmpty()) "—" else when (selectedMetric) {
                                         AnalyticsMetric.DURATION -> {
-                                            val avgMins = (completedWorkouts.map { it.durationSeconds }.average() / 60).toInt()
+                                            val avgMins = completedWorkouts
+                                                .map { (it.durationSeconds / 60).coerceAtLeast(1) }
+                                                .average()
+                                                .toInt()
                                             s.avgMinutesLabel(avgMins)
                                         }
                                         AnalyticsMetric.VOLUME -> totalVolumeText
@@ -353,9 +387,11 @@ fun MeScreen(
                                             val totalReps = completedWorkouts.sumOf { w ->
                                                 w.exercises.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.reps } }
                                             }
-                                            "$totalReps ${s.repsAbbrev}"
+                                            "${formatIntegerChartValue(totalReps.toDouble(), language)} ${s.repsAbbrev}"
                                         }
                                     },
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colors.accentText
@@ -363,7 +399,7 @@ fun MeScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
                             if (completedWorkouts.isEmpty()) {
                                 Box(
@@ -380,55 +416,64 @@ fun MeScreen(
                                     )
                                 }
                             } else {
-                                val chartWorkouts = completedWorkouts.takeLast(6)
-                                val barData = chartWorkouts.map { w ->
-                                    when (selectedMetric) {
-                                        AnalyticsMetric.DURATION -> (w.durationSeconds / 60).toFloat()
-                                        AnalyticsMetric.VOLUME -> (w.totalVolumeKg * multiplier).toFloat()
-                                        AnalyticsMetric.REPS -> w.exercises.sumOf { ex -> ex.sets.filter { it.isCompleted }.sumOf { it.reps } }.toFloat()
+                                val chartWorkouts = remember(completedWorkouts) {
+                                    completedWorkouts.sortedBy { it.startTimeEpochMs }.takeLast(6)
+                                }
+                                var selectedBarIdx by remember(chartWorkouts, selectedMetric) {
+                                    mutableStateOf((chartWorkouts.size - 1).coerceAtLeast(0))
+                                }
+                                val clampedIdx = selectedBarIdx.coerceIn(0, (chartWorkouts.size - 1).coerceAtLeast(0))
+
+                                val barItems = remember(chartWorkouts, selectedMetric, multiplier, language, dateFormat, s.todayShortLabel, unitSuffix) {
+                                    val xLabels = buildDistinctChartDateLabels(
+                                        epochs = chartWorkouts.map { it.startTimeEpochMs },
+                                        fallbacks = chartWorkouts.map { "" },
+                                        pref = dateFormat,
+                                        language = language,
+                                        todayFallback = s.todayShortLabel
+                                    )
+                                    chartWorkouts.mapIndexed { idx, w ->
+                                        val rawVal = when (selectedMetric) {
+                                            AnalyticsMetric.DURATION -> (w.durationSeconds / 60).coerceAtLeast(1).toDouble()
+                                            AnalyticsMetric.VOLUME -> w.totalVolumeKg * multiplier
+                                            AnalyticsMetric.REPS -> w.exercises.sumOf { ex ->
+                                                ex.sets.filter { it.isCompleted }.sumOf { it.reps }
+                                            }.toDouble()
+                                        }
+                                        val unitLabel = when (selectedMetric) {
+                                            AnalyticsMetric.DURATION -> s.minAbbrev
+                                            AnalyticsMetric.VOLUME -> unitSuffix
+                                            AnalyticsMetric.REPS -> s.repsAbbrev
+                                        }
+                                        val fullFormatted = formatIntegerChartValue(rawVal, language)
+                                        KumaSessionBarItem(
+                                            valueDisplay = rawVal,
+                                            compactValueLabel = formatCompactChartValue(rawVal, language),
+                                            xLabel = xLabels[idx],
+                                            detailSummary = "${xLabels[idx]} · ${w.title} · $fullFormatted $unitLabel"
+                                        )
                                     }
                                 }
-                                val barLabels = chartWorkouts.mapIndexed { idx, _ -> "S${idx + 1}" }
-                                val maxVal = (barData.maxOrNull() ?: 1f).coerceAtLeast(1f)
+                                val avgVal = barItems.map { it.valueDisplay }.average()
 
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(120.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Bottom
-                                ) {
-                                    barData.forEachIndexed { index, value ->
-                                        val isCurrent = index == barData.size - 1
-                                        val heightFraction = (value / maxVal).coerceIn(0.15f, 1f)
+                                KumaSessionBarChart(
+                                    bars = barItems,
+                                    avgDisplay = avgVal,
+                                    selectedIndex = clampedIdx,
+                                    onSelectBar = { selectedBarIdx = it },
+                                    language = language
+                                )
 
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Bottom,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(26.dp)
-                                                    .height((90 * heightFraction).dp)
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(
-                                                        if (isCurrent) colors.accentText else KumaColors.SurfaceContainer
-                                                    )
-                                            )
-
-                                            Spacer(modifier = Modifier.height(8.dp))
-
-                                            Text(
-                                                text = barLabels[index],
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontSize = 11.sp,
-                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isCurrent) colors.accentText else colors.textSecondary
-                                                )
-                                            )
-                                        }
-                                    }
+                                barItems.getOrNull(clampedIdx)?.let { activeItem ->
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = activeItem.detailSummary,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = colors.textSecondary
+                                        )
+                                    )
                                 }
                             }
                         }
@@ -453,12 +498,16 @@ fun MeScreen(
                     )
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Statistics Card
                         DashboardCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                             icon = Icons.AutoMirrored.Filled.ShowChart,
                             title = s.statisticsCardTitle,
                             subtitle = s.statisticsCardSubtitle,
@@ -467,7 +516,9 @@ fun MeScreen(
 
                         // Exercises Card
                         DashboardCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                             icon = Icons.Default.FitnessCenter,
                             title = s.exercisesCardTitle,
                             subtitle = s.exercisesCardSubtitle,
@@ -478,7 +529,9 @@ fun MeScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Measures Card
@@ -494,7 +547,9 @@ fun MeScreen(
                             s.noMeasuresRecorded
                         }
                         DashboardCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                             icon = Icons.Default.AccessibilityNew,
                             title = s.measuresCardTitle,
                             subtitle = measuresSubtitle,
@@ -503,7 +558,9 @@ fun MeScreen(
 
                         // Calendar Card
                         DashboardCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                             icon = Icons.Default.CalendarToday,
                             title = s.calendarCardTitle,
                             subtitle = s.trainingDaysSubtitle(settings.profile.trainingDaysPerWeek),
@@ -522,11 +579,14 @@ fun MeScreen(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = s.allWorkoutsHeader,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textPrimary
@@ -535,6 +595,8 @@ fun MeScreen(
 
                         Text(
                             text = s.viewAllButton,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText
@@ -657,15 +719,20 @@ fun MeScreen(
 @Composable
 private fun StatCounter(
     value: String,
-    label: String
+    label: String,
+    modifier: Modifier = Modifier
 ) {
     val colors = LocalKumaColors.current
     Column(
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
             text = value,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.ExtraBold,
                 color = colors.textPrimary,
@@ -674,6 +741,9 @@ private fun StatCounter(
         )
         Text(
             text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = MaterialTheme.typography.labelSmall.copy(
                 color = colors.textSecondary,
                 fontSize = 12.sp
@@ -686,22 +756,26 @@ private fun StatCounter(
 private fun MetricPill(
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = LocalKumaColors.current
     val bgColor = if (isSelected) colors.accentFill else KumaColors.SurfaceDim
     val textColor = if (isSelected) colors.onAccentFill else colors.textSecondary
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(PillShape)
             .background(bgColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.SemiBold,
                 color = textColor
@@ -745,9 +819,11 @@ private fun DashboardCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -755,6 +831,8 @@ private fun DashboardCard(
                 )
                 Text(
                     text = subtitle,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textSecondary,
                         fontSize = 11.sp
@@ -782,11 +860,14 @@ private fun WorkoutSummaryCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = title,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -794,6 +875,8 @@ private fun WorkoutSummaryCard(
                 )
                 Text(
                     text = date,
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = colors.textSecondary
                     )

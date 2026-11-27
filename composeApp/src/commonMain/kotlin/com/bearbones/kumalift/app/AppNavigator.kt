@@ -21,6 +21,7 @@ sealed interface Overlay {
     data object ActiveLogger : Overlay
     data object Summary : Overlay
     data object Settings : Overlay
+    data object AiChat : Overlay
 }
 
 /**
@@ -28,7 +29,7 @@ sealed interface Overlay {
  *
  * Implements:
  * - Deterministic tab switching without pager gesture conflicts or async state races.
- * - Overlay stack for fullscreen screens (Active Logger, Summary, Settings).
+ * - Overlay stack for fullscreen screens (Active Logger, Summary, Settings, AI Chat).
  * - Root-level back handling with fallback to Home and finally system exit.
  */
 class AppNavigator(
@@ -36,6 +37,7 @@ class AppNavigator(
     initialOverlays: List<Overlay> = emptyList()
 ) {
     var selectedTab by mutableStateOf(initialTab)
+    var pendingSettingsDestinationName by mutableStateOf<String?>(null)
     val overlays = mutableStateListOf<Overlay>().apply {
         addAll(initialOverlays)
     }
@@ -82,6 +84,7 @@ class AppNavigator(
                             Overlay.ActiveLogger -> "ACTIVE_LOGGER"
                             Overlay.Summary -> "SUMMARY"
                             Overlay.Settings -> "SETTINGS"
+                            Overlay.AiChat -> "AI_CHAT"
                         }
                     }
                 )
@@ -96,6 +99,7 @@ class AppNavigator(
                         "ACTIVE_LOGGER" -> Overlay.ActiveLogger
                         "SUMMARY" -> Overlay.Summary
                         "SETTINGS" -> Overlay.Settings
+                        "AI_CHAT" -> Overlay.AiChat
                         else -> null
                     }
                 }

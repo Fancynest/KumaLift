@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -117,11 +118,14 @@ fun WorkoutScheduleModal(
             // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = s.trainingScheduleTitle,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -179,10 +183,11 @@ fun WorkoutScheduleModal(
                             }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = preset.title,
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = if (isPresetActive) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isPresetActive) colors.dayActiveText else colors.textPrimary
@@ -223,27 +228,30 @@ fun WorkoutScheduleModal(
             // Day circles selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 daysOfWeek.forEach { (dayNum, name) ->
                     val isSelected = selectedDays.contains(dayNum)
                     val shortName = name.take(3)
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable {
-                            if (isSelected) {
-                                if (selectedDays.size > 1) { // minimum 1 day
-                                    selectedDays.remove(dayNum)
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                if (isSelected) {
+                                    if (selectedDays.size > 1) { // minimum 1 day
+                                        selectedDays.remove(dayNum)
+                                    }
+                                } else {
+                                    selectedDays.add(dayNum)
+                                    selectedDays.sort()
                                 }
-                            } else {
-                                selectedDays.add(dayNum)
-                                selectedDays.sort()
                             }
-                        }
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
                                 .clip(CircleShape)
                                 .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
                                 .border(
@@ -255,6 +263,8 @@ fun WorkoutScheduleModal(
                         ) {
                             Text(
                                 text = name.take(1),
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -264,8 +274,11 @@ fun WorkoutScheduleModal(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = shortName,
+                            maxLines = 1,
+                            softWrap = false,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 11.sp,
+                                letterSpacing = 0.sp,
                                 color = if (isSelected) colors.accentText else colors.textSecondary
                             )
                         )

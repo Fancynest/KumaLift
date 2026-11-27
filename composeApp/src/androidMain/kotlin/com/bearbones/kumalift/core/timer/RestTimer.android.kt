@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.core.timer
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -16,6 +17,7 @@ import com.bearbones.kumalift.core.sound.SoundEvent
 import com.bearbones.kumalift.core.sound.SoundManager
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_15
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_ADD_30
+import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_EXPIRED
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_PAUSE
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_RESUME
 import com.bearbones.kumalift.core.timer.RestTimerNotificationReceiver.Companion.ACTION_REST_TIMER_SKIP
@@ -60,10 +62,44 @@ private fun getUserSettings(): UserSettings {
     return UserSettings()
 }
 
+private fun restTimerAlarmPendingIntent(context: Context): PendingIntent {
+    return PendingIntent.getBroadcast(
+        context,
+        106,
+        Intent(context, RestTimerNotificationReceiver::class.java).apply {
+            action = ACTION_REST_TIMER_EXPIRED
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+}
+
+private fun scheduleRestTimerAlarm(context: Context, targetEndEpochMs: Long) {
+    if (targetEndEpochMs <= System.currentTimeMillis()) return
+    try {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        val pi = restTimerAlarmPendingIntent(context)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetEndEpochMs, pi)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetEndEpochMs, pi)
+        } else {
+            alarmManager.setExact(AlarmManager.RTC_WAKEUP, targetEndEpochMs, pi)
+        }
+    } catch (_: Throwable) {}
+}
+
+private fun cancelRestTimerAlarm(context: Context) {
+    try {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+        alarmManager.cancel(restTimerAlarmPendingIntent(context))
+    } catch (_: Throwable) {}
+}
+
 actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exerciseName: String?) {
     val context = AndroidAppProvider.appContext ?: return
     lastOngoingExerciseName = exerciseName
     PlatformSoundPlayer.cancelRestFinishedNotification()
+    scheduleRestTimerAlarm(context, targetEndEpochMs)
 
     val settings = getUserSettings()
     if (settings.notifications.ongoingWorkout || settings.notifications.restTimerAlert) {
@@ -75,6 +111,7 @@ actual fun notifyRestTimerStarted(targetEndEpochMs: Long, totalSeconds: Int, exe
 
 actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int) {
     val context = AndroidAppProvider.appContext ?: return
+    scheduleRestTimerAlarm(context, targetEndEpochMs)
     val settings = getUserSettings()
     if (settings.notifications.ongoingWorkout || settings.notifications.restTimerAlert) {
         updateOngoingNotification(context, targetEndEpochMs, lastOngoingExerciseName)
@@ -85,6 +122,7 @@ actual fun notifyRestTimerUpdated(targetEndEpochMs: Long, remainingSeconds: Int)
 
 actual fun notifyRestTimerStopped() {
     val context = AndroidAppProvider.appContext ?: return
+    cancelRestTimerAlarm(context)
     try {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         manager?.cancel(NOTIF_ID_ONGOING)
@@ -94,9 +132,13 @@ actual fun notifyRestTimerStopped() {
 
 actual fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?) {
     val context = AndroidAppProvider.appContext ?: return
+    cancelRestTimerAlarm(context)
     val settings = getUserSettings()
     if (!settings.notifications.ongoingWorkout && !settings.notifications.restTimerAlert) {
-        notifyRestTimerStopped()
+        try {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.cancel(NOTIF_ID_ONGOING)
+        } catch (_: Throwable) {}
         return
     }
 
@@ -141,9 +183,10 @@ actual fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val mins = remainingSeconds / 60
-        val secs = remainingSeconds % 60
-        val formattedTime = "${if (mins < 10) "0$mins" else "$mins"}:${if (secs < 10) "0$secs" else "$secs"}"
+        val absSec = kotlin.math.abs(remainingSeconds)
+        val mins = absSec / 60
+        val secs = absSec % 60
+        val formattedTime = "${if (remainingSeconds < 0) "-" else ""}${if (mins < 10) "0$mins" else "$mins"}:${if (secs < 10) "0$secs" else "$secs"}"
 
         val title = if (!exerciseName.isNullOrBlank()) "${strings.pause} · $exerciseName" else "${strings.pause} · ${strings.restTimerChannelName}"
         val text = "${strings.pause} · $formattedTime"
@@ -188,8 +231,9 @@ actual fun notifyRestTimerPaused(remainingSeconds: Int, exerciseName: String?) {
     }
 }
 
-actual fun notifyRestTimerCompleted(exerciseName: String?) {
+actual fun notifyRestTimerCompleted(exerciseName: String?, targetEndEpochMs: Long) {
     val context = AndroidAppProvider.appContext ?: return
+    cancelRestTimerAlarm(context)
     val settings = getUserSettings()
     if (!settings.notifications.ongoingWorkout && !settings.notifications.restTimerAlert) {
         notifyRestTimerStopped()
@@ -272,7 +316,12 @@ actual fun notifyRestTimerCompleted(exerciseName: String?) {
             .setOnlyAlertOnce(true)
             .setShowWhen(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setUsesChronometer(false)
+            .setUsesChronometer(true)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            builder.setChronometerCountDown(true)
+        }
+        builder.setWhen(targetEndEpochMs)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
             val addAction = Notification.Action.Builder(

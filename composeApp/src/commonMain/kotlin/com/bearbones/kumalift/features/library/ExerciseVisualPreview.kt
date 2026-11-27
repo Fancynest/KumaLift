@@ -135,6 +135,7 @@ fun ExerciseVisualAnimation(
             )
         }
 
+        val s = com.bearbones.kumalift.core.localization.LocalStrings.current
         // Minimal Play/Pause button in top-right corner (icon only, semi-transparent white bg, dark icon)
         Box(
             modifier = Modifier
@@ -148,7 +149,7 @@ fun ExerciseVisualAnimation(
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (isPlaying) "Pause animation" else "Play animation",
+                contentDescription = if (isPlaying) s.pauseAnimationDesc else s.playAnimationDesc,
                 tint = LocalKumaColors.current.onAccentFill,
                 modifier = Modifier.size(18.dp)
             )

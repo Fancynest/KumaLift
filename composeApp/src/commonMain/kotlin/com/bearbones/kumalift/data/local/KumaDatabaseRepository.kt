@@ -3,6 +3,10 @@ package com.bearbones.kumalift.data.local
 import com.bearbones.kumalift.core.util.IdGenerator
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.database.KumaDatabase
+import com.bearbones.kumalift.domain.ai.AiActionProposal
+import com.bearbones.kumalift.domain.ai.AiChatMessage
+import com.bearbones.kumalift.domain.ai.AiChatRole
+import com.bearbones.kumalift.domain.ai.AiNutritionCardData
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
@@ -826,5 +830,54 @@ class KumaDatabaseRepository(
             notes = notes,
             createdAtEpochMs = createdAtEpochMs
         )
+    }
+
+    // ==========================================
+    // KUMA AI CHAT MESSAGES
+    // ==========================================
+
+    fun getAllAiChatMessages(): List<AiChatMessage> {
+        return queries.selectAllAiChatMessages().executeAsList().map { row ->
+            val steps = try {
+                json.decodeFromString<List<String>>(row.stepLogsJson)
+            } catch (_: Exception) {
+                emptyList()
+            }
+            val proposal = row.proposalJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                try { json.decodeFromString<AiActionProposal>(raw) } catch (_: Exception) { null }
+            }
+            val nutrition = row.nutritionJson?.takeIf { it.isNotBlank() }?.let { raw ->
+                try { json.decodeFromString<AiNutritionCardData>(raw) } catch (_: Exception) { null }
+            }
+            AiChatMessage(
+                id = row.id,
+                role = try { AiChatRole.valueOf(row.role) } catch (_: Exception) { AiChatRole.ASSISTANT },
+                text = row.messageText,
+                imagePath = row.imagePath,
+                stepLogs = steps,
+                proposal = proposal,
+                nutritionCard = nutrition,
+                isError = row.isError == 1L,
+                createdAtEpochMs = row.createdAtEpochMs
+            )
+        }
+    }
+
+    fun saveAiChatMessage(message: AiChatMessage) {
+        queries.insertOrReplaceAiChatMessage(
+            id = message.id,
+            role = message.role.name,
+            messageText = message.text,
+            imagePath = message.imagePath,
+            stepLogsJson = json.encodeToString(message.stepLogs),
+            proposalJson = message.proposal?.let { json.encodeToString(it) },
+            nutritionJson = message.nutritionCard?.let { json.encodeToString(it) },
+            isError = if (message.isError) 1L else 0L,
+            createdAtEpochMs = if (message.createdAtEpochMs > 0L) message.createdAtEpochMs else currentEpochMillis()
+        )
+    }
+
+    fun clearAllAiChatMessages() {
+        queries.clearAllAiChatMessages()
     }
 }

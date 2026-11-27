@@ -170,10 +170,13 @@ fun CreateRoutineScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -194,6 +197,9 @@ fun CreateRoutineScreen(
 
                     Text(
                         text = screenTitle,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -244,6 +250,8 @@ fun CreateRoutineScreen(
                 ) {
                     Text(
                         text = s.save,
+                        maxLines = 1,
+                        softWrap = false,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -392,11 +400,14 @@ fun CreateRoutineScreen(
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = s.routineActiveDaysLabel,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.accentText,
                                 fontWeight = FontWeight.Bold,
@@ -411,6 +422,8 @@ fun CreateRoutineScreen(
                             }
                             Text(
                                 text = countText,
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = colors.accentText
@@ -463,10 +476,13 @@ fun CreateRoutineScreen(
                             ) {
                                 Text(
                                     text = dayLabel,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) colors.onAccentFill else KumaColors.TextWhite,
-                                        fontSize = 12.sp
+                                        fontSize = 12.sp,
+                                        letterSpacing = 0.sp
                                     )
                                 )
                             }
@@ -504,6 +520,8 @@ fun CreateRoutineScreen(
                             ) {
                                 Text(
                                     text = "$mins ${s.minAbbrev}",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -1060,7 +1078,8 @@ private fun SelectedExerciseRow(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = colors.textSecondary
                             ),
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -1125,40 +1144,55 @@ private fun SelectedExerciseRow(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 2.dp, vertical = 3.dp),
+                        .padding(vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = s.setColumnHeader,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.width(32.dp)
                     )
                     Text(
                         text = s.prevColumnHeader,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1.1f)
+                        modifier = Modifier.weight(1.1f).padding(horizontal = 2.dp)
                     )
                     Text(
                         text = if (unit == WeightUnit.LB) s.unitLb.uppercase() else s.unitKg.uppercase(),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1.1f).padding(horizontal = 2.dp)
                     )
                     Text(
                         text = s.repsColumnHeader,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1.0f).padding(horizontal = 2.dp)
                     )
                     Text(
                         text = s.rpeColumnHeader,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp),
                         color = KumaColors.TextMuted,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(0.9f).padding(horizontal = 2.dp)
@@ -1348,12 +1382,13 @@ private fun SelectedExerciseRow(
                 // Bottom actions: Add Set & Custom Rest Timer
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // + Add Set Button
                     Box(
                         modifier = Modifier
+                            .weight(1f, fill = false)
                             .clip(RoundedCornerShape(8.dp))
                             .background(KumaColors.SurfaceContainer)
                             .border(1.dp, colors.accentFill.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
@@ -1386,6 +1421,9 @@ private fun SelectedExerciseRow(
                             )
                             Text(
                                 text = s.addSetButton,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.accentText
@@ -1393,6 +1431,8 @@ private fun SelectedExerciseRow(
                             )
                         }
                     }
+
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
 
                     // Custom Rest Timer Button
                     Box(
@@ -1415,6 +1455,8 @@ private fun SelectedExerciseRow(
                             )
                             Text(
                                 text = s.secondsRestLabel(config.restTimerSeconds),
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textPrimary
@@ -1493,11 +1535,14 @@ private fun ExercisePickerModal(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                 Text(
                     text = s.exercisePickerTitle,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary

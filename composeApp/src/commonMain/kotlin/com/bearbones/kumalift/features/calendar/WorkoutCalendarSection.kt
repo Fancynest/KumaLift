@@ -9,9 +9,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -69,6 +73,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutCalendarSection(
     completedWorkouts: List<Workout>,
@@ -167,10 +172,11 @@ fun WorkoutCalendarSection(
             // 1. Calendar Title and Month Navigation Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -182,6 +188,8 @@ fun WorkoutCalendarSection(
                     )
                     Text(
                         text = s.workoutCalendarTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -223,7 +231,7 @@ fun WorkoutCalendarSection(
                     .clip(RoundedCornerShape(12.dp))
                     .background(colors.surfaceVariant)
                     .padding(horizontal = 4.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -244,6 +252,10 @@ fun WorkoutCalendarSection(
 
                 Text(
                     text = "$monthName $displayedYear",
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -314,10 +326,10 @@ fun WorkoutCalendarSection(
             }
 
             // Legend
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -331,6 +343,8 @@ fun WorkoutCalendarSection(
                     )
                     Text(
                         text = s.completedStatus,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontSize = 11.sp
@@ -350,6 +364,8 @@ fun WorkoutCalendarSection(
                     )
                     Text(
                         text = s.scheduledStatus,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = colors.textSecondary,
                             fontSize = 11.sp
@@ -543,32 +559,37 @@ private fun MonthlyStatisticsCard(
     val totalMin = stats.totalDurationSeconds / 60
     val totalHours = totalMin / 60
     val remMin = totalMin % 60
-    val durationFormatted = if (totalHours > 0) "${totalHours}h ${remMin}m" else "${totalMin}m"
+    val durationFormatted = if (totalHours > 0) "${totalHours}${strings.hourAbbrev} ${remMin}${strings.minAbbrev}" else "${totalMin}${strings.minAbbrev}"
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Max)
             .clip(RoundedCornerShape(12.dp))
             .background(colors.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         StatItem(
             value = "${stats.uniqueWorkoutDays}",
-            label = strings.workoutDaysLabel
+            label = strings.workoutDaysLabel.uppercase(),
+            modifier = Modifier.weight(1f)
         )
         StatItem(
             value = "${stats.totalSessions}",
-            label = strings.totalSessionsLabel
+            label = strings.totalSessionsLabel.uppercase(),
+            modifier = Modifier.weight(1f)
         )
         StatItem(
             value = durationFormatted,
-            label = strings.totalDurationLabel
+            label = strings.totalDurationLabel.uppercase(),
+            modifier = Modifier.weight(1f)
         )
         StatItem(
             value = totalVolFormatted,
-            label = strings.totalVolumeLabel
+            label = strings.totalVolumeLabel.uppercase(),
+            modifier = Modifier.weight(1f)
         )
     }
 }
@@ -576,15 +597,20 @@ private fun MonthlyStatisticsCard(
 @Composable
 private fun StatItem(
     value: String,
-    label: String
+    label: String,
+    modifier: Modifier = Modifier
 ) {
     val colors = LocalKumaColors.current
     Column(
+        modifier = modifier.fillMaxHeight(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(
             text = value,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = colors.accentText
@@ -592,14 +618,20 @@ private fun StatItem(
         )
         Text(
             text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontSize = 10.sp,
+                fontSize = 9.5.sp,
+                letterSpacing = 0.sp,
                 color = colors.textSecondary
             )
         )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedDayDetailCard(
     date: LocalDate,
@@ -738,7 +770,7 @@ private fun SelectedDayDetailCard(
                                 }
                             }
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(
@@ -755,11 +787,13 @@ private fun SelectedDayDetailCard(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                            FlowRow(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                event.splitTypeSnapshot?.let { KumaBadge(text = it) }
+                                event.splitTypeSnapshot?.let {
+                                    KumaBadge(text = com.bearbones.kumalift.domain.model.localizeSplitCategory(it, strings))
+                                }
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
@@ -841,7 +875,7 @@ private fun SelectedDayDetailCard(
                                 onStartRoutine?.invoke(routine)
                             }
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(
@@ -858,11 +892,13 @@ private fun SelectedDayDetailCard(
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                            FlowRow(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                routine.splitCategory.takeIf { it.isNotBlank() }?.let { KumaBadge(text = it) }
+                                routine.splitCategory.takeIf { it.isNotBlank() }?.let {
+                                    KumaBadge(text = com.bearbones.kumalift.domain.model.localizeSplitCategory(it, strings))
+                                }
                                 Box(
                                     modifier = Modifier
                                         .clip(PillShape)
@@ -932,6 +968,8 @@ private fun SelectedDayDetailCard(
                 ) {
                     Text(
                         text = strings.restDayTitle,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = colors.textSecondary,
@@ -941,6 +979,7 @@ private fun SelectedDayDetailCard(
                 }
                 Text(
                     text = strings.noActivityOnDate,
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = colors.textSecondary
                     )
@@ -964,7 +1003,7 @@ private fun SelectedDayDetailCard(
                             .background(colors.surface)
                             .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(
@@ -977,12 +1016,15 @@ private fun SelectedDayDetailCard(
                             ) {
                                 Text(
                                     text = w.title,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = colors.textPrimary
                                     )
                                 )
-                                KumaBadge(text = w.splitType)
+                                KumaBadge(text = com.bearbones.kumalift.domain.model.localizeSplitCategory(w.splitType, strings))
                             }
 
                             Text(
@@ -999,7 +1041,8 @@ private fun SelectedDayDetailCard(
                                         color = colors.textSecondary.copy(alpha = 0.8f),
                                         fontSize = 10.sp
                                     ),
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

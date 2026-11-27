@@ -115,10 +115,11 @@ fun DailyReadinessDialog(
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -130,6 +131,8 @@ fun DailyReadinessDialog(
                     )
                     Text(
                         text = s.dailyReadinessTitle,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -139,7 +142,7 @@ fun DailyReadinessDialog(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = null,
+                        contentDescription = s.close,
                         tint = colors.textSecondary
                     )
                 }
@@ -167,17 +170,22 @@ fun DailyReadinessDialog(
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = s.todayReadinessScore,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = colors.textSecondary
                                 )
                             )
                             Text(
                                 text = "$percentage%",
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = statusColor
@@ -196,12 +204,13 @@ fun DailyReadinessDialog(
                         ) {
                             Text(
                                 text = statusText,
+                                textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = statusColor,
                                     fontSize = 11.sp
                                 ),
-                                maxLines = 1,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -289,10 +298,11 @@ private fun ReadinessPillarRow(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -304,6 +314,8 @@ private fun ReadinessPillarRow(
                 )
                 Text(
                     text = label,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.SemiBold,
                         color = colors.textPrimary
@@ -312,6 +324,8 @@ private fun ReadinessPillarRow(
             }
             Text(
                 text = "$value / 5",
+                maxLines = 1,
+                softWrap = false,
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.accentText
@@ -367,9 +381,11 @@ private fun ReadinessPillarRow(
                         style = MaterialTheme.typography.labelSmall.copy(
                             color = if (isSelected) colors.accentText else colors.textSecondary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 9.sp
+                            fontSize = 9.sp,
+                            letterSpacing = 0.sp
                         ),
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
                     )
                 }

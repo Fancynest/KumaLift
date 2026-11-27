@@ -10,6 +10,8 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 -keep,allowobfuscation,allowshrinking class com.bearbones.kumalift.domain.model.** { *; }
+-keep,allowobfuscation,allowshrinking class com.bearbones.kumalift.domain.ai.** { *; }
+-keep,allowobfuscation,allowshrinking class com.bearbones.kumalift.data.export.** { *; }
 
 # Keep SQLDelight database & queries
 -keep class com.bearbones.kumalift.database.** { *; }

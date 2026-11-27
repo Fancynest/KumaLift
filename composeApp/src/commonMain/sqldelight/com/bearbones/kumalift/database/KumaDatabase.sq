@@ -182,6 +182,18 @@ CREATE TABLE daily_readiness (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE ai_chat_messages (
+    id TEXT NOT NULL PRIMARY KEY,
+    role TEXT NOT NULL,
+    messageText TEXT NOT NULL,
+    imagePath TEXT,
+    stepLogsJson TEXT NOT NULL DEFAULT '[]',
+    proposalJson TEXT,
+    nutritionJson TEXT,
+    isError INTEGER NOT NULL DEFAULT 0,
+    createdAtEpochMs INTEGER NOT NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
@@ -473,3 +485,18 @@ DELETE FROM daily_readiness WHERE id = ?;
 
 clearAllDailyReadiness:
 DELETE FROM daily_readiness;
+
+-- Queries for Kuma AI Chat Messages
+selectAllAiChatMessages:
+SELECT * FROM ai_chat_messages ORDER BY createdAtEpochMs ASC;
+
+insertOrReplaceAiChatMessage:
+INSERT OR REPLACE INTO ai_chat_messages (
+    id, role, messageText, imagePath, stepLogsJson, proposalJson, nutritionJson, isError, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteAiChatMessage:
+DELETE FROM ai_chat_messages WHERE id = ?;
+
+clearAllAiChatMessages:
+DELETE FROM ai_chat_messages;

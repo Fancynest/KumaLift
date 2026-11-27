@@ -64,8 +64,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Favorite
@@ -123,6 +125,8 @@ import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.ai.AiSecretStore
+import com.bearbones.kumalift.core.ai.rememberAiSecretStore
 import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.media.ProfileAvatarMedia
@@ -161,6 +165,7 @@ enum class SettingsDestination {
     EXPORT_IMPORT,
     HEALTH,
     SMARTWATCH,
+    AI_ASSISTANT,
     ABOUT
 }
 
@@ -169,9 +174,12 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository,
     databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
     workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
+    secretStore: AiSecretStore = rememberAiSecretStore(),
+    initialDestination: SettingsDestination = SettingsDestination.MAIN,
+    onOpenAiChat: (() -> Unit)? = null,
     onNavigateBack: () -> Unit
 ) {
-    val destinationStack = remember { mutableStateListOf(SettingsDestination.MAIN) }
+    val destinationStack = remember(initialDestination) { mutableStateListOf(initialDestination) }
     val currentDestination = destinationStack.lastOrNull() ?: SettingsDestination.MAIN
 
     DisposableEffect(Unit) {
@@ -275,6 +283,14 @@ fun SettingsScreen(
                     SmartwatchSettingsPage(
                         settingsRepository = settingsRepository,
                         onNavigateBack = popDestination
+                    )
+                }
+                SettingsDestination.AI_ASSISTANT -> {
+                    AiSettingsPage(
+                        settingsRepository = settingsRepository,
+                        secretStore = secretStore,
+                        onNavigateBack = popDestination,
+                        onOpenAiChat = onOpenAiChat
                     )
                 }
                 SettingsDestination.ABOUT -> {
@@ -417,6 +433,13 @@ private fun SettingsMainMenu(
                             icon = Icons.Default.Watch,
                             title = s.smartwatchSettingsTitle,
                             onClick = { onNavigateTo(SettingsDestination.SMARTWATCH) }
+                        )
+                        SettingsDivider()
+                        SettingsNavigationRow(
+                            icon = Icons.AutoMirrored.Filled.Chat,
+                            title = s.aiSettingsTitle,
+                            subtitle = s.aiSettingsSubtitle,
+                            onClick = { onNavigateTo(SettingsDestination.AI_ASSISTANT) }
                         )
                         SettingsDivider()
                         SettingsNavigationRow(
@@ -719,11 +742,12 @@ private fun ProfileSettingsPage(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = s.sexFieldLabel,
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = colors.textPrimary
                             )
@@ -741,16 +765,18 @@ private fun ProfileSettingsPage(
                                         .background(
                                             if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
                                         )
-                                        .clickable { selectedSex = sex }
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
                                         .border(
                                             1.dp,
                                             if (isSelected) colors.accentFill else colors.border,
                                             RoundedCornerShape(8.dp)
                                         )
+                                        .clickable { selectedSex = sex }
+                                        .padding(horizontal = 14.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = label,
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -822,21 +848,22 @@ private fun ProfileSettingsPage(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (isSelected) colors.accentFill else KumaColors.SurfaceContainer)
-                                    .clickable { selectedGoal = goal }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
                                     .border(
                                         1.dp,
                                         if (isSelected) colors.accentFill else colors.border,
                                         RoundedCornerShape(10.dp)
                                     )
+                                    .clickable { selectedGoal = goal }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = label,
+                                        modifier = Modifier.weight(1f),
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             color = if (isSelected) colors.onAccentFill else colors.textPrimary
@@ -874,16 +901,16 @@ private fun ProfileSettingsPage(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(KumaColors.SurfaceContainer)
+                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                             .clickable { showScheduleModal = true }
                             .padding(horizontal = 16.dp, vertical = 14.dp)
-                            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = s.trainingScheduleTitle,
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -1853,9 +1880,10 @@ private fun NotificationSettingsPage(
                                 val presets = listOf("06:00", "07:00", "17:00", "18:30", "20:00")
                                 val isCustomTime = !presets.contains(settings.notifications.reminderTime)
 
-                                Row(
+                                FlowRow(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     presets.forEach { timeStr ->
                                         val isSelected = settings.notifications.reminderTime == timeStr
@@ -1875,6 +1903,8 @@ private fun NotificationSettingsPage(
                                         ) {
                                             Text(
                                                 text = timeStr,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                     color = if (isSelected) colors.onAccentFill else colors.textSecondary,
@@ -1896,6 +1926,8 @@ private fun NotificationSettingsPage(
                                     ) {
                                         Text(
                                             text = if (isCustomTime) "${settings.notifications.reminderTime} (${s.custom})" else "${s.custom}...",
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isCustomTime) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isCustomTime) colors.onAccentFill else colors.textSecondary,
@@ -2272,11 +2304,12 @@ private fun WorkoutSettingsPage(
                             // Sounds
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.soundVibrationTitle,
+                                    modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -2303,11 +2336,14 @@ private fun WorkoutSettingsPage(
                             // Default Rest Timer
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.defaultRestTimeLabel,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -2315,6 +2351,8 @@ private fun WorkoutSettingsPage(
                                 )
                                 Text(
                                     text = "${settings.logging.restTimerDefaultSec / 60}${s.minAbbrev} ${s.secondsShort(settings.logging.restTimerDefaultSec % 60)}",
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = colors.accentText,
                                         fontWeight = FontWeight.Bold
@@ -2326,10 +2364,11 @@ private fun WorkoutSettingsPage(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                listOf(60 to "60s", 90 to "90s", 120 to "120s", 180 to "3${s.minAbbrev}").forEach { (sec, label) ->
+                                listOf(60 to s.secondsShort(60), 90 to s.secondsShort(90), 120 to s.secondsShort(120), 180 to "3 ${s.minAbbrev}").forEach { (sec, label) ->
                                     val isSelected = settings.logging.restTimerDefaultSec == sec
                                     Box(
                                         modifier = Modifier
+                                            .weight(1f)
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(
                                                 if (isSelected) colors.accentFill else KumaColors.SurfaceContainer
@@ -2339,10 +2378,13 @@ private fun WorkoutSettingsPage(
                                                     it.copy(logging = it.logging.copy(restTimerDefaultSec = sec))
                                                 }
                                             }
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = label,
+                                            maxLines = 1,
+                                            softWrap = false,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                 color = if (isSelected) colors.onAccentFill else colors.textSecondary
@@ -2359,11 +2401,12 @@ private fun WorkoutSettingsPage(
                             // First day of the week
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.firstDayOfWeekTitle,
+                                    modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -2385,6 +2428,8 @@ private fun WorkoutSettingsPage(
                                         ) {
                                             Text(
                                                 text = label,
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
                                                     color = if (isSel) colors.onAccentFill else colors.textSecondary
@@ -2563,11 +2608,14 @@ private fun WorkoutSettingsPage(
                             // Max Reps for 1RM Estimate
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.maxRepsFor1RmTitle,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         color = colors.textPrimary,
                                         fontWeight = FontWeight.Medium
@@ -2590,6 +2638,8 @@ private fun WorkoutSettingsPage(
                                         ) {
                                             Text(
                                                 text = "$maxReps",
+                                                maxLines = 1,
+                                                softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
                                                     color = if (isSel) colors.onAccentFill else colors.textSecondary
@@ -3050,6 +3100,7 @@ private fun ThemeSettingsPage(
  * Export & Import Data Page with real full-fidelity backup, CSV export,
  * Merge/Replace restore, Safety Snapshot, and Danger Zone.
  */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun ExportImportDataPage(
     settingsRepository: SettingsRepository,
@@ -3075,14 +3126,45 @@ private fun ExportImportDataPage(
     var passwordInput by remember { mutableStateOf("") }
     var showSetPasswordExportDialog by remember { mutableStateOf(false) }
     var exportPasswordInput by remember { mutableStateOf("") }
+    var showDuplicateBackupDialog by remember { mutableStateOf(false) }
+    var duplicateBackupInfo by remember { mutableStateOf("") }
+    var pendingExportHash by remember { mutableStateOf<String?>(null) }
+    var pendingExportFileName by remember { mutableStateOf<String?>(null) }
+
+    val checkDuplicateBeforeManualBackup: (() -> Unit) -> Unit = { onProceed ->
+        if (backupManager != null && backupManager.isSameDataBackedUpToday(settings)) {
+            val synced = backupManager.resolveLatestBackupMetadata(settings)
+            if ((synced.dataBackup.lastBackupEpochMs ?: 0L) > (settings.dataBackup.lastBackupEpochMs ?: 0L)) {
+                settingsRepository.update { cur -> cur.copy(dataBackup = synced.dataBackup) }
+            }
+            val epoch = synced.dataBackup.lastBackupEpochMs ?: currentEpochMillis()
+            val fileSuffix = synced.dataBackup.lastBackupFileName?.let { " ($it)" } ?: ""
+            duplicateBackupInfo = formatEpochToDateString(epoch) + fileSuffix
+            showDuplicateBackupDialog = true
+        } else {
+            onProceed()
+        }
+    }
 
     val exportBytesLauncher = rememberDataExportBytesLauncher(strings = s) { success, msg ->
         statusMessage = msg
         if (success) {
+            val hash = pendingExportHash ?: backupManager?.computeContentHash(settings)
+            val fileName = pendingExportFileName
             settingsRepository.update {
-                it.copy(dataBackup = it.dataBackup.copy(lastBackupEpochMs = currentEpochMillis()))
+                it.copy(
+                    dataBackup = it.dataBackup.copy(
+                        lastBackupEpochMs = currentEpochMillis(),
+                        lastBackupResultSuccess = true,
+                        lastBackupResultError = null,
+                        lastBackupFileName = fileName ?: it.dataBackup.lastBackupFileName,
+                        lastBackupContentHash = hash
+                    )
+                )
             }
         }
+        pendingExportHash = null
+        pendingExportFileName = null
     }
 
     val importBytesLauncher = rememberDataImportBytesLauncher { bytes ->
@@ -3132,10 +3214,22 @@ private fun ExportImportDataPage(
     val exportLauncher = rememberDataExportLauncher(strings = s) { success, msg ->
         statusMessage = msg
         if (success) {
+            val hash = pendingExportHash ?: backupManager?.computeContentHash(settings)
+            val fileName = pendingExportFileName
             settingsRepository.update {
-                it.copy(dataBackup = it.dataBackup.copy(lastBackupEpochMs = currentEpochMillis()))
+                it.copy(
+                    dataBackup = it.dataBackup.copy(
+                        lastBackupEpochMs = currentEpochMillis(),
+                        lastBackupResultSuccess = true,
+                        lastBackupResultError = null,
+                        lastBackupFileName = fileName ?: it.dataBackup.lastBackupFileName,
+                        lastBackupContentHash = hash
+                    )
+                )
             }
         }
+        pendingExportHash = null
+        pendingExportFileName = null
     }
 
     val importLauncher = rememberDataImportLauncher { content ->
@@ -3148,6 +3242,45 @@ private fun ExportImportDataPage(
 
     val storageUsage = remember(settings, statusMessage) {
         backupManager?.getStorageUsage(settings)
+    }
+
+    if (showDuplicateBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showDuplicateBackupDialog = false },
+            containerColor = KumaColors.SurfaceContainer,
+            title = {
+                Text(
+                    text = s.duplicateBackupDialogTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+            },
+            text = {
+                Text(
+                    text = s.duplicateBackupDialogBody(duplicateBackupInfo),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = colors.textSecondary
+                    )
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showDuplicateBackupDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.accentFill,
+                        contentColor = colors.onAccentFill
+                    ),
+                    shape = PillShape
+                ) {
+                    Text(
+                        text = s.done,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        )
     }
 
     // Dialog for Restore: Merge vs Replace
@@ -3167,32 +3300,17 @@ private fun ExportImportDataPage(
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val content = pendingImportContent!!
-                        pendingImportContent = null
-                        val result = backupManager?.importBackup(
-                            jsonString = content,
-                            mode = ImportMode.REPLACE,
-                            currentSettings = settings,
-                            strings = s,
-                            onSettingsRestored = { settingsRepository.save(it) }
-                        )
-                        statusMessage = result?.message ?: s.failedToRestoreBackup
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = s.replaceFullButton,
-                        color = colors.onAccentFill,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { pendingImportContent = null }) {
-                        Text(s.cancel, style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary))
+                        Text(
+                            text = s.cancel,
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelLarge.copy(color = colors.textSecondary)
+                        )
                     }
                     Button(
                         onClick = {
@@ -3211,7 +3329,32 @@ private fun ExportImportDataPage(
                     ) {
                         Text(
                             text = s.mergeButton,
+                            maxLines = 1,
+                            softWrap = false,
                             color = colors.textPrimary,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val content = pendingImportContent!!
+                            pendingImportContent = null
+                            val result = backupManager?.importBackup(
+                                jsonString = content,
+                                mode = ImportMode.REPLACE,
+                                currentSettings = settings,
+                                strings = s,
+                                onSettingsRestored = { settingsRepository.save(it) }
+                            )
+                            statusMessage = result?.message ?: s.failedToRestoreBackup
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
+                    ) {
+                        Text(
+                            text = s.replaceFullButton,
+                            maxLines = 1,
+                            softWrap = false,
+                            color = colors.onAccentFill,
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                         )
                     }
@@ -3313,7 +3456,10 @@ private fun ExportImportDataPage(
                         if (pass.isNotEmpty() && backupManager != null) {
                             val encryptedBytes = backupManager.exportPackage(settings, pass)
                             val now = currentEpochMillis()
-                            exportBytesLauncher("KumaLift_Encrypted_$now.kumalift", "application/octet-stream", encryptedBytes)
+                            val fileName = "KumaLift_Encrypted_$now.kumalift"
+                            pendingExportHash = backupManager.computeContentHash(settings)
+                            pendingExportFileName = fileName
+                            exportBytesLauncher(fileName, "application/octet-stream", encryptedBytes)
                         }
                     },
                     enabled = exportPasswordInput.isNotBlank(),
@@ -3587,12 +3733,11 @@ private fun ExportImportDataPage(
                             // 3. Frequency & Retention Settings
                             if (settings.dataBackup.autoBackupEnabled) {
                                 SettingsDivider()
-                                Row(
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
@@ -3611,7 +3756,11 @@ private fun ExportImportDataPage(
                                             )
                                         )
                                     }
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
                                         listOf(
                                             BackupFrequency.DAILY,
                                             BackupFrequency.WEEKLY,
@@ -3638,6 +3787,8 @@ private fun ExportImportDataPage(
                                             ) {
                                                 Text(
                                                     text = label,
+                                                    maxLines = 1,
+                                                    softWrap = false,
                                                     style = MaterialTheme.typography.labelSmall.copy(
                                                         color = if (isSelected) colors.onAccentFill else colors.textPrimary,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -3653,10 +3804,11 @@ private fun ExportImportDataPage(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(
+                                        modifier = Modifier.weight(1f),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
@@ -3667,6 +3819,8 @@ private fun ExportImportDataPage(
                                         )
                                         Text(
                                             text = s.autoBackupKeepLastLabel,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                             style = MaterialTheme.typography.bodyMedium.copy(
                                                 fontWeight = FontWeight.Medium,
                                                 color = colors.textPrimary
@@ -3695,6 +3849,8 @@ private fun ExportImportDataPage(
                                             ) {
                                                 Text(
                                                     text = "$count",
+                                                    maxLines = 1,
+                                                    softWrap = false,
                                                     style = MaterialTheme.typography.labelSmall.copy(
                                                         color = if (isSelected) colors.onAccentFill else colors.textPrimary,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -3720,15 +3876,28 @@ private fun ExportImportDataPage(
                                         if (settings.dataBackup.autoBackupFolderUri.isNullOrBlank()) {
                                             folderPickerLauncher()
                                         } else {
-                                            coroutineScope.launch {
-                                                isRunningBackupNow = true
-                                                val result = AutoBackupService.runBackupNow(databaseRepo, settings)
-                                                isRunningBackupNow = false
-                                                if (result.success) {
-                                                    statusMessage = s.autoBackupStatusOk(result.fileName ?: "")
-                                                } else {
-                                                    val code = result.errorCode ?: BackupErrorCode.fromCode(result.errorMessage)
-                                                    statusMessage = s.autoBackupStatusFailed(code.localizedMessage(s))
+                                            checkDuplicateBeforeManualBackup {
+                                                coroutineScope.launch {
+                                                    isRunningBackupNow = true
+                                                    val result = AutoBackupService.runBackupNow(databaseRepo, settings)
+                                                    isRunningBackupNow = false
+                                                    if (result.success) {
+                                                        val syncedDb = databaseRepo.loadUserSettings()?.dataBackup
+                                                        if (syncedDb != null) {
+                                                            settingsRepository.update { cur -> cur.copy(dataBackup = syncedDb) }
+                                                        }
+                                                        if (result.skippedDuplicate) {
+                                                            val epoch = syncedDb?.lastBackupEpochMs ?: settings.dataBackup.lastBackupEpochMs ?: currentEpochMillis()
+                                                            val fileSuffix = result.fileName?.let { " ($it)" } ?: ""
+                                                            duplicateBackupInfo = formatEpochToDateString(epoch) + fileSuffix
+                                                            showDuplicateBackupDialog = true
+                                                        } else {
+                                                            statusMessage = s.autoBackupStatusOk(result.fileName ?: "")
+                                                        }
+                                                    } else {
+                                                        val code = result.errorCode ?: BackupErrorCode.fromCode(result.errorMessage)
+                                                        statusMessage = s.autoBackupStatusFailed(code.localizedMessage(s))
+                                                    }
                                                 }
                                             }
                                         }
@@ -3745,7 +3914,7 @@ private fun ExportImportDataPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 val lastEpoch = settings.dataBackup.lastBackupEpochMs
@@ -3771,6 +3940,8 @@ private fun ExportImportDataPage(
                                         )
                                         else -> formatEpochToDateString(lastEpoch)
                                     },
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End,
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = when (lastSuccess) {
                                             true -> colors.recoveryFresh
@@ -3811,9 +3982,14 @@ private fun ExportImportDataPage(
                                 subtitle = s.exportBackupJsonSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
-                                        val jsonPayload = backupManager.exportJson(settings)
-                                        val now = currentEpochMillis()
-                                        exportLauncher("kumalift_backup_$now.json", jsonPayload)
+                                        checkDuplicateBeforeManualBackup {
+                                            val jsonPayload = backupManager.exportJson(settings)
+                                            val now = currentEpochMillis()
+                                            val fileName = "kumalift_backup_$now.json"
+                                            pendingExportHash = backupManager.computeContentHash(settings)
+                                            pendingExportFileName = fileName
+                                            exportLauncher(fileName, jsonPayload)
+                                        }
                                     } else {
                                         statusMessage = s.databaseRepoUnavailable
                                     }
@@ -3826,8 +4002,10 @@ private fun ExportImportDataPage(
                                 subtitle = s.encryptBackupsSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
-                                        exportPasswordInput = ""
-                                        showSetPasswordExportDialog = true
+                                        checkDuplicateBeforeManualBackup {
+                                            exportPasswordInput = ""
+                                            showSetPasswordExportDialog = true
+                                        }
                                     } else {
                                         statusMessage = s.databaseRepoUnavailable
                                     }
@@ -3991,7 +4169,7 @@ private fun ExportImportDataPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -4002,6 +4180,8 @@ private fun ExportImportDataPage(
                                     text = storageUsage?.let {
                                         s.storageUsedSubtitle(it.workoutsCount, it.setsCount)
                                     } ?: "—",
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End,
                                     style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
                                 )
                             }
@@ -4010,17 +4190,20 @@ private fun ExportImportDataPage(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.lastBackupTitle,
+                                    modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
                                 )
                                 Text(
                                     text = settings.dataBackup.lastBackupEpochMs?.let {
                                         s.recorded
                                     } ?: s.never,
+                                    maxLines = 1,
+                                    softWrap = false,
                                     style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
                                 )
                             }
@@ -4261,11 +4444,12 @@ private fun AboutSettingsPage(
                             ).forEach { (lib, lic) ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         text = lib,
+                                        modifier = Modifier.weight(1f, fill = false),
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.textPrimary
@@ -4273,6 +4457,8 @@ private fun AboutSettingsPage(
                                     )
                                     Text(
                                         text = lic,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.End,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = colors.textSecondary
                                         )

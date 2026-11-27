@@ -19,6 +19,9 @@ import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import com.bearbones.kumalift.domain.model.MesocycleBlock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -96,6 +99,59 @@ class DataBackupManager(
             mesocycles = mesocycles,
             dailyReadiness = dailyReadiness
         )
+    }
+
+    private val canonicalJsonFormat = Json {
+        prettyPrint = false
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    fun computeContentHash(settings: UserSettings): String {
+        val normalizedSettings = settings.copy(
+            dataBackup = settings.dataBackup.copy(
+                lastBackupEpochMs = null,
+                lastReminderDismissedEpochMs = null,
+                lastBackupResultSuccess = null,
+                lastBackupResultError = null,
+                lastBackupFileName = null,
+                lastBackupContentHash = null
+            )
+        )
+        val canonicalPayload = createBackupPayload(normalizedSettings).copy(exportedAtEpochMs = 0L)
+        val bytes = canonicalJsonFormat.encodeToString(canonicalPayload).encodeToByteArray()
+        var h1 = -3750763034362895579L // FNV-1a 64-bit offset basis
+        var h2 = 0x9E3779B97F4A7C15UL
+        for (b in bytes) {
+            val v = b.toLong() and 0xFFL
+            h1 = (h1 xor v) * 1099511628211L
+            h2 = (h2 xor v.toULong()) * 0xBF58476D1CE4E5B9UL
+            h2 = h2 xor (h2 shr 31)
+        }
+        return "${h1.toULong().toString(16)}_${h2.toString(16)}_${bytes.size}"
+    }
+
+    fun resolveLatestBackupMetadata(settings: UserSettings): UserSettings {
+        val dbBackup = databaseRepo.loadUserSettings()?.dataBackup ?: return settings
+        val dbMs = dbBackup.lastBackupEpochMs ?: 0L
+        val memMs = settings.dataBackup.lastBackupEpochMs ?: 0L
+        return if (dbMs > memMs) settings.copy(dataBackup = dbBackup) else settings
+    }
+
+    fun isSameDataBackedUpToday(
+        settings: UserSettings,
+        nowEpochMs: Long = currentEpochMillis(),
+        timeZone: TimeZone = TimeZone.currentSystemDefault()
+    ): Boolean {
+        val effective = resolveLatestBackupMetadata(settings)
+        val backup = effective.dataBackup
+        if (backup.lastBackupResultSuccess == false) return false
+        val lastMs = backup.lastBackupEpochMs ?: return false
+        val lastHash = backup.lastBackupContentHash?.takeIf { it.isNotBlank() } ?: return false
+        val lastDate = Instant.fromEpochMilliseconds(lastMs).toLocalDateTime(timeZone).date
+        val todayDate = Instant.fromEpochMilliseconds(nowEpochMs).toLocalDateTime(timeZone).date
+        if (lastDate != todayDate) return false
+        return lastHash == computeContentHash(effective)
     }
 
     fun exportJson(settings: UserSettings): String {

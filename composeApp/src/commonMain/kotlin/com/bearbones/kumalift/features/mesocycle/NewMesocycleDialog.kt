@@ -45,7 +45,7 @@ fun NewMesocycleDialog(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
 
-    var blockName by remember { mutableStateOf("Hypertrophy Block") }
+    var blockName by remember(s) { mutableStateOf(s.defaultMesocycleName) }
     var selectedWeeks by remember { mutableIntStateOf(5) }
     val weekOptions = listOf(4, 5, 6, 8)
 
@@ -117,7 +117,9 @@ fun NewMesocycleDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "$weeks W",
+                                text = s.mesocycleWeekShort(weeks),
+                                maxLines = 1,
+                                softWrap = false,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (isSelected) colors.onAccentFill else colors.textPrimary

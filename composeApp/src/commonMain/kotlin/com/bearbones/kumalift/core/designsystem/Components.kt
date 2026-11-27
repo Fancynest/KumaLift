@@ -75,6 +75,9 @@ fun KumaPrimaryButton(
         ) {
             Text(
                 text = text,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
                     color = if (enabled) colors.onAccentFill else colors.textSubtle,
@@ -160,14 +163,18 @@ fun KumaBadge(
     text: String,
     modifier: Modifier = Modifier,
     isPr: Boolean = false,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    backgroundColor: Color? = null,
+    contentColor: Color? = null
 ) {
     val colors = LocalKumaColors.current
-    val bg = if (isPr) colors.accentTint else colors.surfaceVariant
-    val border = if (isPr) {
+    val bg = backgroundColor ?: if (isPr) colors.accentTint else colors.surfaceVariant
+    val border = if (backgroundColor != null) {
+        (contentColor ?: colors.textPrimary).copy(alpha = 0.35f)
+    } else if (isPr) {
         if (colors.isDark) colors.accentFill else colors.accentFillBorder
     } else colors.border
-    val textColor = if (isPr) {
+    val textColor = contentColor ?: if (isPr) {
         if (colors.isDark) colors.accentText else colors.accentTextOnTint
     } else colors.textPrimary
 
@@ -193,6 +200,7 @@ fun KumaBadge(
             text = text,
             maxLines = 1,
             softWrap = false,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = textColor

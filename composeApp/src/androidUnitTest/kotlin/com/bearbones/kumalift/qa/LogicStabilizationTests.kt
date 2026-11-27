@@ -9,6 +9,7 @@ import com.bearbones.kumalift.core.sound.SoundEvent
 import com.bearbones.kumalift.core.sound.SoundManager
 import com.bearbones.kumalift.core.timer.RestTimer
 import com.bearbones.kumalift.core.timer.RestTimerCoordinator
+import com.bearbones.kumalift.core.timer.RestTimerState
 import com.bearbones.kumalift.core.timer.TimerStatus
 import com.bearbones.kumalift.domain.model.NotificationSettings
 import com.bearbones.kumalift.domain.model.RestTimerSoundSource
@@ -560,6 +561,76 @@ class LogicStabilizationTests {
         assertEquals(TimerStatus.DISMISSED, timer.state.value.status)
         assertFalse("Timer must not be visible after dismissed", timer.state.value.isVisible)
         assertFalse(timer.state.value.isRunning)
+    }
+
+    @Test
+    fun testRestTimerNegativeOvertimeAndFormatting() = runBlocking {
+        assertEquals("-00:01", RestTimerState(remainingSeconds = -1, status = TimerStatus.COMPLETED).formattedTime)
+        assertEquals("-01:05", RestTimerState(remainingSeconds = -65, status = TimerStatus.COMPLETED).formattedTime)
+
+        val timer = RestTimer(this)
+        timer.start(1, "Bench Press")
+
+        var attempts = 0
+        while (timer.state.value.remainingSeconds > -2 && attempts < 40) {
+            delay(100)
+            attempts++
+        }
+
+        assertEquals(TimerStatus.COMPLETED, timer.state.value.status)
+        assertTrue("Expected negative overtime seconds, got ${timer.state.value.remainingSeconds}", timer.state.value.remainingSeconds <= -1)
+        assertTrue("Expected formatted time to start with '-', got ${timer.state.value.formattedTime}", timer.state.value.formattedTime.startsWith("-"))
+
+        // +30s restarts positive countdown from overtime
+        timer.addSeconds(30)
+        assertEquals(TimerStatus.RUNNING, timer.state.value.status)
+        assertTrue(timer.state.value.remainingSeconds >= 29)
+
+        timer.dismiss()
+    }
+
+    @Test
+    fun testRestTimerCoordinatorSurvivesUiDisposalAndSixExerciseFlow() = runBlocking {
+        // Ensure clean coordinator timer backed by SupervisorJob
+        RestTimerCoordinator.dismiss()
+        RestTimerCoordinator.activeRestTimer = null
+
+        val coordinatorTimer = RestTimerCoordinator.getOrCreateTimer()
+        val uiScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job())
+
+        coordinatorTimer.start(1, "Exercise 4")
+        // Simulate leaving ActiveLogger / opening Exercises tab
+        uiScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+
+        var attempts = 0
+        while (coordinatorTimer.state.value.status != TimerStatus.COMPLETED && attempts < 25) {
+            delay(100)
+            attempts++
+        }
+        assertEquals(TimerStatus.COMPLETED, coordinatorTimer.state.value.status)
+
+        // Ensure subsequent exercise (e.g. exercise 5/6) starts cleanly with preserved total on resume
+        coordinatorTimer.start(60, "Exercise 6")
+        assertTrue(coordinatorTimer.state.value.isRunning)
+        coordinatorTimer.pause()
+        assertEquals(TimerStatus.PAUSED, coordinatorTimer.state.value.status)
+        coordinatorTimer.addSeconds(10)
+        assertEquals(TimerStatus.PAUSED, coordinatorTimer.state.value.status)
+        assertEquals(70, coordinatorTimer.state.value.totalSeconds)
+        coordinatorTimer.resume()
+        assertEquals(TimerStatus.RUNNING, coordinatorTimer.state.value.status)
+        assertEquals(70, coordinatorTimer.state.value.totalSeconds)
+
+        // Ensure 6+ exercises added rapidly all get unique IDs
+        workoutRepository.startEmptyWorkout("6 Exercises Session")
+        repeat(6) {
+            workoutRepository.addExerciseToActiveWorkout(benchPress)
+        }
+        val exercises = workoutRepository.activeWorkout.value!!.exercises
+        assertEquals(6, exercises.size)
+        assertEquals(6, exercises.map { it.id }.distinct().size)
+
+        coordinatorTimer.dismiss()
     }
 
     @Test

@@ -570,6 +570,7 @@ class WorkoutRepository(
         )
 
         _activeWorkout.value = newWorkout
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
         databaseRepo?.saveActiveWorkout(newWorkout)
         SmartwatchCompanionManager.connect()
         KumaLogger.i("WorkoutRepository", "Started workout from routine '${routine.title}' with ${workoutExercises.size} exercises")
@@ -586,6 +587,7 @@ class WorkoutRepository(
             isFinished = false
         )
         _activeWorkout.value = newWorkout
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
         databaseRepo?.saveActiveWorkout(newWorkout)
         SmartwatchCompanionManager.connect()
         KumaLogger.i("WorkoutRepository", "Started freestyle workout: $title")
@@ -884,10 +886,17 @@ class WorkoutRepository(
                     previousReps = previousSet?.reps
                 )
             }
+            val defaultRestSec = if (logSettings.restTimerSeparateByType) {
+                if (exercise.movementType == MovementType.COMPOUND) logSettings.restTimerCompoundSec
+                else logSettings.restTimerIsolationSec
+            } else {
+                logSettings.restTimerDefaultSec
+            }.coerceAtLeast(1)
             val newWe = WorkoutExercise(
                 id = IdGenerator.workoutExerciseId(exercise.id),
                 exercise = exercise,
-                sets = sets
+                sets = sets,
+                restTimerSeconds = defaultRestSec
             )
             currentWorkout.copy(exercises = currentWorkout.exercises + newWe)
         }
@@ -1090,6 +1099,7 @@ class WorkoutRepository(
 
         _completedWorkouts.update { listOf(finished) + it }
         _activeWorkout.value = null
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
 
         // T1: Persist to database and clear active state
         databaseRepo?.saveCompletedWorkout(finished)
@@ -1137,6 +1147,7 @@ class WorkoutRepository(
             }
         }
         _activeWorkout.value = null
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
         databaseRepo?.clearActiveWorkout()
     }
 

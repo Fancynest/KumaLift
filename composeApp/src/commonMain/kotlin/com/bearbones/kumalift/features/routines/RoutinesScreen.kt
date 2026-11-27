@@ -178,11 +178,14 @@ fun RoutinesScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = s.workoutRoutinesTitle,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         color = KumaColors.TextWhite
@@ -200,6 +203,8 @@ fun RoutinesScreen(
                 ) {
                     Text(
                         text = s.createRoutineButton,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = colors.onAccentFill
@@ -232,11 +237,14 @@ fun RoutinesScreen(
                             // Subheader row: Label & target count
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = s.trainingProgramHeader,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colors.accentFill,
@@ -252,6 +260,8 @@ fun RoutinesScreen(
                                 ) {
                                     Text(
                                         text = s.adherenceProgress(completedDaysCount, targetDays),
+                                        maxLines = 1,
+                                        softWrap = false,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = KumaColors.TextSecondary
@@ -624,10 +634,11 @@ fun RoutineCardItem(
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -636,12 +647,15 @@ fun RoutineCardItem(
                         val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
                         Box(
                             modifier = Modifier
+                                .weight(1f, fill = false)
                                 .clip(PillShape)
                                 .background(LocalKumaColors.current.accentTint)
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = dayLabels,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = LocalKumaColors.current.accentText
@@ -656,6 +670,8 @@ fun RoutineCardItem(
                 ) {
                     Text(
                         text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelSmall,
                         color = KumaColors.TextMuted
                     )

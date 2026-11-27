@@ -124,15 +124,18 @@ fun RoutineBlueprint.localizedRpeTier(s: AppStrings): String {
     return RpeTier.fromValue(targetRpeTier).label(s)
 }
 
-fun RoutineBlueprint.localizedSplitCategory(s: AppStrings): String {
-    val trimmed = splitCategory.trim()
+fun RoutineBlueprint.localizedSplitCategory(s: AppStrings): String =
+    localizeSplitCategory(splitCategory, s)
+
+fun localizeSplitCategory(rawSplit: String, s: AppStrings): String {
+    val trimmed = rawSplit.trim()
     val presets = s.presetRoutineCategories
     return when {
         trimmed.equals("PPL Split", ignoreCase = true) || trimmed.equals("Pola PPL", ignoreCase = true) -> presets.getOrElse(0) { "PPL Split" }
         trimmed.equals("Upper / Lower", ignoreCase = true) || trimmed.equals("Atas / Bawah", ignoreCase = true) -> presets.getOrElse(1) { "Upper / Lower" }
         trimmed.equals("Full Body", ignoreCase = true) || trimmed.equals("Seluruh Tubuh", ignoreCase = true) -> presets.getOrElse(2) { "Full Body" }
         trimmed.equals("Custom", ignoreCase = true) || trimmed.equals("Kustom", ignoreCase = true) -> s.custom
-        else -> splitCategory
+        else -> rawSplit
     }
 }
 

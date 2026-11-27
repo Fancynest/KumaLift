@@ -41,8 +41,8 @@ private fun KumaColors.toMaterialColorScheme() = if (isDark) {
     )
 } else {
     lightColorScheme(
-        primary = accentFill,
-        onPrimary = onAccentFill,
+        primary = accentText,
+        onPrimary = onError,
         primaryContainer = accentTint,
         onPrimaryContainer = accentTextOnTint,
         secondary = surfaceVariant,

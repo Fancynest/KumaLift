@@ -2,8 +2,10 @@ package com.bearbones.kumalift.core.media
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Thread-safe LRU Cache for decoded GIF animations.
@@ -68,9 +70,11 @@ class GifBitmapCache(
                 }
                 return decoded
             } catch (t: Throwable) {
-                lock.withLock {
-                    (deferred as CompletableDeferred<DecodedGif>).completeExceptionally(t)
-                    inFlight.remove(assetPath)
+                withContext(NonCancellable) {
+                    lock.withLock {
+                        (deferred as CompletableDeferred<DecodedGif>).completeExceptionally(t)
+                        inFlight.remove(assetPath)
+                    }
                 }
                 throw t
             }

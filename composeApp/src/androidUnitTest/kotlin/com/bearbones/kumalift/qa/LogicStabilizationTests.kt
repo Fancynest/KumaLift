@@ -742,4 +742,45 @@ class LogicStabilizationTests {
         // Stop test: should stop cleanly without exception
         PlatformSoundPlayer.stopRestTimerSound()
     }
+
+    @Test
+    fun testRestTimerCasAndRepositoryStateIntegrity() {
+        val scope = kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Unconfined
+        )
+        val timer = com.bearbones.kumalift.core.timer.RestTimer(scope)
+
+        // Idle timer ignores addSeconds cleanly
+        timer.addSeconds(30)
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.IDLE, timer.state.value.status)
+
+        // Start -> pause transitions cleanly to PAUSED; addSeconds below 0 completes timer
+        timer.start(30, "Bench Press")
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.RUNNING, timer.state.value.status)
+        timer.pause()
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.PAUSED, timer.state.value.status)
+        timer.resume()
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.RUNNING, timer.state.value.status)
+        timer.addSeconds(-60)
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.COMPLETED, timer.state.value.status)
+        timer.dismiss()
+        assertEquals(com.bearbones.kumalift.core.timer.TimerStatus.DISMISSED, timer.state.value.status)
+
+        // Out-of-bounds DailyReadiness inputs must be clamped BEFORE percentage calculation
+        val readinessRepo = com.bearbones.kumalift.data.repository.DailyReadinessRepository()
+        val checkIn = readinessRepo.recordCheckIn(sleep = 10, soreness = -3, energy = 99, stress = 0)
+        assertEquals(5, checkIn.sleepScore)
+        assertEquals(1, checkIn.sorenessScore)
+        assertEquals(5, checkIn.energyScore)
+        assertEquals(1, checkIn.stressScore)
+        assertTrue(checkIn.overallPercentage in 0..100)
+
+        // Cancelling/uncancelling schedule clears linkedWorkoutId in memory
+        val schedRepo = com.bearbones.kumalift.data.repository.WorkoutScheduleRepository()
+        val ev = schedRepo.scheduleRoutine("rt_test", "Push", "Push", kotlinx.datetime.LocalDate(2026, 11, 28))
+        schedRepo.completeEvent(ev.id, "w_linked_1")
+        assertEquals("w_linked_1", schedRepo.events.value.first { it.id == ev.id }.linkedWorkoutId)
+        schedRepo.cancelEvent(ev.id)
+        assertNull(schedRepo.events.value.first { it.id == ev.id }.linkedWorkoutId)
+    }
 }

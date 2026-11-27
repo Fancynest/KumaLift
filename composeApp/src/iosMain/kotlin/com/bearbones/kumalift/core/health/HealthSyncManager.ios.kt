@@ -34,6 +34,8 @@ actual object HealthSyncManager {
         }
     }
 
+    actual suspend fun refreshStatus(): HealthSyncStatus = getStatus()
+
     @OptIn(ExperimentalForeignApi::class)
     actual suspend fun requestPermissions(): Boolean {
         if (!HKHealthStore.isHealthDataAvailable()) return false

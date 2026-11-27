@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +66,13 @@ fun HealthSettingsPage(
     val scope = rememberCoroutineScope()
 
     var syncStatus by remember { mutableStateOf(HealthSyncManager.getStatus()) }
+
+    LifecycleResumeEffect(Unit) {
+        scope.launch {
+            syncStatus = HealthSyncManager.refreshStatus()
+        }
+        onPauseOrDispose {}
+    }
 
     val platformName = when (HealthSyncManager.platformType) {
         HealthPlatformType.HEALTH_CONNECT -> s.healthConnectLabel
@@ -197,8 +205,8 @@ fun HealthSettingsPage(
                                     .clickable {
                                         scope.launch {
                                             val granted = HealthSyncManager.requestPermissions()
+                                            syncStatus = HealthSyncManager.refreshStatus()
                                             if (granted) {
-                                                syncStatus = HealthSyncManager.getStatus()
                                                 settingsRepository.update {
                                                     it.copy(health = it.health.copy(healthEnabled = true))
                                                 }

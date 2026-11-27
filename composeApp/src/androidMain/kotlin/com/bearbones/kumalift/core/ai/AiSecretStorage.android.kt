@@ -48,8 +48,19 @@ class AndroidAiSecretStore(private val context: Context) : AiSecretStore {
             return
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
-        val iv = cipher.iv ?: ByteArray(IV_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+        val key = try {
+            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+            getOrCreateSecretKey()
+        } catch (_: Exception) {
+            // Regenerate corrupted or permanently invalidated AndroidKeyStore key on new write
+            synchronized(keyStoreLock) {
+                runCatching {
+                    KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry(KEYSTORE_ALIAS)
+                }
+            }
+            getOrCreateSecretKey().also { cipher.init(Cipher.ENCRYPT_MODE, it) }
+        }
+        val iv = requireNotNull(cipher.iv) { "Cipher IV missing" }
         val encrypted = cipher.doFinal(trimmed.toByteArray(Charsets.UTF_8))
         val encoded = Base64.encodeToString(iv + encrypted, Base64.NO_WRAP)
         prefs.edit().putString(KEY_GEMINI_API_KEY, encoded).apply()
@@ -61,7 +72,7 @@ class AndroidAiSecretStore(private val context: Context) : AiSecretStore {
         _hasApiKeyFlow.value = false
     }
 
-    private fun getOrCreateSecretKey(): SecretKey {
+    private fun getOrCreateSecretKey(): SecretKey = synchronized(keyStoreLock) {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         if (!keyStore.containsAlias(KEYSTORE_ALIAS)) {
             val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
@@ -80,6 +91,7 @@ class AndroidAiSecretStore(private val context: Context) : AiSecretStore {
     }
 
     companion object {
+        private val keyStoreLock = Any()
         private const val PREFS_NAME = "kumalift_ai_secrets"
         private const val KEY_GEMINI_API_KEY = "gemini_api_key_enc"
         private const val KEYSTORE_ALIAS = "kumalift_gemini_byok_key"

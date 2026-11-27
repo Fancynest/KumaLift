@@ -210,13 +210,16 @@ class RestTimer(private val scope: CoroutineScope) {
     }
 
     fun pause() {
-        val cur = _state.value
-        if (cur.status == TimerStatus.RUNNING) {
-            runGeneration++
-            countdownJob?.cancel()
-            countdownJob = null
-            _state.compareAndSet(cur, cur.copy(status = TimerStatus.PAUSED))
-            notifyRestTimerPaused(cur.remainingSeconds, cur.exerciseName)
+        while (true) {
+            val cur = _state.value
+            if (cur.status != TimerStatus.RUNNING) return
+            if (_state.compareAndSet(cur, cur.copy(status = TimerStatus.PAUSED))) {
+                runGeneration++
+                countdownJob?.cancel()
+                countdownJob = null
+                notifyRestTimerPaused(cur.remainingSeconds, cur.exerciseName)
+                return
+            }
         }
     }
 
@@ -237,30 +240,36 @@ class RestTimer(private val scope: CoroutineScope) {
     }
 
     fun addSeconds(seconds: Int) {
-        val current = _state.value
-        if (current.status == TimerStatus.COMPLETED) {
-            if (seconds > 0) {
-                start(seconds, current.exerciseName)
+        while (true) {
+            val current = _state.value
+            if (current.status == TimerStatus.IDLE || current.status == TimerStatus.DISMISSED) return
+            if (current.status == TimerStatus.COMPLETED) {
+                if (seconds > 0) {
+                    start(seconds, current.exerciseName)
+                }
+                return
             }
-            return
-        }
-        val newRemaining = (current.remainingSeconds + seconds).coerceAtLeast(0)
-        val newTotal = (current.totalSeconds + seconds).coerceAtLeast(newRemaining)
-        targetEndEpochMs = if (newRemaining <= 0) currentEpochMillis() else targetEndEpochMs + seconds * 1000L
-        lastTickedSecond = -1
-        if (newRemaining <= 0 && current.status == TimerStatus.RUNNING) {
-            val cur = _state.value
-            _state.compareAndSet(cur, cur.copy(totalSeconds = newTotal))
-            completeFromRunningIfNeeded(runGeneration)
-        } else {
-            _state.compareAndSet(
-                current,
-                current.copy(totalSeconds = newTotal, remainingSeconds = newRemaining)
-            )
-            if (current.status == TimerStatus.RUNNING) {
-                notifyRestTimerUpdated(targetEndEpochMs, newRemaining)
-            } else if (current.status == TimerStatus.PAUSED) {
-                notifyRestTimerPaused(newRemaining, current.exerciseName)
+            val newRemaining = (current.remainingSeconds + seconds).coerceAtLeast(0)
+            val newTotal = (current.totalSeconds + seconds).coerceAtLeast(newRemaining)
+            if (newRemaining <= 0 && current.status == TimerStatus.RUNNING) {
+                if (_state.compareAndSet(current, current.copy(totalSeconds = newTotal))) {
+                    targetEndEpochMs = currentEpochMillis()
+                    lastTickedSecond = -1
+                    completeFromRunningIfNeeded(runGeneration)
+                    return
+                }
+            } else {
+                val updated = current.copy(totalSeconds = newTotal, remainingSeconds = newRemaining)
+                if (_state.compareAndSet(current, updated)) {
+                    targetEndEpochMs = if (newRemaining <= 0) currentEpochMillis() else targetEndEpochMs + seconds * 1000L
+                    lastTickedSecond = -1
+                    if (current.status == TimerStatus.RUNNING) {
+                        notifyRestTimerUpdated(targetEndEpochMs, newRemaining)
+                    } else if (current.status == TimerStatus.PAUSED) {
+                        notifyRestTimerPaused(newRemaining, current.exerciseName)
+                    }
+                    return
+                }
             }
         }
     }

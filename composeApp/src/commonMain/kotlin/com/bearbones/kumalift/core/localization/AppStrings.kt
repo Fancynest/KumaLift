@@ -1037,11 +1037,11 @@ interface AppStrings {
     val aiSetupNeededTitle: String
     val aiSetupNeededDesc: String
     val aiOpenSettingsAction: String
-    val aiEmptyStarterTitle: String
-    val aiEmptyStarterDesc: String
+    fun aiEmptyGreeting(index: Int, name: String): String
     val aiComposerPlaceholder: String
     val aiSendDesc: String
     val aiStopDesc: String
+    val aiAttachMediaDesc: String
     val aiCameraDesc: String
     val aiGalleryDesc: String
     val aiRemoveAttachmentDesc: String
@@ -1089,7 +1089,36 @@ interface AppStrings {
     val aiStepStagingDraft: String
     val aiStepPreparingNutrition: String
     val aiStepCallingGemini: String
+    val aiStepSearchingHistory: String
     val aiCommitSuccessPrefix: String
+    val aiHistoryTitle: String
+    val aiHistoryOpenDesc: String
+    val aiHistoryEmpty: String
+    val aiTempChatToggleDesc: String
+    val aiTempChatBadge: String
+    val aiTempChatDesc: String
+    val aiDeleteThreadDesc: String
+    val aiDeleteThreadTitle: String
+    fun aiDeleteThreadMessage(title: String): String
+    fun aiSelectedImagesCount(count: Int, max: Int): String
+    fun aiPhotoPageIndicator(current: Int, total: Int): String
+    val aiMaxPhotosHint: String
+    val deleteScheduleConfirmTitle: String
+    val deleteScheduleConfirmMessage: String
+    val aiClearKeyConfirmTitle: String
+    val aiClearKeyConfirmMessage: String
+    val removeCustomSoundConfirmTitle: String
+    val removeCustomSoundConfirmMessage: String
+    val clearDiagnosticLogConfirmTitle: String
+    val clearDiagnosticLogConfirmMessage: String
+    val removeExerciseConfirmTitle: String
+    fun removeExerciseConfirmMessage(name: String): String
+    val removeLastSetConfirmTitle: String
+    val removeLastSetConfirmMessage: String
+    val removeRoutineExerciseConfirmTitle: String
+    fun removeRoutineExerciseConfirmMessage(name: String): String
+    val deleteRoutineSetConfirmTitle: String
+    fun deleteRoutineSetConfirmMessage(setNumber: Int): String
     val aiClearChatConfirmTitle: String
     val aiClearChatConfirmMessage: String
     val aiClearChatConfirmAction: String

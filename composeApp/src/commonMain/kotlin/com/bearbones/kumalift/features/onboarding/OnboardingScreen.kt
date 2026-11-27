@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,7 @@ import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.notification.syncPlatformNotificationChannels
 import com.bearbones.kumalift.core.util.resolveIsEnglish
 import com.bearbones.kumalift.data.repository.RoutineRepository
@@ -76,14 +79,20 @@ fun OnboardingScreen(
             AppLanguage.ID
         }
     }
-    var selectedLanguage by remember { mutableStateOf(systemDefaultLang) }
+    var selectedLanguage by rememberSaveable { mutableStateOf(systemDefaultLang) }
 
-    var currentStep by remember { mutableStateOf(1) } // 1: Language, 2: Goal, 3: Days, 4: Experience
+    var currentStep by rememberSaveable { mutableStateOf(1) } // 1: Language, 2: Goal, 3: Days, 4: Experience
 
-    var selectedGoal by remember { mutableStateOf(TrainingGoal.HYPERTROPHY) }
-    var selectedDaysCount by remember { mutableStateOf(4) }
-    var selectedDays by remember { mutableStateOf(listOf(1, 3, 5, 6)) }
-    var selectedExperience by remember { mutableStateOf(ExperienceLevel.INTERMEDIATE) }
+    var selectedGoal by rememberSaveable { mutableStateOf(TrainingGoal.HYPERTROPHY) }
+    var selectedDaysCount by rememberSaveable { mutableStateOf(4) }
+    var selectedDays by rememberSaveable(
+        stateSaver = listSaver<List<Int>, Int>(save = { it }, restore = { it })
+    ) { mutableStateOf(listOf(1, 3, 5, 6)) }
+    var selectedExperience by rememberSaveable { mutableStateOf(ExperienceLevel.INTERMEDIATE) }
+
+    KumaBackHandler(enabled = currentStep > 1) {
+        currentStep--
+    }
 
     fun finishOnboarding(createStarterRoutine: Boolean) {
         settingsRepository.update { current ->

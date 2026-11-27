@@ -1,16 +1,37 @@
 package com.bearbones.kumalift.app
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.bearbones.kumalift.core.designsystem.KumaFloatingToolbar
+import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.kumaScale
+import com.bearbones.kumalift.core.designsystem.rememberKumaPressScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,11 +144,13 @@ fun App() {
             mesocycleRepository = mesocycleRepository,
             calculationSettingsProvider = { settingsRepository.settings.value.calculations },
             loggingSettingsProvider = { settingsRepository.settings.value.logging },
-            staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours
+            staleWorkoutHours = settingsRepository.settings.value.logging.staleWorkoutHours,
+            healthSettingsProvider = { settingsRepository.settings.value.health }
         )
     }
     val aiSecretStore = rememberAiSecretStore()
-    val aiAgentService = remember(databaseRepo, settingsRepository, aiSecretStore) {
+    val geminiApiClient = remember { GeminiApiClient() }
+    val aiAgentService = remember(databaseRepo, settingsRepository, aiSecretStore, geminiApiClient) {
         val executor = KumaAiToolExecutor(
             exerciseRepository = exerciseRepository,
             routineRepository = routineRepository,
@@ -141,7 +164,7 @@ fun App() {
             databaseRepo = databaseRepo
         )
         KumaAiAgentService(
-            geminiClient = GeminiApiClient(),
+            geminiClient = geminiApiClient,
             toolExecutor = executor,
             secretStore = aiSecretStore,
             settingsRepository = settingsRepository,
@@ -152,6 +175,39 @@ fun App() {
     val coroutineScope = rememberCoroutineScope()
     val navigator = rememberAppNavigator()
     val saveableStateHolder = rememberSaveableStateHolder()
+
+    val reloadAllFromDatabase: (Boolean) -> Unit = remember(
+        databaseRepo,
+        settingsRepository,
+        exerciseRepository,
+        routineRepository,
+        trainingProgramRepository,
+        personalRecordRepository,
+        workoutScheduleRepository,
+        mesocycleRepository,
+        dailyReadinessRepository,
+        workoutRepository,
+        aiAgentService,
+        navigator
+    ) {
+        { resetToOnboarding ->
+            val reloadedSettings = databaseRepo.loadUserSettings() ?: com.bearbones.kumalift.domain.model.UserSettings()
+            settingsRepository.reload(reloadedSettings)
+            exerciseRepository.reloadFromDatabase()
+            routineRepository.reloadFromDatabase { id -> exerciseRepository.getExerciseById(id) }
+            trainingProgramRepository.reloadFromDatabase(reloadedSettings.profile.activeProgramId)
+            personalRecordRepository.reloadFromDatabase()
+            workoutScheduleRepository.reloadFromDatabase()
+            mesocycleRepository.reloadFromDatabase()
+            dailyReadinessRepository.reloadFromDatabase()
+            workoutRepository.reloadFromDatabase()
+            aiAgentService.reloadFromDatabase(selectLatest = true)
+            if (resetToOnboarding) {
+                navigator.clearOverlays()
+                navigator.selectTab(Tab.HOME)
+            }
+        }
+    }
 
     // Hoisted states surviving navigation across tabs and process recreation
     val libraryFilterState = rememberLibraryFilterState()
@@ -199,6 +255,7 @@ fun App() {
                 )
             } else {
                 Scaffold(
+                    containerColor = KumaColors.CanvasLowest,
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     // Bottom navigation bar is visible ONLY when no fullscreen overlay is active
@@ -325,13 +382,51 @@ fun App() {
                 }
 
                 // Fullscreen overlays rendered above tab content
-                if (navigator.currentOverlay != null) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = KumaColors.CanvasLowest
-                    ) {
-                        when (navigator.currentOverlay) {
-                            is Overlay.ActiveLogger -> {
+                AnimatedContent(
+                    targetState = navigator.currentOverlay,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        val enteringOverlay = targetState
+                        val exitingOverlay = initialState
+                        val isVertical = enteringOverlay is Overlay.ActiveLogger ||
+                            enteringOverlay is Overlay.Summary ||
+                            (enteringOverlay == null && (exitingOverlay is Overlay.ActiveLogger || exitingOverlay is Overlay.Summary))
+                        when {
+                            targetState != null && initialState == null -> {
+                                val enter = if (isVertical) {
+                                    slideInVertically(
+                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    ) { it / 5 } + fadeIn(tween(200))
+                                } else {
+                                    slideInHorizontally(
+                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                    ) { it / 4 } + fadeIn(tween(180))
+                                }
+                                enter togetherWith fadeOut(tween(120))
+                            }
+                            targetState == null && initialState != null -> {
+                                val exit = if (isVertical) {
+                                    slideOutVertically(tween(200)) { it / 5 } + fadeOut(tween(180))
+                                } else {
+                                    slideOutHorizontally(tween(180)) { it / 4 } + fadeOut(tween(160))
+                                }
+                                fadeIn(tween(120)) togetherWith exit
+                            }
+                            else -> {
+                                (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it / 5 } + fadeIn(tween(180))) togetherWith
+                                    (slideOutHorizontally(tween(150)) { -it / 6 } + fadeOut(tween(150)))
+                            }
+                        }
+                    }
+                ) { overlayState ->
+                    if (overlayState != null) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = KumaColors.CanvasLowest
+                        ) {
+                            val currentOverlay: Overlay? = overlayState
+                            when (currentOverlay) {
+                                is Overlay.ActiveLogger -> {
                                 ActiveWorkoutLoggerScreen(
                                     workoutRepository = workoutRepository,
                                     settingsRepository = settingsRepository,
@@ -368,7 +463,9 @@ fun App() {
                                     databaseRepo = databaseRepo,
                                     workoutRepository = workoutRepository,
                                     secretStore = aiSecretStore,
+                                    geminiClient = geminiApiClient,
                                     initialDestination = initialDest,
+                                    onDataMutated = reloadAllFromDatabase,
                                     onOpenAiChat = {
                                         navigator.pendingSettingsDestinationName = null
                                         navigator.popOverlay()
@@ -395,6 +492,7 @@ fun App() {
                                 )
                             }
                             null -> Unit
+                            }
                         }
                     }
                 }
@@ -413,13 +511,17 @@ fun KumaBottomNavigation(
     onActiveLoggerClick: () -> Unit
 ) {
     val s = LocalStrings.current
+    val haptic = LocalHapticFeedback.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(KumaColors.SurfaceDim)
+            .background(Color.Transparent)
             .navigationBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Floating Active Session Banner if workout is currently active
+        // Floating Active Session Pill when workout is active
         if (hasActiveWorkout) {
             val infiniteTransition = rememberInfiniteTransition()
             val dotAlpha by infiniteTransition.animateFloat(
@@ -430,68 +532,82 @@ fun KumaBottomNavigation(
                     repeatMode = RepeatMode.Reverse
                 )
             )
-            Row(
+            val (activeInteraction, activeScale) = rememberKumaPressScale(targetScale = 0.97f)
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
-                    .background(KumaColors.ElectricLime)
-                    .clickable(onClick = onActiveLoggerClick)
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .kumaScale(activeScale),
+                shape = PillShape,
+                color = KumaColors.ElectricLime,
+                shadowElevation = 8.dp
             ) {
                 Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clip(PillShape)
+                        .clickable(
+                            interactionSource = activeInteraction,
+                            indication = LocalIndication.current
+                        ) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onActiveLoggerClick()
+                        }
+                        .padding(horizontal = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(8.dp)
-                            .alpha(dotAlpha)
-                            .clip(CircleShape)
-                            .background(KumaColors.OnElectricLime)
-                    )
-                    Text(
-                        text = "  ${s.workoutInProgress}",
-                        maxLines = 1,
-                        softWrap = false,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = KumaColors.OnElectricLime,
-                            letterSpacing = 0.5.sp
+                            .weight(1f)
+                            .padding(end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .alpha(dotAlpha)
+                                .clip(CircleShape)
+                                .background(KumaColors.OnElectricLime)
                         )
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = s.resume,
-                        maxLines = 1,
-                        softWrap = false,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = KumaColors.OnElectricLime
+                        Text(
+                            text = "  ${s.workoutInProgress}",
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = KumaColors.OnElectricLime,
+                                letterSpacing = 0.5.sp
+                            )
                         )
-                    )
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = KumaColors.OnElectricLime,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = s.resume,
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = KumaColors.OnElectricLime
+                            )
+                        )
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = KumaColors.OnElectricLime,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
 
-        // Main Navigation Bar with comfortable height & spacing
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Main Floating Pill Navigation Toolbar
+        KumaFloatingToolbar(
+            modifier = Modifier.fillMaxWidth(),
+            fillWidth = true,
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             NavItem(
@@ -536,10 +652,30 @@ fun NavItem(
     onClick: () -> Unit
 ) {
     val colors = KumaColors.current
+    val haptic = LocalHapticFeedback.current
+    val (interactionSource, pressScale) = rememberKumaPressScale(targetScale = 0.92f)
+    val iconScale = animateFloatAsState(
+        targetValue = if (isSelected) 1.10f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        )
+    ).value
+    val tintColor = animateColorAsState(
+        targetValue = if (isSelected) colors.accentText else colors.textSubtle,
+        animationSpec = tween(180)
+    ).value
     Column(
         modifier = Modifier
+            .kumaScale(pressScale)
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -547,8 +683,10 @@ fun NavItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (isSelected) colors.accentText else colors.textSubtle,
-            modifier = Modifier.size(24.dp)
+            tint = tintColor,
+            modifier = Modifier
+                .size(24.dp)
+                .kumaScale(iconScale)
         )
         Text(
             text = label,

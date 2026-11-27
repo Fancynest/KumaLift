@@ -39,6 +39,10 @@ class SettingsRepository(
         update { settings }
     }
 
+    fun reload(settings: UserSettings) {
+        _settings.value = settings
+    }
+
     fun resetAll() {
         update { UserSettings() }
     }

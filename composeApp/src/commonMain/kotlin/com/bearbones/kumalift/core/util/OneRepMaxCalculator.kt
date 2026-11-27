@@ -10,7 +10,7 @@ object OneRepMaxCalculator {
      * Epley Formula: 1RM = w × (1 + r / 30)
      */
     fun calculateEpley(weightKg: Double, reps: Int): Double {
-        if (weightKg <= 0.0 || reps <= 0) return 0.0
+        if (!weightKg.isFinite() || weightKg <= 0.0 || reps <= 0) return 0.0
         if (reps == 1) return weightKg
         return weightKg * (1.0 + reps / 30.0)
     }
@@ -19,7 +19,7 @@ object OneRepMaxCalculator {
      * Brzycki Formula: 1RM = w × 36 / (37 − r)
      */
     fun calculateBrzycki(weightKg: Double, reps: Int): Double {
-        if (weightKg <= 0.0 || reps <= 0) return 0.0
+        if (!weightKg.isFinite() || weightKg <= 0.0 || reps <= 0) return 0.0
         if (reps == 1) return weightKg
         if (reps >= 37) return calculateEpley(weightKg, reps)
         return weightKg * 36.0 / (37.0 - reps)
@@ -29,7 +29,7 @@ object OneRepMaxCalculator {
      * Lombardi Formula: 1RM = w × r^0.10
      */
     fun calculateLombardi(weightKg: Double, reps: Int): Double {
-        if (weightKg <= 0.0 || reps <= 0) return 0.0
+        if (!weightKg.isFinite() || weightKg <= 0.0 || reps <= 0) return 0.0
         if (reps == 1) return weightKg
         return weightKg * reps.toDouble().pow(0.10)
     }
@@ -38,7 +38,7 @@ object OneRepMaxCalculator {
      * O'Conner Formula: 1RM = w × (1 + r / 40)
      */
     fun calculateOConner(weightKg: Double, reps: Int): Double {
-        if (weightKg <= 0.0 || reps <= 0) return 0.0
+        if (!weightKg.isFinite() || weightKg <= 0.0 || reps <= 0) return 0.0
         if (reps == 1) return weightKg
         return weightKg * (1.0 + reps / 40.0)
     }
@@ -52,7 +52,7 @@ object OneRepMaxCalculator {
         formula: OneRepMaxFormula = OneRepMaxFormula.EPLEY,
         maxReps: Int = 10
     ): Double {
-        if (reps > maxReps || reps <= 0 || weightKg <= 0.0) return 0.0
+        if (!weightKg.isFinite() || reps > maxReps || reps <= 0 || weightKg <= 0.0) return 0.0
         return when (formula) {
             OneRepMaxFormula.EPLEY -> calculateEpley(weightKg, reps)
             OneRepMaxFormula.BRZYCKI -> calculateBrzycki(weightKg, reps)
@@ -70,6 +70,7 @@ object OneRepMaxCalculator {
         formula: OneRepMaxFormula = OneRepMaxFormula.EPLEY
     ): Double {
         val raw = calculate(weightKg, reps, formula)
+        if (!raw.isFinite() || raw <= 0.0) return 0.0
         return (raw * 10.0).roundToInt() / 10.0
     }
 }

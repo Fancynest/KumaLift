@@ -31,9 +31,9 @@ actual fun rememberDataExportLauncher(
         val content = pendingContent
         if (uri != null && content != null) {
             try {
-                context.contentResolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(content.encodeToByteArray())
-                }
+                val stream = context.contentResolver.openOutputStream(uri)
+                    ?: throw java.io.IOException("Cannot open output stream")
+                stream.use { it.write(content.encodeToByteArray()) }
                 onExportResult(
                     true,
                     strings.backupFileSavedSuccess
@@ -153,9 +153,9 @@ actual fun rememberDataExportBytesLauncher(
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             try {
-                context.contentResolver.openOutputStream(uri)?.use { stream ->
-                    stream.write(bytes)
-                }
+                val stream = context.contentResolver.openOutputStream(uri)
+                    ?: throw java.io.IOException("Cannot open output stream")
+                stream.use { it.write(bytes) }
                 onExportResult(true, strings.backupFileSavedSuccess)
             } catch (e: Exception) {
                 KumaLogger.e("DataExportBytesLauncher", "Failed to write backup file: ${e.message}", e)
@@ -242,10 +242,11 @@ actual fun rememberAudioPickerLauncher(
             val destDir = File(context.filesDir, "custom_sounds")
             destDir.mkdirs()
             val destFile = File(destDir, "custom_rest_timer_sound.$targetExt")
+            val tempFile = File(destDir, "custom_rest_timer_sound_tmp.$targetExt")
 
-            // Copy stream
+            // Stage upload into temp file first so corrupt uploads never destroy existing audio
             context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(destFile).use { output ->
+                FileOutputStream(tempFile).use { output ->
                     input.copyTo(output)
                 }
             } ?: run {
@@ -257,7 +258,7 @@ actual fun rememberAudioPickerLauncher(
             val testPlayer = MediaPlayer()
             var isValid = false
             try {
-                testPlayer.setDataSource(destFile.absolutePath)
+                testPlayer.setDataSource(tempFile.absolutePath)
                 testPlayer.prepare()
                 isValid = testPlayer.duration > 0
             } catch (t: Throwable) {
@@ -268,9 +269,17 @@ actual fun rememberAudioPickerLauncher(
             }
 
             if (!isValid) {
-                try { destFile.delete() } catch (_: Throwable) {}
+                try { tempFile.delete() } catch (_: Throwable) {}
                 onAudioPicked(null, null, "File audio rusak atau tidak dapat diputar.")
                 return@rememberLauncherForActivityResult
+            }
+
+            if (destFile.exists()) {
+                try { destFile.delete() } catch (_: Throwable) {}
+            }
+            if (!tempFile.renameTo(destFile)) {
+                tempFile.copyTo(destFile, overwrite = true)
+                try { tempFile.delete() } catch (_: Throwable) {}
             }
 
             onAudioPicked(displayName, destFile.absolutePath, null)

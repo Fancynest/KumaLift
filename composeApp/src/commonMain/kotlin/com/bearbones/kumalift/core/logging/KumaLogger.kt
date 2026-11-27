@@ -3,6 +3,10 @@ package com.bearbones.kumalift.core.logging
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.concurrent.Volatile
+
+internal expect fun createDiagnosticLogLock(): Any
+internal expect fun <T> withDiagnosticLogLock(lock: Any, block: () -> T): T
 
 /**
  * Structured local diagnostic logger for KumaLift.
@@ -18,8 +22,8 @@ object KumaLogger {
     var isEnabled: Boolean = false
 
     private const val MAX_LOG_ENTRIES = 1000
-    private val buffer = mutableListOf<String>()
-    private val lock = Any()
+    private val buffer = ArrayDeque<String>(MAX_LOG_ENTRIES)
+    private val lock = createDiagnosticLogLock()
 
     fun d(tag: String, message: String) {
         log("DEBUG", tag, message, null)
@@ -46,28 +50,28 @@ object KumaLogger {
         val stackTrace = throwable?.stackTraceToString()?.let { "\n$it" } ?: ""
         val entry = "[$timeStr] [$level] [$tag]: $message$stackTrace"
 
-        synchronized(lock) {
+        withDiagnosticLogLock(lock) {
             if (buffer.size >= MAX_LOG_ENTRIES) {
-                buffer.removeAt(0)
+                buffer.removeFirst()
             }
-            buffer.add(entry)
+            buffer.addLast(entry)
         }
     }
 
     fun getLogs(): String {
-        return synchronized(lock) {
+        return withDiagnosticLogLock(lock) {
             buffer.joinToString(separator = "\n")
         }
     }
 
     fun clear() {
-        synchronized(lock) {
+        withDiagnosticLogLock(lock) {
             buffer.clear()
         }
     }
 
     fun logCount(): Int {
-        return synchronized(lock) {
+        return withDiagnosticLogLock(lock) {
             buffer.size
         }
     }

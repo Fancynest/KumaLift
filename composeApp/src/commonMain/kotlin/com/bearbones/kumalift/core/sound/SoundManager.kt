@@ -37,14 +37,7 @@ object SoundManager {
             val volumePercent = settings.notifications.soundVolume
             val volumeMultiplier = (volumePercent / 100f).coerceIn(0f, 1f)
 
-            // Rest timer completion alert:
-            // Plays if profile is KUMA, alert is enabled, and volume > 0.
-            // Does NOT silence for ringerMode == VIBRATE or DND - athletes expect their rest timer
-            // alarm to sound at their configured in-app volume.
-            if (settings.notifications.soundProfile == com.bearbones.kumalift.domain.model.SoundProfile.KUMA &&
-                settings.notifications.restTimerAlert &&
-                volumeMultiplier > 0f
-            ) {
+            if (decision.playInAppSound && volumeMultiplier > 0f) {
                 PlatformSoundPlayer.playRestTimerSound(
                     volumePercent,
                     settings.notifications.restTimerSoundSource,
@@ -52,10 +45,7 @@ object SoundManager {
                 )
             }
 
-            // Haptic feedback
-            if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT &&
-                settings.notifications.restTimerAlert
-            ) {
+            if (decision.vibrate) {
                 PlatformSoundPlayer.playHaptic()
             }
             return

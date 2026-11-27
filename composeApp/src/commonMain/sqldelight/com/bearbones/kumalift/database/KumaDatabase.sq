@@ -182,11 +182,22 @@ CREATE TABLE daily_readiness (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE ai_chat_threads (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    contextSummary TEXT NOT NULL DEFAULT '',
+    messageCount INTEGER NOT NULL DEFAULT 0,
+    createdAtEpochMs INTEGER NOT NULL,
+    updatedAtEpochMs INTEGER NOT NULL
+);
+
 CREATE TABLE ai_chat_messages (
     id TEXT NOT NULL PRIMARY KEY,
+    threadId TEXT NOT NULL DEFAULT 'thread_default',
     role TEXT NOT NULL,
     messageText TEXT NOT NULL,
     imagePath TEXT,
+    imagePathsJson TEXT NOT NULL DEFAULT '[]',
     stepLogsJson TEXT NOT NULL DEFAULT '[]',
     proposalJson TEXT,
     nutritionJson TEXT,
@@ -203,6 +214,7 @@ CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routineId);
 CREATE INDEX idx_workout_schedule_events_date ON workout_schedule_events(scheduledDate);
 CREATE INDEX idx_mesocycles_status ON mesocycles(status);
 CREATE UNIQUE INDEX idx_daily_readiness_date ON daily_readiness(dateString);
+CREATE INDEX idx_ai_chat_messages_thread ON ai_chat_messages(threadId, createdAtEpochMs);
 
 -- Queries for Workouts
 selectAllCompletedWorkouts:
@@ -486,14 +498,40 @@ DELETE FROM daily_readiness WHERE id = ?;
 clearAllDailyReadiness:
 DELETE FROM daily_readiness;
 
--- Queries for Kuma AI Chat Messages
+-- Queries for Kuma AI Chat Threads & Messages
+selectAllAiChatThreads:
+SELECT * FROM ai_chat_threads ORDER BY updatedAtEpochMs DESC;
+
+selectAiChatThreadById:
+SELECT * FROM ai_chat_threads WHERE id = ?;
+
+insertOrReplaceAiChatThread:
+INSERT OR REPLACE INTO ai_chat_threads (
+    id, title, contextSummary, messageCount, createdAtEpochMs, updatedAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?);
+
+deleteAiChatThread:
+DELETE FROM ai_chat_threads WHERE id = ?;
+
+clearAllAiChatThreads:
+DELETE FROM ai_chat_threads;
+
 selectAllAiChatMessages:
 SELECT * FROM ai_chat_messages ORDER BY createdAtEpochMs ASC;
 
+selectAiChatMessagesByThread:
+SELECT * FROM ai_chat_messages WHERE threadId = ? ORDER BY createdAtEpochMs ASC;
+
+searchAiChatMessages:
+SELECT * FROM ai_chat_messages WHERE isError = 0 AND messageText LIKE ? ORDER BY createdAtEpochMs DESC LIMIT ?;
+
 insertOrReplaceAiChatMessage:
 INSERT OR REPLACE INTO ai_chat_messages (
-    id, role, messageText, imagePath, stepLogsJson, proposalJson, nutritionJson, isError, createdAtEpochMs
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, threadId, role, messageText, imagePath, imagePathsJson, stepLogsJson, proposalJson, nutritionJson, isError, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteAiChatMessagesByThread:
+DELETE FROM ai_chat_messages WHERE threadId = ?;
 
 deleteAiChatMessage:
 DELETE FROM ai_chat_messages WHERE id = ?;

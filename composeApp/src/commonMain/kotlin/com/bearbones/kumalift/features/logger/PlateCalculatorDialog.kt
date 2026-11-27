@@ -323,7 +323,7 @@ fun PlateCalculatorDialog(
                                         2.5 -> Pair(colors.plateBlack, colors.onPlateBlack)
                                         else -> Pair(colors.plateGray, colors.onPlateGray)
                                     }
-                                    repeat(plateCount.countPerSide) {
+                                    repeat(minOf(plateCount.countPerSide, 24)) {
                                         val plateHeight = (80 * plateCount.heightFraction).dp
                                         Box(
                                             modifier = Modifier

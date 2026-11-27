@@ -44,7 +44,22 @@ actual object BleHeartRateManager {
         }
 
     private var activeGatt: BluetoothGatt? = null
+    private var pendingDevice: BleHeartRateDevice? = null
     var isTestMode: Boolean = false
+
+    private fun closeGattSafely(gatt: BluetoothGatt?) {
+        if (gatt == null) return
+        try {
+            gatt.disconnect()
+        } catch (_: SecurityException) {
+        } catch (_: Exception) {
+        }
+        try {
+            gatt.close()
+        } catch (_: SecurityException) {
+        } catch (_: Exception) {
+        }
+    }
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
@@ -69,21 +84,30 @@ actual object BleHeartRateManager {
 
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
+            if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 KumaLogger.i("BleHeartRateManager", "Connected to GATT server, discovering services")
+                if (gatt === activeGatt) {
+                    pendingDevice?.let { _connectedDevice.value = it }
+                }
                 try {
                     gatt?.discoverServices()
                 } catch (e: SecurityException) {
                     KumaLogger.e("BleHeartRateManager", "Missing permission for discoverServices: ${e.message}")
+                    if (gatt === activeGatt) {
+                        _connectedDevice.value = null
+                        activeGatt = null
+                    }
+                    closeGattSafely(gatt)
                 }
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                KumaLogger.i("BleHeartRateManager", "Disconnected from GATT server")
-                _connectedDevice.value = null
-                _currentHeartRateBpm.value = null
-                try {
-                    activeGatt?.close()
-                } catch (_: Exception) {}
-                activeGatt = null
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED || status != BluetoothGatt.GATT_SUCCESS) {
+                KumaLogger.i("BleHeartRateManager", "Disconnected from GATT server (status=$status, newState=$newState)")
+                if (gatt == null || gatt === activeGatt) {
+                    _connectedDevice.value = null
+                    _currentHeartRateBpm.value = null
+                    pendingDevice = null
+                    activeGatt = null
+                }
+                closeGattSafely(gatt)
             }
         }
 
@@ -153,11 +177,15 @@ actual object BleHeartRateManager {
 
         val adapter = getBluetoothAdapter() ?: return
         if (!adapter.isEnabled) return
+        val scanner = adapter.bluetoothLeScanner ?: return
+        if (_isScanning.value) {
+            stopScan()
+        }
 
         try {
             _discoveredDevices.value = emptyList()
             _isScanning.value = true
-            adapter.bluetoothLeScanner?.startScan(scanCallback)
+            scanner.startScan(scanCallback)
         } catch (e: SecurityException) {
             KumaLogger.e("BleHeartRateManager", "Missing BLUETOOTH_SCAN permission: ${e.message}")
             _isScanning.value = false
@@ -169,7 +197,10 @@ actual object BleHeartRateManager {
             _isScanning.value = false
             return
         }
-        val adapter = getBluetoothAdapter() ?: return
+        val adapter = getBluetoothAdapter() ?: run {
+            _isScanning.value = false
+            return
+        }
         try {
             adapter.bluetoothLeScanner?.stopScan(scanCallback)
         } catch (e: SecurityException) {
@@ -188,13 +219,21 @@ actual object BleHeartRateManager {
 
         val context = AndroidAppProvider.appContext ?: return
         val adapter = getBluetoothAdapter() ?: return
+        val prevGatt = activeGatt
+        activeGatt = null
+        closeGattSafely(prevGatt)
+        _connectedDevice.value = null
+        _currentHeartRateBpm.value = null
+        pendingDevice = device
+
         try {
             val remote = adapter.getRemoteDevice(device.id)
             activeGatt = remote.connectGatt(context, false, gattCallback)
-            _connectedDevice.value = device
         } catch (e: SecurityException) {
+            pendingDevice = null
             KumaLogger.e("BleHeartRateManager", "Missing BLUETOOTH_CONNECT permission: ${e.message}")
         } catch (e: Exception) {
+            pendingDevice = null
             KumaLogger.e("BleHeartRateManager", "Error connecting to BLE: ${e.message}")
         }
     }
@@ -205,11 +244,10 @@ actual object BleHeartRateManager {
             _currentHeartRateBpm.value = null
             return
         }
-        try {
-            activeGatt?.disconnect()
-            activeGatt?.close()
-        } catch (_: Exception) {}
+        val gatt = activeGatt
         activeGatt = null
+        pendingDevice = null
+        closeGattSafely(gatt)
         _connectedDevice.value = null
         _currentHeartRateBpm.value = null
     }

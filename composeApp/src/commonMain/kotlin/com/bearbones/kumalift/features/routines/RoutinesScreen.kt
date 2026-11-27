@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
@@ -84,6 +85,7 @@ fun RoutinesScreen(
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
     val routines by routineRepository.routines.collectAsState()
+    val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val programs by trainingProgramRepository.programs.collectAsState()
     val activeProgramId by trainingProgramRepository.activeProgramId.collectAsState()
@@ -123,13 +125,18 @@ fun RoutinesScreen(
     var selectedCategory by rememberSaveable(s.allProgramsCategory, activeProgram.id) { mutableStateOf(allCategoryLabel) }
     var showCreateRoutineScreen by rememberSaveable { mutableStateOf(false) }
     var selectedRoutineForDetail by remember { mutableStateOf<RoutineBlueprint?>(null) }
-    var routineBeingEdited by remember { mutableStateOf<RoutineBlueprint?>(null) }
+    var routineBeingEditedId by rememberSaveable { mutableStateOf<String?>(null) }
+    val routineBeingEdited = remember(routineBeingEditedId, routines) {
+        routineBeingEditedId?.let { editId -> routines.firstOrNull { it.id == editId } }
+    }
+    var pendingStartRoutine by remember { mutableStateOf<RoutineBlueprint?>(null) }
 
     // Training Programs Modal states
     var showProgramSelectorModal by remember { mutableStateOf(false) }
     var showCreateProgramModal by remember { mutableStateOf(false) }
     var programBeingEdited by remember { mutableStateOf<TrainingProgram?>(null) }
     var programToDelete by remember { mutableStateOf<TrainingProgram?>(null) }
+    var routineToDelete by remember { mutableStateOf<RoutineBlueprint?>(null) }
 
     // Back handling
     KumaBackHandler(
@@ -138,16 +145,18 @@ fun RoutinesScreen(
             showProgramSelectorModal ||
             showCreateProgramModal ||
             programBeingEdited != null ||
-            programToDelete != null
+            programToDelete != null ||
+            routineToDelete != null
     ) {
         when {
+            routineToDelete != null -> routineToDelete = null
             programToDelete != null -> programToDelete = null
             programBeingEdited != null -> programBeingEdited = null
             showCreateProgramModal -> showCreateProgramModal = false
             showProgramSelectorModal -> showProgramSelectorModal = false
             showCreateRoutineScreen -> {
                 showCreateRoutineScreen = false
-                routineBeingEdited = null
+                routineBeingEditedId = null
             }
             selectedRoutineForDetail != null -> selectedRoutineForDetail = null
         }
@@ -343,8 +352,15 @@ fun RoutinesScreen(
 
                             Spacer(modifier = Modifier.height(6.dp))
 
+                            val animatedProgress = androidx.compose.animation.core.animateFloatAsState(
+                                targetValue = progressFraction,
+                                animationSpec = androidx.compose.animation.core.spring(
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                )
+                            ).value
+
                             LinearProgressIndicator(
-                                progress = { progressFraction },
+                                progress = { animatedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(6.dp)
@@ -454,10 +470,14 @@ fun RoutinesScreen(
                             routine = routine,
                             onClick = { selectedRoutineForDetail = routine },
                             onStart = {
-                                workoutRepository.startWorkoutFromRoutine(routine)
-                                onStartRoutine()
+                                if (activeWorkout != null) {
+                                    pendingStartRoutine = routine
+                                } else {
+                                    workoutRepository.startWorkoutFromRoutine(routine)
+                                    onStartRoutine()
+                                }
                             },
-                            onDelete = { routineRepository.deleteRoutine(routine.id) }
+                            onDelete = { routineToDelete = routine }
                         )
                     }
                 }
@@ -468,6 +488,22 @@ fun RoutinesScreen(
             }
         }
 
+        // Confirm replacing active workout
+        pendingStartRoutine?.let { targetRoutine ->
+            KumaDeleteConfirmationDialog(
+                title = s.cancelWorkoutDialogTitle,
+                message = s.cancelWorkoutDialogMessage,
+                confirmText = s.startWorkoutButton,
+                cancelText = s.cancel,
+                onConfirm = {
+                    pendingStartRoutine = null
+                    workoutRepository.startWorkoutFromRoutine(targetRoutine)
+                    onStartRoutine()
+                },
+                onDismiss = { pendingStartRoutine = null }
+            )
+        }
+
         // Routine Detail Screen Overlay
         if (selectedRoutineForDetail != null) {
             val routine = selectedRoutineForDetail!!
@@ -475,17 +511,21 @@ fun RoutinesScreen(
                 routine = routine,
                 onNavigateBack = { selectedRoutineForDetail = null },
                 onStartWorkout = { r ->
-                    workoutRepository.startWorkoutFromRoutine(r)
                     selectedRoutineForDetail = null
-                    onStartRoutine()
+                    if (activeWorkout != null) {
+                        pendingStartRoutine = r
+                    } else {
+                        workoutRepository.startWorkoutFromRoutine(r)
+                        onStartRoutine()
+                    }
                 },
                 onEditRoutine = { r ->
-                    routineBeingEdited = r
+                    routineBeingEditedId = r.id
                     selectedRoutineForDetail = null
                     showCreateRoutineScreen = true
                 },
                 onDeleteRoutine = { r ->
-                    routineRepository.deleteRoutine(r.id)
+                    routineToDelete = r
                     selectedRoutineForDetail = null
                 }
             )
@@ -502,7 +542,7 @@ fun RoutinesScreen(
                 weightUnit = currentWeightUnit,
                 onNavigateBack = {
                     showCreateRoutineScreen = false
-                    routineBeingEdited = null
+                    routineBeingEditedId = null
                 },
                 onSaveRoutine = { updatedOrNewRoutine ->
                     if (routineBeingEdited != null) {
@@ -511,7 +551,7 @@ fun RoutinesScreen(
                         routineRepository.addRoutine(updatedOrNewRoutine)
                     }
                     showCreateRoutineScreen = false
-                    routineBeingEdited = null
+                    routineBeingEditedId = null
                 }
             )
         }
@@ -611,6 +651,21 @@ fun RoutinesScreen(
                     programToDelete = null
                 },
                 onDismiss = { programToDelete = null }
+            )
+        }
+
+        // Modal 5: Delete Routine Confirmation
+        routineToDelete?.let { targetRoutine ->
+            KumaDeleteConfirmationDialog(
+                title = s.deleteRoutineDialogTitle,
+                message = s.deleteRoutineDialogMessage,
+                confirmText = s.delete,
+                cancelText = s.cancel,
+                onConfirm = {
+                    routineRepository.deleteRoutine(targetRoutine.id)
+                    routineToDelete = null
+                },
+                onDismiss = { routineToDelete = null }
             )
         }
     }

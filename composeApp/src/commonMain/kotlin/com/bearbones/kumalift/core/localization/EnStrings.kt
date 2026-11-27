@@ -1155,11 +1155,20 @@ object EnStrings : AppStrings {
     override val aiSetupNeededTitle = "Connect Your Gemini API Key"
     override val aiSetupNeededDesc = "Add your personal Gemini API key in Settings so Kuma AI can build routines, manage schedules, and analyze gym or meal photos."
     override val aiOpenSettingsAction = "Configure API Key"
-    override val aiEmptyStarterTitle = "Ready to Coach & Manage KumaLift"
-    override val aiEmptyStarterDesc = "Ask to create routines, adjust your schedule, review progress, or snap a photo of gym gear, posture, or meals."
+    override fun aiEmptyGreeting(index: Int, name: String): String {
+        val options = listOf(
+            "Target set, $name. What are we training today?",
+            "Bar's loaded, $name — ready to push a new PR?",
+            "Hey $name, want to tune your split or check recovery?",
+            "Locked in, $name. Which muscle group is up next?",
+            "Good session ahead, $name. Need routine, form, or meal help?"
+        )
+        return options[((index % options.size) + options.size) % options.size]
+    }
     override val aiComposerPlaceholder = "Ask or request changes..."
     override val aiSendDesc = "Send message"
     override val aiStopDesc = "Stop request"
+    override val aiAttachMediaDesc = "Attach photo"
     override val aiCameraDesc = "Take photo"
     override val aiGalleryDesc = "Import photo"
     override val aiRemoveAttachmentDesc = "Remove attached photo"
@@ -1207,7 +1216,40 @@ object EnStrings : AppStrings {
     override val aiStepStagingDraft = "Staging draft for review (not saved yet)"
     override val aiStepPreparingNutrition = "Preparing nutrition summary"
     override val aiStepCallingGemini = "Thinking with Gemini..."
+    override val aiStepSearchingHistory = "Checking past chat context"
     override val aiCommitSuccessPrefix = "Applied:"
+    override val aiHistoryTitle = "Chat History"
+    override val aiHistoryOpenDesc = "Open chat history"
+    override val aiHistoryEmpty = "No saved conversations yet"
+    override val aiTempChatToggleDesc = "Temporary chat"
+    override val aiTempChatBadge = "Temporary Chat • Not saved"
+    override val aiTempChatDesc = "Temporary chats aren't stored in your history and won't remain after closing."
+    override val aiDeleteThreadDesc = "Delete conversation"
+    override val aiDeleteThreadTitle = "Delete Conversation?"
+    override fun aiDeleteThreadMessage(title: String) =
+        "This conversation will be permanently removed from your local chat history:\n\"$title\""
+    override fun aiSelectedImagesCount(count: Int, max: Int) = "$count / $max photos"
+    override fun aiPhotoPageIndicator(current: Int, total: Int) = "Photo $current of $total"
+    override val aiMaxPhotosHint = "Maximum of 10 photos attached"
+    override val deleteScheduleConfirmTitle = "Delete Scheduled Workout?"
+    override val deleteScheduleConfirmMessage = "This scheduled workout event will be permanently deleted."
+    override val aiClearKeyConfirmTitle = "Remove Gemini API Key?"
+    override val aiClearKeyConfirmMessage = "Your saved API key will be removed from this device and Kuma AI won't respond until you enter a key again."
+    override val removeCustomSoundConfirmTitle = "Delete Custom Sound?"
+    override val removeCustomSoundConfirmMessage = "This custom rest timer audio file will be deleted and reverted to the built-in sound."
+    override val clearDiagnosticLogConfirmTitle = "Clear Diagnostic Logs?"
+    override val clearDiagnosticLogConfirmMessage = "All local diagnostic log entries will be permanently deleted."
+    override val removeExerciseConfirmTitle = "Remove Exercise from Workout?"
+    override fun removeExerciseConfirmMessage(name: String) =
+        "Remove \"$name\" and all sets logged for it in this workout?"
+    override val removeLastSetConfirmTitle = "Remove Last Set?"
+    override val removeLastSetConfirmMessage = "The last set row for this exercise will be removed from the active workout."
+    override val removeRoutineExerciseConfirmTitle = "Remove Exercise from Routine?"
+    override fun removeRoutineExerciseConfirmMessage(name: String) =
+        "Remove \"$name\" and its set targets from this routine?"
+    override val deleteRoutineSetConfirmTitle = "Delete Set Row?"
+    override fun deleteRoutineSetConfirmMessage(setNumber: Int) =
+        "Delete Set $setNumber from this exercise configuration?"
     override val aiClearChatConfirmTitle = "Start New Chat?"
     override val aiClearChatConfirmMessage = "This will clear the current conversation history and any unapplied drafts."
     override val aiClearChatConfirmAction = "Clear Chat"

@@ -30,6 +30,7 @@ object AndroidAppProvider {
 }
 
 private const val NOTIF_ID_ONGOING = 2002
+private const val NOTIF_ID_ALERT = 2003
 
 private var lastOngoingExerciseName: String? = null
 
@@ -49,10 +50,9 @@ private fun getUserSettings(): UserSettings {
     val context = AndroidAppProvider.appContext
     if (context != null) {
         try {
-            val driver = com.bearbones.kumalift.data.local.DatabaseDriverFactory(context).createDriver()
-            val database = com.bearbones.kumalift.database.KumaDatabase(driver)
-            val dbRepo = com.bearbones.kumalift.data.local.KumaDatabaseRepository(database)
-            val loaded = dbRepo.loadUserSettings()
+            val loaded = com.bearbones.kumalift.data.local.AndroidDatabaseProvider
+                .getRepository(context)
+                .loadUserSettings()
             if (loaded != null) {
                 RestTimerCoordinator.userSettingsProvider = { loaded }
                 return loaded
@@ -126,6 +126,7 @@ actual fun notifyRestTimerStopped() {
     try {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         manager?.cancel(NOTIF_ID_ONGOING)
+        manager?.cancel(NOTIF_ID_ALERT)
     } catch (_: Throwable) {}
     PlatformSoundPlayer.cancelRestFinishedNotification()
 }
@@ -288,17 +289,23 @@ actual fun notifyRestTimerCompleted(exerciseName: String?, targetEndEpochMs: Lon
             strings.restTimerNotificationText
         }
 
-        val isForeground = AppForegroundTracker.isForeground
+        val isForegroundAndInteractive =
+            AppForegroundTracker.isForeground && PlatformSoundPlayer.isScreenInteractive()
         val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!isForeground && settings.notifications.soundProfile == com.bearbones.kumalift.domain.model.SoundProfile.KUMA) {
-                PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_KUMA
-            } else if (settings.notifications.soundProfile != com.bearbones.kumalift.domain.model.SoundProfile.SILENT) {
-                PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_VIBRATE
-            } else {
+            if (isForegroundAndInteractive) {
                 PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_SILENT
+            } else {
+                when (settings.notifications.soundProfile) {
+                    com.bearbones.kumalift.domain.model.SoundProfile.KUMA ->
+                        PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_KUMA
+                    com.bearbones.kumalift.domain.model.SoundProfile.SILENT_VIBRATE ->
+                        PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_VIBRATE
+                    com.bearbones.kumalift.domain.model.SoundProfile.SILENT ->
+                        PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_SILENT
+                }
             }
         } else {
-            PlatformNotificationChannels.CHANNEL_REST_TIMER_ONGOING
+            PlatformNotificationChannels.CHANNEL_REST_TIMER_ALERT_SILENT
         }
 
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -312,15 +319,13 @@ actual fun notifyRestTimerCompleted(exerciseName: String?, targetEndEpochMs: Lon
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(contentIntent)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(isForegroundAndInteractive)
             .setShowWhen(true)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
-            .setUsesChronometer(true)
+            .setUsesChronometer(false)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            builder.setChronometerCountDown(true)
-        }
         builder.setWhen(targetEndEpochMs)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
@@ -340,7 +345,8 @@ actual fun notifyRestTimerCompleted(exerciseName: String?, targetEndEpochMs: Lon
             builder.addAction(dismissAction)
         }
 
-        manager.notify(NOTIF_ID_ONGOING, builder.build())
+        manager.cancel(NOTIF_ID_ONGOING)
+        manager.notify(NOTIF_ID_ALERT, builder.build())
     } catch (_: Throwable) {
         // Fallback gracefully
     }

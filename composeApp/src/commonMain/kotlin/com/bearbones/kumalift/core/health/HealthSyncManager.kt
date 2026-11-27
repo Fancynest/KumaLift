@@ -8,6 +8,7 @@ import com.bearbones.kumalift.domain.model.WorkoutHealthRecord
 expect object HealthSyncManager {
     val platformType: HealthPlatformType
     fun getStatus(): HealthSyncStatus
+    suspend fun refreshStatus(): HealthSyncStatus
     suspend fun requestPermissions(): Boolean
     suspend fun syncWorkout(record: WorkoutHealthRecord): HealthSyncResult
 }

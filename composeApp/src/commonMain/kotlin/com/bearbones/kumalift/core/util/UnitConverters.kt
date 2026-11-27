@@ -34,6 +34,7 @@ object UnitConverters {
      * Converts centimeters to feet and inches (pair of ft, in).
      */
     fun cmToFtIn(cm: Double): Pair<Int, Int> {
+        if (!cm.isFinite() || cm <= 0.0) return Pair(0, 0)
         val totalInches = cmToIn(cm).roundToInt()
         val feet = totalInches / 12
         val inches = totalInches % 12
@@ -44,6 +45,7 @@ object UnitConverters {
      * Converts canonical stored weight (kg) to display value in active unit.
      */
     fun toDisplayWeight(weightKg: Double, unit: WeightUnit): Double {
+        if (!weightKg.isFinite()) return 0.0
         return when (unit) {
             WeightUnit.KG -> weightKg
             WeightUnit.LB -> (kgToLb(weightKg) * 10.0).roundToInt() / 10.0

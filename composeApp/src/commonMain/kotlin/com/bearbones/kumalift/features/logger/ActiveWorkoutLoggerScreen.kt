@@ -2,6 +2,10 @@ package com.bearbones.kumalift.features.logger
 
 import kotlinx.datetime.Clock
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -15,17 +19,28 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.bearbones.kumalift.core.designsystem.KumaAnimatedIcon
+import com.bearbones.kumalift.core.designsystem.KumaFloatingToolbar
+import com.bearbones.kumalift.core.designsystem.PillShape
+import com.bearbones.kumalift.core.designsystem.kumaScale
+import com.bearbones.kumalift.core.designsystem.rememberKumaPressScale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -73,6 +88,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.text.KeyboardActions
@@ -175,8 +191,10 @@ fun ActiveWorkoutLoggerScreen(
     // T4: Wire keepScreenOn setting to real behavior
     KeepScreenOn(keepOn = workout != null && settings.logging.keepScreenOn)
 
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val doFinishWorkout = {
         if (workout != null) {
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
             restTimer.dismiss()
             workoutRepository.finishWorkout(
                 sessionRpe = 8.5
@@ -460,7 +478,7 @@ fun ActiveWorkoutLoggerScreen(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Icon(
+                                            KumaAnimatedIcon(
                                                 imageVector = if (workout.isPaused) Icons.Default.PlayArrow else Icons.Default.Timer,
                                                 contentDescription = null,
                                                 tint = if (workout.isPaused) LocalKumaColors.current.warning else LocalKumaColors.current.accentText,
@@ -504,8 +522,14 @@ fun ActiveWorkoutLoggerScreen(
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
+                                val animatedWorkoutProgress = androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = workout.progressFraction,
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                    )
+                                ).value
                                 LinearProgressIndicator(
-                                    progress = { workout.progressFraction },
+                                    progress = { animatedWorkoutProgress },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)
@@ -628,15 +652,16 @@ fun ActiveWorkoutLoggerScreen(
 
                     // Exercise Cards List
                     items(workout.exercises, key = { it.id }) { we ->
-                        ExerciseLoggingCard(
-                            workoutExercise = we,
-                            previousSessionSets = workoutRepository.getPreviousCompletedSetsForExercise(we.exercise.id),
-                            settings = settings,
-                            onToggleSet = { setId ->
-                                workoutRepository.toggleSetCompletion(
-                                    exerciseId = we.id,
-                                    setId = setId,
-                                    currentHeartRateBpm = currentBleBpm
+                        Box(modifier = Modifier.animateItem()) {
+                            ExerciseLoggingCard(
+                                workoutExercise = we,
+                                previousSessionSets = workoutRepository.getPreviousCompletedSetsForExercise(we.exercise.id),
+                                settings = settings,
+                                onToggleSet = { setId ->
+                                    workoutRepository.toggleSetCompletion(
+                                        exerciseId = we.id,
+                                        setId = setId,
+                                        currentHeartRateBpm = currentBleBpm
                                 ) { completed ->
                                     if (completed) {
                                         val updatedExercise = workoutRepository.activeWorkout.value?.exercises
@@ -725,6 +750,7 @@ fun ActiveWorkoutLoggerScreen(
                                 inspectedExerciseId = we.exercise.id
                             }
                         )
+                        }
                     }
 
                     // Bottom Action Buttons
@@ -797,40 +823,100 @@ fun ActiveWorkoutLoggerScreen(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(120.dp))
+                        Spacer(modifier = Modifier.height(140.dp))
                     }
                 }
             }
         }
 
-        // Persistent Floating Rest Timer Pill
+        // Bottom Floating Stack: Rest Timer Pill + Workout Quick Actions FloatingToolbar
+        val isKeyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         AnimatedVisibility(
-            visible = timerState.isVisible,
+            visible = !isKeyboardOpen,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 28.dp)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            enter = slideInVertically { it / 2 } + fadeIn(tween(150)),
+            exit = slideOutVertically { it / 2 } + fadeOut(tween(120))
         ) {
-            FloatingRestTimerCard(
-                timerState = timerState,
-                addStepSec = settings.logging.restTimerAddStepSec,
-                subtractStepSec = settings.logging.restTimerSubtractStepSec,
-                onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
-                onMinus = { restTimer.addSeconds(-settings.logging.restTimerSubtractStepSec) },
-                onTogglePlayPause = {
-                    if (timerState.isRunning) {
-                        restTimer.pause()
-                    } else {
-                        restTimer.resume()
-                    }
-                },
-                onCustomTimer = { customSec ->
-                    restTimer.start(customSec, timerState.exerciseName)
-                },
-                onDismiss = {
-                    restTimer.dismiss()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AnimatedVisibility(visible = timerState.isVisible) {
+                    FloatingRestTimerCard(
+                        timerState = timerState,
+                        addStepSec = settings.logging.restTimerAddStepSec,
+                        subtractStepSec = settings.logging.restTimerSubtractStepSec,
+                        onAdd = { restTimer.addSeconds(settings.logging.restTimerAddStepSec) },
+                        onMinus = { restTimer.addSeconds(-settings.logging.restTimerSubtractStepSec) },
+                        onTogglePlayPause = {
+                            if (timerState.isRunning) {
+                                restTimer.pause()
+                            } else {
+                                restTimer.resume()
+                            }
+                        },
+                        onCustomTimer = { customSec ->
+                            restTimer.start(customSec, timerState.exerciseName)
+                        },
+                        onDismiss = {
+                            restTimer.dismiss()
+                        }
+                    )
                 }
-            )
+
+                if (workout != null) {
+                    val toolbarColors = LocalKumaColors.current
+
+                    KumaFloatingToolbar(
+                        containerColor = KumaColors.SurfaceDim,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        LoggerToolbarPill(
+                            icon = if (workout.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                            label = formattedTimer,
+                            contentDescription = if (workout.isPaused) s.resumeWorkoutButton else s.pauseWorkoutButton,
+                            backgroundColor = if (workout.isPaused) toolbarColors.warningTint else KumaColors.SurfaceContainer,
+                            contentColor = if (workout.isPaused) toolbarColors.warning else toolbarColors.accentText,
+                            labelColor = if (workout.isPaused) toolbarColors.warning else toolbarColors.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            onClick = {
+                                if (workout.isPaused) workoutRepository.resumeWorkout()
+                                else workoutRepository.pauseWorkout()
+                            }
+                        )
+
+                        LoggerToolbarPill(
+                            icon = Icons.Default.Add,
+                            label = s.addExerciseButton,
+                            contentDescription = s.addExerciseButton,
+                            backgroundColor = KumaColors.SurfaceContainer,
+                            contentColor = toolbarColors.textPrimary,
+                            modifier = Modifier.weight(1f, fill = false),
+                            onClick = onAddExerciseClick
+                        )
+
+                        LoggerToolbarPill(
+                            icon = Icons.Default.Check,
+                            label = s.finish,
+                            contentDescription = s.finish,
+                            backgroundColor = toolbarColors.accentFill,
+                            contentColor = toolbarColors.onAccentFill,
+                            fontWeight = FontWeight.ExtraBold,
+                            onClick = {
+                                if (settings.logging.confirmFinish) {
+                                    showConfirmFinishDialog = true
+                                } else {
+                                    doFinishWorkout()
+                                }
+                            }
+                        )
+                    }
+                }
+            }
         }
 
         // T4: Wire confirmFinish setting to confirmation dialog
@@ -1037,6 +1123,36 @@ fun ExerciseLoggingCard(
     var showPlateCalcModal by remember { mutableStateOf(false) }
     var showRestTimerModal by remember { mutableStateOf(false) }
     var showAlternativesModal by remember { mutableStateOf(false) }
+    var showRemoveExerciseConfirm by remember { mutableStateOf(false) }
+    var showRemoveLastSetConfirm by remember { mutableStateOf(false) }
+
+    if (showRemoveExerciseConfirm) {
+        KumaDeleteConfirmationDialog(
+            title = s.removeExerciseConfirmTitle,
+            message = s.removeExerciseConfirmMessage(exercise.name),
+            confirmText = s.delete,
+            cancelText = s.cancel,
+            onConfirm = {
+                showRemoveExerciseConfirm = false
+                onRemoveExercise()
+            },
+            onDismiss = { showRemoveExerciseConfirm = false }
+        )
+    }
+
+    if (showRemoveLastSetConfirm) {
+        KumaDeleteConfirmationDialog(
+            title = s.removeLastSetConfirmTitle,
+            message = s.removeLastSetConfirmMessage,
+            confirmText = s.delete,
+            cancelText = s.cancel,
+            onConfirm = {
+                showRemoveLastSetConfirm = false
+                onRemoveLastSet()
+            },
+            onDismiss = { showRemoveLastSetConfirm = false }
+        )
+    }
 
     if (showAlternativesModal) {
         SmartAlternativeDialog(
@@ -1259,7 +1375,7 @@ fun ExerciseLoggingCard(
                             text = { Text(s.removeExerciseAction, style = MaterialTheme.typography.bodyMedium.copy(color = KumaColors.ErrorRed)) },
                             onClick = {
                                 showMenu = false
-                                onRemoveExercise()
+                                showRemoveExerciseConfirm = true
                             },
                             leadingIcon = {
                                 Icon(
@@ -1343,7 +1459,7 @@ fun ExerciseLoggingCard(
                                 text = s.progressionRepTarget,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = LocalKumaColors.current.accentFill
+                                    color = LocalKumaColors.current.accentText
                                 )
                             )
                             Spacer(modifier = Modifier.height(3.dp))
@@ -1559,7 +1675,7 @@ fun ExerciseLoggingCard(
                             .height(44.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(KumaColors.SurfaceContainer)
-                            .clickable(onClick = onRemoveLastSet),
+                            .clickable { showRemoveLastSetConfirm = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -1945,6 +2061,55 @@ fun SetRowItem(
 }
 
 @Composable
+private fun LoggerToolbarPill(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    contentDescription: String,
+    backgroundColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    labelColor: Color = contentColor,
+    fontWeight: FontWeight = FontWeight.SemiBold
+) {
+    val haptic = LocalHapticFeedback.current
+    val (interactionSource, pressScale) = rememberKumaPressScale(targetScale = 0.93f)
+    Row(
+        modifier = modifier
+            .kumaScale(pressScale)
+            .clip(PillShape)
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        KumaAnimatedIcon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = contentColor,
+            modifier = Modifier.size(17.dp)
+        )
+        Text(
+            text = label,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = fontWeight,
+                color = labelColor
+            )
+        )
+    }
+}
+
+@Composable
 fun FloatingRestTimerCard(
     timerState: com.bearbones.kumalift.core.timer.RestTimerState,
     addStepSec: Int = 30,
@@ -2000,13 +2165,17 @@ fun FloatingRestTimerCard(
             },
             contentAlignment = Alignment.Center
         ) {
+            val animatedTimerProgress = androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (isCompleted) 1f else timerState.progressFraction,
+                animationSpec = tween(durationMillis = 220)
+            ).value
             CircularProgressIndicator(
-                progress = { if (isCompleted) 1f else timerState.progressFraction },
+                progress = { animatedTimerProgress },
                 modifier = Modifier.size(32.dp),
                 color = if (isOvertime) colors.error else colors.accentChart,
                 trackColor = colors.surfaceVariant
             )
-            Icon(
+            KumaAnimatedIcon(
                 imageVector = when {
                     isCompleted -> Icons.Default.Check
                     timerState.isRunning -> Icons.Default.Pause

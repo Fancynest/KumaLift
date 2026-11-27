@@ -84,6 +84,7 @@ import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.core.util.UnitConverters
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -537,14 +538,20 @@ fun MeScreen(
                         // Measures Card
                         val bw = settings.profile.bodyweightKg
                         val ht = settings.profile.heightCm
-                        val measuresSubtitle = if (bw != null && ht != null) {
-                            "$bw kg · ${ht.toInt()} cm"
-                        } else if (bw != null) {
-                            "$bw kg"
-                        } else if (ht != null) {
-                            "${ht.toInt()} cm"
-                        } else {
-                            s.noMeasuresRecorded
+                        val unitStr = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
+                        val formattedBw = bw?.let {
+                            NumberFormatUtils.formatDecimal(
+                                UnitConverters.toDisplayWeight(it, settings.units.weightUnit),
+                                settings.appearance.language,
+                                1,
+                                trimTrailingZeros = true
+                            )
+                        }
+                        val measuresSubtitle = when {
+                            formattedBw != null && ht != null -> "$formattedBw $unitStr · ${ht.toInt()} ${s.sizeUnitCm}"
+                            formattedBw != null -> "$formattedBw $unitStr"
+                            ht != null -> "${ht.toInt()} ${s.sizeUnitCm}"
+                            else -> s.noMeasuresRecorded
                         }
                         DashboardCard(
                             modifier = Modifier
@@ -1197,12 +1204,18 @@ private fun MeasuresModal(
     val s = LocalStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var weightInput by remember {
-        mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "")
+    var weightInput by remember(settings.profile.bodyweightKg, settings.units.weightUnit) {
+        mutableStateOf(
+            settings.profile.bodyweightKg?.let { kg ->
+                val disp = UnitConverters.toDisplayWeight(kg, settings.units.weightUnit)
+                if (disp == disp.toLong().toDouble()) disp.toLong().toString() else disp.toString()
+            } ?: ""
+        )
     }
-    var heightInput by remember {
+    var heightInput by remember(settings.profile.heightCm) {
         mutableStateOf(settings.profile.heightCm?.toString() ?: "")
     }
+    var hasValidationError by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1240,25 +1253,53 @@ private fun MeasuresModal(
             ProfileField(
                 label = "${s.bodyHeightMeasureLabel} (${s.sizeUnitCm})",
                 value = heightInput,
-                onValueChange = { heightInput = it },
+                onValueChange = {
+                    heightInput = it
+                    hasValidationError = false
+                },
                 placeholder = "0"
             )
+
+            if (hasValidationError) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = s.enterValidWeightHint,
+                    style = MaterialTheme.typography.bodySmall.copy(color = colors.error)
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    val w = weightInput.toDoubleOrNull()
-                    val h = heightInput.toDoubleOrNull()
-                    settingsRepository.update { current ->
-                        current.copy(
-                            profile = current.profile.copy(
-                                bodyweightKg = w,
-                                heightCm = h
-                            )
-                        )
+                    val trimmedW = weightInput.trim()
+                    val trimmedH = heightInput.trim()
+                    val parsedW = if (trimmedW.isEmpty()) {
+                        null
+                    } else {
+                        NumberFormatUtils.parseDecimalInput(trimmedW)
+                            ?.takeIf { it.isFinite() && it > 0.0 && it <= 1000.0 }
+                            ?.let { UnitConverters.toStorageWeightKg(it, settings.units.weightUnit) }
                     }
-                    onDismiss()
+                    val parsedH = if (trimmedH.isEmpty()) {
+                        null
+                    } else {
+                        NumberFormatUtils.parseDecimalInput(trimmedH)
+                            ?.takeIf { it.isFinite() && it in 50.0..280.0 }
+                    }
+                    if ((trimmedW.isNotEmpty() && parsedW == null) || (trimmedH.isNotEmpty() && parsedH == null)) {
+                        hasValidationError = true
+                    } else {
+                        settingsRepository.update { current ->
+                            current.copy(
+                                profile = current.profile.copy(
+                                    bodyweightKg = parsedW,
+                                    heightCm = parsedH
+                                )
+                            )
+                        }
+                        onDismiss()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(

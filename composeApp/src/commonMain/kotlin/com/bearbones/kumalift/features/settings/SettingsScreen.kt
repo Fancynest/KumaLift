@@ -100,6 +100,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -109,7 +110,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,6 +138,9 @@ import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.core.notification.rememberNotificationPermissionLauncher
 import com.bearbones.kumalift.core.notification.rememberWorkoutReminderManager
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.core.util.UnitConverters
+import com.bearbones.kumalift.domain.ai.GeminiApiClient
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
@@ -175,7 +181,9 @@ fun SettingsScreen(
     databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
     workoutRepository: com.bearbones.kumalift.data.repository.WorkoutRepository? = null,
     secretStore: AiSecretStore = rememberAiSecretStore(),
+    geminiClient: GeminiApiClient = remember { GeminiApiClient() },
     initialDestination: SettingsDestination = SettingsDestination.MAIN,
+    onDataMutated: (resetToOnboarding: Boolean) -> Unit = {},
     onOpenAiChat: (() -> Unit)? = null,
     onNavigateBack: () -> Unit
 ) {
@@ -270,6 +278,7 @@ fun SettingsScreen(
                     ExportImportDataPage(
                         settingsRepository = settingsRepository,
                         databaseRepo = databaseRepo,
+                        onDataMutated = onDataMutated,
                         onNavigateBack = popDestination
                     )
                 }
@@ -289,6 +298,7 @@ fun SettingsScreen(
                     AiSettingsPage(
                         settingsRepository = settingsRepository,
                         secretStore = secretStore,
+                        geminiClient = geminiClient,
                         onNavigateBack = popDestination,
                         onOpenAiChat = onOpenAiChat
                     )
@@ -562,8 +572,18 @@ private fun ProfileSettingsPage(
     var selectedSex by remember { mutableStateOf(settings.profile.sex) }
     var selectedGoal by remember { mutableStateOf(settings.profile.goal) }
     var showScheduleModal by remember { mutableStateOf(false) }
-    var bwInput by remember { mutableStateOf(settings.profile.bodyweightKg?.toString() ?: "") }
-    var htInput by remember { mutableStateOf(settings.profile.heightCm?.toString() ?: "") }
+    var bwInput by remember(settings.profile.bodyweightKg, settings.units.weightUnit) {
+        mutableStateOf(
+            settings.profile.bodyweightKg?.let { kg ->
+                val disp = UnitConverters.toDisplayWeight(kg, settings.units.weightUnit)
+                if (disp == disp.toLong().toDouble()) disp.toLong().toString() else disp.toString()
+            } ?: ""
+        )
+    }
+    var htInput by remember(settings.profile.heightCm) {
+        mutableStateOf(settings.profile.heightCm?.toString() ?: "")
+    }
+    var measureValidationError by remember { mutableStateOf(false) }
     var avatarUriState by remember { mutableStateOf(settings.profile.avatarUri) }
     var pendingCropUri by remember { mutableStateOf<String?>(null) }
 
@@ -627,6 +647,27 @@ private fun ProfileSettingsPage(
 
                 Button(
                     onClick = {
+                        val trimmedW = bwInput.trim()
+                        val trimmedH = htInput.trim()
+                        val parsedBwKg = if (trimmedW.isEmpty()) {
+                            null
+                        } else {
+                            NumberFormatUtils.parseDecimalInput(trimmedW)
+                                ?.takeIf { it.isFinite() && it > 0.0 && it <= 1000.0 }
+                                ?.let { UnitConverters.toStorageWeightKg(it, settings.units.weightUnit) }
+                        }
+                        val parsedHtCm = if (trimmedH.isEmpty()) {
+                            null
+                        } else {
+                            NumberFormatUtils.parseDecimalInput(trimmedH)
+                                ?.takeIf { it.isFinite() && it in 50.0..280.0 }
+                        }
+                        if ((trimmedW.isNotEmpty() && parsedBwKg == null) ||
+                            (trimmedH.isNotEmpty() && parsedHtCm == null)
+                        ) {
+                            measureValidationError = true
+                            return@Button
+                        }
                         settingsRepository.update { current ->
                             current.copy(
                                 profile = current.profile.copy(
@@ -636,8 +677,8 @@ private fun ProfileSettingsPage(
                                     birthday = birthdayInput.trim(),
                                     sex = selectedSex,
                                     goal = selectedGoal,
-                                    bodyweightKg = bwInput.toDoubleOrNull(),
-                                    heightCm = htInput.toDoubleOrNull()
+                                    bodyweightKg = parsedBwKg,
+                                    heightCm = parsedHtCm
                                 )
                             )
                         }
@@ -798,24 +839,39 @@ private fun ProfileSettingsPage(
                 }
 
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            KumaInputField(
-                                label = "${s.bodyWeightMeasureLabel} (${s.unitKg})",
-                                value = bwInput,
-                                onValueChange = { bwInput = it },
-                                placeholder = "75.0"
-                            )
+                    val weightUnitStr = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                KumaInputField(
+                                    label = "${s.bodyWeightMeasureLabel} ($weightUnitStr)",
+                                    value = bwInput,
+                                    onValueChange = {
+                                        bwInput = it
+                                        measureValidationError = false
+                                    },
+                                    placeholder = "75.0"
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                KumaInputField(
+                                    label = "${s.bodyHeightMeasureLabel} (${s.sizeUnitCm})",
+                                    value = htInput,
+                                    onValueChange = {
+                                        htInput = it
+                                        measureValidationError = false
+                                    },
+                                    placeholder = "175.0"
+                                )
+                            }
                         }
-                        Box(modifier = Modifier.weight(1f)) {
-                            KumaInputField(
-                                label = "${s.bodyHeightMeasureLabel} (${s.sizeUnitCm})",
-                                value = htInput,
-                                onValueChange = { htInput = it },
-                                placeholder = "175.0"
+                        if (measureValidationError) {
+                            Text(
+                                text = s.enterValidWeightHint,
+                                style = MaterialTheme.typography.bodySmall.copy(color = colors.error)
                             )
                         }
                     }
@@ -1376,21 +1432,33 @@ private fun NotificationSettingsPage(
                                                 )
                                             }
 
-                                            IconButton(
-                                                onClick = {
-                                                    deleteCustomAudioFile(customFilePath)
-                                                    SoundManager.stopSound()
-                                                    isCustomPreviewPlaying = false
-                                                    settingsRepository.update {
-                                                        it.copy(
-                                                            notifications = it.notifications.copy(
-                                                                restTimerSoundSource = RestTimerSoundSource.BUILTIN,
-                                                                customRestTimerSoundPath = null,
-                                                                customRestTimerSoundName = null
+                                            var showDeleteCustomSoundDialog by remember { mutableStateOf(false) }
+                                            if (showDeleteCustomSoundDialog) {
+                                                KumaDeleteConfirmationDialog(
+                                                    title = s.removeCustomSoundConfirmTitle,
+                                                    message = s.removeCustomSoundConfirmMessage,
+                                                    confirmText = s.delete,
+                                                    cancelText = s.cancel,
+                                                    onConfirm = {
+                                                        showDeleteCustomSoundDialog = false
+                                                        deleteCustomAudioFile(customFilePath)
+                                                        SoundManager.stopSound()
+                                                        isCustomPreviewPlaying = false
+                                                        settingsRepository.update {
+                                                            it.copy(
+                                                                notifications = it.notifications.copy(
+                                                                    restTimerSoundSource = RestTimerSoundSource.BUILTIN,
+                                                                    customRestTimerSoundPath = null,
+                                                                    customRestTimerSoundName = null
+                                                                )
                                                             )
-                                                        )
-                                                    }
-                                                },
+                                                        }
+                                                    },
+                                                    onDismiss = { showDeleteCustomSoundDialog = false }
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { showDeleteCustomSoundDialog = true },
                                                 modifier = Modifier.size(32.dp)
                                             ) {
                                                 Icon(
@@ -3105,6 +3173,7 @@ private fun ThemeSettingsPage(
 private fun ExportImportDataPage(
     settingsRepository: SettingsRepository,
     databaseRepo: com.bearbones.kumalift.data.local.KumaDatabaseRepository? = null,
+    onDataMutated: (resetToOnboarding: Boolean) -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
     val colors = LocalKumaColors.current
@@ -3175,11 +3244,15 @@ private fun ExportImportDataPage(
                 passwordInput = ""
                 showPasswordPromptDialog = true
             } else {
-                val unpackResult = backupManager?.unpackBackupPayload(bytes)
-                if (unpackResult?.isSuccess == true) {
-                    pendingImportContent = unpackResult.getOrNull()
-                } else {
-                    statusMessage = s.failedToRestoreBackup
+                coroutineScope.launch {
+                    val unpackResult = withContext(Dispatchers.Default) {
+                        backupManager?.unpackBackupPayload(bytes)
+                    }
+                    if (unpackResult?.isSuccess == true) {
+                        pendingImportContent = unpackResult.getOrNull()
+                    } else {
+                        statusMessage = s.failedToRestoreBackup
+                    }
                 }
             }
         } else {
@@ -3323,6 +3396,9 @@ private fun ExportImportDataPage(
                                 strings = s,
                                 onSettingsRestored = { settingsRepository.save(it) }
                             )
+                            if (result?.success == true) {
+                                onDataMutated(false)
+                            }
                             statusMessage = result?.message ?: s.failedToMergeBackup
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = KumaColors.SurfaceContainerHigh)
@@ -3346,6 +3422,9 @@ private fun ExportImportDataPage(
                                 strings = s,
                                 onSettingsRestored = { settingsRepository.save(it) }
                             )
+                            if (result?.success == true) {
+                                onDataMutated(false)
+                            }
                             statusMessage = result?.message ?: s.failedToRestoreBackup
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
@@ -3396,13 +3475,19 @@ private fun ExportImportDataPage(
                 Button(
                     onClick = {
                         val bytes = pendingImportBytes!!
-                        val unpackResult = backupManager?.unpackBackupPayload(bytes, passwordInput)
+                        val pass = passwordInput
                         showPasswordPromptDialog = false
                         pendingImportBytes = null
-                        if (unpackResult?.isSuccess == true) {
-                            pendingImportContent = unpackResult.getOrNull()
-                        } else {
-                            statusMessage = BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED.localizedMessage(s)
+                        passwordInput = ""
+                        coroutineScope.launch {
+                            val unpackResult = withContext(Dispatchers.Default) {
+                                backupManager?.unpackBackupPayload(bytes, pass)
+                            }
+                            if (unpackResult?.isSuccess == true) {
+                                pendingImportContent = unpackResult.getOrNull()
+                            } else {
+                                statusMessage = BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED.localizedMessage(s)
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
@@ -3454,12 +3539,16 @@ private fun ExportImportDataPage(
                         showSetPasswordExportDialog = false
                         exportPasswordInput = ""
                         if (pass.isNotEmpty() && backupManager != null) {
-                            val encryptedBytes = backupManager.exportPackage(settings, pass)
-                            val now = currentEpochMillis()
-                            val fileName = "KumaLift_Encrypted_$now.kumalift"
-                            pendingExportHash = backupManager.computeContentHash(settings)
-                            pendingExportFileName = fileName
-                            exportBytesLauncher(fileName, "application/octet-stream", encryptedBytes)
+                            coroutineScope.launch {
+                                val encryptedBytes = withContext(Dispatchers.Default) {
+                                    backupManager.exportPackage(settings, pass)
+                                }
+                                val now = currentEpochMillis()
+                                val fileName = "KumaLift_Encrypted_$now.kumalift"
+                                pendingExportHash = backupManager.computeContentHash(settings)
+                                pendingExportFileName = fileName
+                                exportBytesLauncher(fileName, "application/octet-stream", encryptedBytes)
+                            }
                         }
                     },
                     enabled = exportPasswordInput.isNotBlank(),
@@ -3497,11 +3586,12 @@ private fun ExportImportDataPage(
                     onClick = {
                         showClearHistoryDialog = false
                         databaseRepo?.clearWorkoutHistoryOnly()
+                        onDataMutated(false)
                         statusMessage = s.workoutHistoryClearedSuccess
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error)
                 ) {
-                    Text(s.deleteHistoryButton, color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                    Text(s.deleteHistoryButton, color = colors.onError, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
@@ -3534,11 +3624,12 @@ private fun ExportImportDataPage(
                         showDeleteAllDialog = false
                         databaseRepo?.wipeAllUserData()
                         settingsRepository.save(UserSettings())
+                        onDataMutated(true)
                         statusMessage = s.allDataDeletedSuccess
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = KumaColors.ErrorRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error)
                 ) {
-                    Text(s.deleteEverythingButton, color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                    Text(s.deleteEverythingButton, color = colors.onError, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                 }
             },
             dismissButton = {
@@ -4033,6 +4124,9 @@ private fun ExportImportDataPage(
                                         ) {
                                             settingsRepository.save(it)
                                         }
+                                        if (result.success) {
+                                            onDataMutated(false)
+                                        }
                                         statusMessage = result.message
                                     }
                                 }
@@ -4138,14 +4232,26 @@ private fun ExportImportDataPage(
                                     }
                                 )
                                 SettingsDivider()
+                                var showClearDiagnosticLogDialog by remember { mutableStateOf(false) }
+                                if (showClearDiagnosticLogDialog) {
+                                    KumaDeleteConfirmationDialog(
+                                        title = s.clearDiagnosticLogConfirmTitle,
+                                        message = s.clearDiagnosticLogConfirmMessage,
+                                        confirmText = s.delete,
+                                        cancelText = s.cancel,
+                                        onConfirm = {
+                                            showClearDiagnosticLogDialog = false
+                                            KumaLogger.clear()
+                                            statusMessage = s.diagnosticLogCleared
+                                        },
+                                        onDismiss = { showClearDiagnosticLogDialog = false }
+                                    )
+                                }
                                 SettingsNavigationRow(
                                     icon = Icons.Default.DeleteForever,
                                     title = s.clearDiagnosticLogTitle,
                                     subtitle = s.clearDiagnosticLogSubtitle,
-                                    onClick = {
-                                        KumaLogger.clear()
-                                        statusMessage = s.diagnosticLogCleared
-                                    }
+                                    onClick = { showClearDiagnosticLogDialog = true }
                                 )
                             }
                         }

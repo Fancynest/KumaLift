@@ -31,7 +31,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -44,29 +46,43 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,24 +102,38 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bearbones.kumalift.core.ai.AiChatFullscreenImageViewer
 import com.bearbones.kumalift.core.ai.AiChatImageThumbnail
 import com.bearbones.kumalift.core.ai.AiSecretStore
+import com.bearbones.kumalift.core.ai.MAX_AI_CHAT_IMAGES
 import com.bearbones.kumalift.core.ai.rememberAiMediaLaunchers
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
+import com.bearbones.kumalift.core.designsystem.KumaLogoMark
+import com.bearbones.kumalift.core.designsystem.KumaAnimatedIcon
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
+import com.bearbones.kumalift.core.designsystem.kumaScale
+import com.bearbones.kumalift.core.designsystem.rememberKumaPressScale
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.ai.AiActionProposal
 import com.bearbones.kumalift.domain.ai.AiChatMessage
 import com.bearbones.kumalift.domain.ai.AiChatRole
+import com.bearbones.kumalift.domain.ai.AiChatThread
 import com.bearbones.kumalift.domain.ai.AiNutritionCardData
 import com.bearbones.kumalift.domain.ai.AiOperationKind
 import com.bearbones.kumalift.domain.ai.AiProposalStatus
 import com.bearbones.kumalift.domain.ai.KumaAiAgentService
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.random.Random
 
 @Composable
 fun KumaAiChatScreen(
@@ -113,6 +143,9 @@ fun KumaAiChatScreen(
     onNavigateBack: () -> Unit,
     onOpenAiSettings: () -> Unit
 ) {
+    val threads by agentService.threads.collectAsState()
+    val currentThreadId by agentService.currentThreadId.collectAsState()
+    val isTemporaryChat by agentService.isTemporaryChat.collectAsState()
     val messages by agentService.messages.collectAsState()
     val isWorking by agentService.isWorking.collectAsState()
     val liveSteps by agentService.liveStepLogs.collectAsState()
@@ -121,14 +154,33 @@ fun KumaAiChatScreen(
 
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    var composerText by remember { mutableStateOf("") }
-    var attachedImagePath by remember { mutableStateOf<String?>(null) }
-    var showClearChatDialog by remember { mutableStateOf(false) }
+    val athleteGreetingName = remember(settings.profile.username, settings.profile.name, s.athleteDefault) {
+        settings.profile.username.ifBlank { settings.profile.name.ifBlank { s.athleteDefault } }
+    }
+    var greetingIndex by rememberSaveable { mutableStateOf(Random.nextInt(5)) }
+    var composerText by rememberSaveable { mutableStateOf("") }
+    var attachedImagePaths by rememberSaveable(
+        stateSaver = listSaver<List<String>, String>(save = { it }, restore = { it })
+    ) { mutableStateOf<List<String>>(emptyList()) }
+    var fullscreenPreviewState by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    var pendingDeleteThread by remember { mutableStateOf<AiChatThread?>(null) }
+    var showAttachMenu by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    val mediaLaunchers = rememberAiMediaLaunchers { path ->
-        attachedImagePath = path
+    KumaBackHandler(enabled = fullscreenPreviewState != null || drawerState.isOpen) {
+        when {
+            fullscreenPreviewState != null -> fullscreenPreviewState = null
+            drawerState.isOpen -> scope.launch { drawerState.close() }
+        }
+    }
+
+    val mediaLaunchers = rememberAiMediaLaunchers { newlyPicked ->
+        attachedImagePaths = (attachedImagePaths + newlyPicked)
+            .distinct()
+            .take(MAX_AI_CHAT_IMAGES)
     }
 
     LaunchedEffect(messages.size, isWorking) {
@@ -138,218 +190,344 @@ fun KumaAiChatScreen(
         }
     }
 
-    if (showClearChatDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearChatDialog = false },
-            containerColor = KumaColors.SurfaceContainer,
-            title = {
-                Text(
-                    text = s.aiClearChatConfirmTitle,
-                    color = colors.textPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = s.aiClearChatConfirmMessage,
-                    color = colors.textSecondary
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showClearChatDialog = false
-                        agentService.clearChat()
-                    }
-                ) {
-                    Text(
-                        text = s.aiClearChatConfirmAction,
-                        color = colors.error,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearChatDialog = false }) {
-                    Text(text = s.cancel, color = colors.textSecondary)
-                }
-            }
+    fullscreenPreviewState?.let { (previewPaths, previewIndex) ->
+        AiChatFullscreenImageViewer(
+            imagePaths = previewPaths,
+            initialIndex = previewIndex,
+            closeContentDescription = s.close,
+            pageIndicatorProvider = s::aiPhotoPageIndicator,
+            onDismiss = { fullscreenPreviewState = null }
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(KumaColors.CanvasLowest)
-    ) {
-        // Top App Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(KumaColors.SurfaceDim)
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(KumaColors.SurfaceContainer)
-                    .clickable(onClick = onNavigateBack),
-                contentAlignment = Alignment.Center
+    pendingDeleteThread?.let { targetThread ->
+        KumaDeleteConfirmationDialog(
+            title = s.aiDeleteThreadTitle,
+            message = s.aiDeleteThreadMessage(targetThread.title),
+            confirmText = s.delete,
+            cancelText = s.cancel,
+            onConfirm = {
+                pendingDeleteThread = null
+                agentService.deleteThread(targetThread.id)
+            },
+            onDismiss = { pendingDeleteThread = null }
+        )
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = KumaColors.SurfaceDim,
+                drawerContentColor = colors.textPrimary,
+                modifier = Modifier.widthIn(max = 300.dp)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = s.back,
-                    tint = colors.textPrimary,
-                    modifier = Modifier.size(20.dp)
+                AiHistorySidebarContent(
+                    threads = threads,
+                    currentThreadId = currentThreadId,
+                    isTemporaryChat = isTemporaryChat,
+                    onNewChat = {
+                        greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
+                        agentService.startNewChat(temporary = false)
+                        scope.launch { drawerState.close() }
+                    },
+                    onToggleTemporary = { enabled ->
+                        greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
+                        agentService.setTemporaryChat(enabled)
+                        scope.launch { drawerState.close() }
+                    },
+                    onSelectThread = { tid ->
+                        agentService.selectThread(tid)
+                        scope.launch { drawerState.close() }
+                    },
+                    onRequestDeleteThread = { t ->
+                        pendingDeleteThread = t
+                    }
                 )
             }
-
-            Text(
-                text = s.aiTitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(KumaColors.CanvasLowest)
+        ) {
+            // Top App Bar
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .clickable(onClick = onOpenAiSettings),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            )
-
-            if (messages.isNotEmpty()) {
-                IconButton(
-                    onClick = { showClearChatDialog = true },
-                    modifier = Modifier.size(36.dp)
+                    .fillMaxWidth()
+                    .background(KumaColors.SurfaceDim)
+                    .statusBarsPadding()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable(onClick = onNavigateBack),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.EditNote,
-                        contentDescription = s.aiNewChatAction,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = s.back,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .clickable { scope.launch { drawerState.open() } },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = s.aiHistoryOpenDesc,
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                Text(
+                    text = s.aiTitle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable(onClick = onOpenAiSettings),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+
+                val (tempInteraction, tempScale) = rememberKumaPressScale(targetScale = 0.90f)
+                val tempHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .kumaScale(tempScale)
+                        .clip(CircleShape)
+                        .background(
+                            if (isTemporaryChat) colors.accentFill.copy(alpha = 0.16f)
+                            else Color.Transparent
+                        )
+                        .then(
+                            if (isTemporaryChat) Modifier.border(1.dp, colors.accentFillBorder, CircleShape)
+                            else Modifier
+                        )
+                        .clickable(
+                            interactionSource = tempInteraction,
+                            indication = androidx.compose.foundation.LocalIndication.current
+                        ) {
+                            tempHaptic.performHapticFeedback(
+                                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                            )
+                            greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
+                            agentService.toggleTemporaryChat()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    KumaAnimatedIcon(
+                        imageVector = Icons.Default.VisibilityOff,
+                        contentDescription = s.aiTempChatToggleDesc,
+                        tint = if (isTemporaryChat) colors.accentText else colors.textSecondary,
+                        modifier = Modifier.size(19.dp),
+                        rotationDegrees = if (isTemporaryChat) -12f else 0f
+                    )
+                }
+
+                if (messages.isNotEmpty() || currentThreadId != null) {
+                    IconButton(
+                        onClick = {
+                            greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
+                            agentService.startNewChat(temporary = false)
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = s.aiNewChatAction,
+                            tint = colors.textSecondary
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onOpenAiSettings,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = s.aiSettingsTitle,
                         tint = colors.textSecondary
                     )
                 }
             }
 
-            IconButton(
-                onClick = onOpenAiSettings,
-                modifier = Modifier.size(36.dp)
+            if (isTemporaryChat) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(KumaColors.SurfaceContainer.copy(alpha = 0.7f))
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VisibilityOff,
+                        contentDescription = null,
+                        tint = colors.accentText,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = s.aiTempChatBadge,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.accentText,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
+            }
+
+            // Chat Body
+            if (hasApiKey && messages.isEmpty() && !isWorking) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 28.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        if (isTemporaryChat) {
+                            Icon(
+                                imageVector = Icons.Default.VisibilityOff,
+                                contentDescription = null,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(52.dp)
+                            )
+                            Text(
+                                text = s.aiTempChatToggleDesc,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textPrimary
+                                )
+                            )
+                            Text(
+                                text = s.aiTempChatDesc,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = colors.textSecondary,
+                                    lineHeight = 19.sp
+                                )
+                            )
+                        } else {
+                            KumaLogoMark(
+                                modifier = Modifier.size(64.dp),
+                                darkColor = KumaColors.CanvasLowest
+                            )
+                            Text(
+                                text = s.aiEmptyGreeting(greetingIndex, athleteGreetingName),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.textPrimary,
+                                    lineHeight = 30.sp
+                                )
+                            )
+                        }
+                    }
+                }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = s.aiSettingsTitle,
-                    tint = colors.textSecondary
-                )
-            }
-        }
-
-        // Chat Body
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            if (!hasApiKey && messages.isEmpty()) {
-                item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainer,
-                        borderColor = colors.accentFillBorder,
-                        cornerRadius = 16.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                if (!hasApiKey && messages.isEmpty()) {
+                    item {
+                        KumaCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            backgroundColor = KumaColors.SurfaceContainer,
+                            borderColor = colors.accentFillBorder,
+                            cornerRadius = 16.dp
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
-                                contentDescription = null,
-                                tint = colors.accentText,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Text(
-                                text = s.aiSetupNeededTitle,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textPrimary
+                            Column(
+                                modifier = Modifier.padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Chat,
+                                    contentDescription = null,
+                                    tint = colors.accentText,
+                                    modifier = Modifier.size(32.dp)
                                 )
+                                Text(
+                                    text = s.aiSetupNeededTitle,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.textPrimary
+                                    )
+                                )
+                                Text(
+                                    text = s.aiSetupNeededDesc,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                KumaPrimaryButton(
+                                    text = s.aiOpenSettingsAction,
+                                    onClick = onOpenAiSettings,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                items(messages, key = { it.id }) { msg ->
+                    Box(modifier = Modifier.animateItem()) {
+                        if (msg.role == AiChatRole.USER) {
+                            UserChatBubble(
+                                message = msg,
+                                onImageClick = { paths, idx ->
+                                    fullscreenPreviewState = paths to idx
+                                }
                             )
-                            Text(
-                                text = s.aiSetupNeededDesc,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            KumaPrimaryButton(
-                                text = s.aiOpenSettingsAction,
-                                onClick = onOpenAiSettings,
-                                modifier = Modifier.fillMaxWidth()
+                        } else {
+                            AssistantChatMessageBlock(
+                                message = msg,
+                                onApproveProposal = { agentService.approveProposal(msg.id, s) },
+                                onCancelProposal = { agentService.cancelProposal(msg.id) }
                             )
                         }
                     }
                 }
-            } else if (messages.isEmpty()) {
-                item {
-                    KumaCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        backgroundColor = KumaColors.SurfaceContainer,
-                        cornerRadius = 16.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Chat,
-                                contentDescription = null,
-                                tint = colors.accentText,
-                                modifier = Modifier.size(28.dp)
-                            )
-                            Text(
-                                text = s.aiEmptyStarterTitle,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textPrimary
-                                )
-                            )
-                            Text(
-                                text = s.aiEmptyStarterDesc,
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
-                            )
-                        }
+
+                if (isWorking) {
+                    item(key = "live_working_indicator") {
+                        AssistantThinkingBubble(
+                            statusLabel = liveSteps.lastOrNull() ?: s.aiThinkingStatus
+                        )
                     }
-                }
-            }
-
-            items(messages, key = { it.id }) { msg ->
-                if (msg.role == AiChatRole.USER) {
-                    UserChatBubble(message = msg)
-                } else {
-                    AssistantChatMessageBlock(
-                        message = msg,
-                        onApproveProposal = { agentService.approveProposal(msg.id, s) },
-                        onCancelProposal = { agentService.cancelProposal(msg.id) }
-                    )
-                }
-            }
-
-            if (isWorking) {
-                item(key = "live_working_indicator") {
-                    AssistantThinkingBubble(
-                        statusLabel = liveSteps.lastOrNull() ?: s.aiThinkingStatus
-                    )
                 }
             }
         }
@@ -365,32 +543,66 @@ fun KumaAiChatScreen(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Pending Attached Photo Chip
-            attachedImagePath?.let { imgPath ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(KumaColors.SurfaceContainer)
-                        .border(1.dp, colors.border, RoundedCornerShape(12.dp))
-                        .padding(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AiChatImageThumbnail(
-                        imagePath = imgPath,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    IconButton(
-                        onClick = { attachedImagePath = null },
-                        modifier = Modifier.size(28.dp)
+            // Pending Attached Photos Strip (tap any thumbnail to view full size before sending)
+            if (attachedImagePaths.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = s.aiRemoveAttachmentDesc,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(16.dp)
+                        Text(
+                            text = s.aiSelectedImagesCount(attachedImagePaths.size, MAX_AI_CHAT_IMAGES),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.textSecondary,
+                                fontWeight = FontWeight.Medium
+                            )
                         )
+                        if (attachedImagePaths.size >= MAX_AI_CHAT_IMAGES) {
+                            Text(
+                                text = s.aiMaxPhotosHint,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = colors.accentText
+                                )
+                            )
+                        }
+                    }
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(attachedImagePaths) { idx, imgPath ->
+                            Box(modifier = Modifier.size(64.dp)) {
+                                AiChatImageThumbnail(
+                                    imagePath = imgPath,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            fullscreenPreviewState = attachedImagePaths to idx
+                                        }
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(3.dp)
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.72f))
+                                        .clickable {
+                                            attachedImagePaths = attachedImagePaths.filterIndexed { i, _ -> i != idx }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = s.aiRemoveAttachmentDesc,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -431,7 +643,8 @@ fun KumaAiChatScreen(
                 }
             }
 
-            // Input Pill + Camera / Gallery + Send / Stop
+            // Input Pill (+ Attach Menu + Composer) + Send / Stop
+            val remainingPhotoSlots = (MAX_AI_CHAT_IMAGES - attachedImagePaths.size).coerceAtLeast(0)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -444,9 +657,95 @@ fun KumaAiChatScreen(
                         .clip(PillShape)
                         .background(KumaColors.SurfaceContainer)
                         .border(1.dp, colors.border, PillShape)
-                        .padding(start = 16.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                        .padding(start = 6.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box {
+                        val canAttachMore = !isWorking && remainingPhotoSlots > 0
+                        val attachHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                        val (attachInteraction, attachScale) = rememberKumaPressScale(
+                            enabled = canAttachMore,
+                            targetScale = 0.90f
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .kumaScale(attachScale)
+                                .clip(CircleShape)
+                                .background(KumaColors.SurfaceContainerHigh)
+                                .clickable(
+                                    enabled = canAttachMore,
+                                    interactionSource = attachInteraction,
+                                    indication = androidx.compose.foundation.LocalIndication.current
+                                ) {
+                                    attachHaptic.performHapticFeedback(
+                                        androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                    )
+                                    showAttachMenu = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            KumaAnimatedIcon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = s.aiAttachMediaDesc,
+                                tint = if (canAttachMore) colors.textPrimary else colors.textSubtle,
+                                modifier = Modifier.size(20.dp),
+                                rotationDegrees = if (showAttachMenu) 45f else 0f
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showAttachMenu,
+                            onDismissRequest = { showAttachMenu = false },
+                            modifier = Modifier.background(KumaColors.SurfaceContainer)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = s.aiCameraDesc,
+                                        color = colors.textPrimary,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.PhotoCamera,
+                                        contentDescription = null,
+                                        tint = colors.accentText
+                                    )
+                                },
+                                enabled = remainingPhotoSlots > 0,
+                                onClick = {
+                                    showAttachMenu = false
+                                    mediaLaunchers.launchCamera()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = s.aiGalleryDesc,
+                                        color = colors.textPrimary,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Image,
+                                        contentDescription = null,
+                                        tint = colors.accentText
+                                    )
+                                },
+                                enabled = remainingPhotoSlots > 0,
+                                onClick = {
+                                    showAttachMenu = false
+                                    mediaLaunchers.launchGallery(remainingPhotoSlots)
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -474,54 +773,44 @@ fun KumaAiChatScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-
-                    IconButton(
-                        onClick = { mediaLaunchers.launchCamera() },
-                        enabled = !isWorking,
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PhotoCamera,
-                            contentDescription = s.aiCameraDesc,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { mediaLaunchers.launchGallery() },
-                        enabled = !isWorking,
-                        modifier = Modifier.size(34.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = s.aiGalleryDesc,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
 
+                val sendHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+                val canSendOrStop = isWorking || composerText.isNotBlank() || attachedImagePaths.isNotEmpty()
+                val (sendInteraction, sendScale) = rememberKumaPressScale(
+                    enabled = canSendOrStop,
+                    targetScale = 0.90f
+                )
+                val sendBgColor = androidx.compose.animation.animateColorAsState(
+                    targetValue = if (isWorking) colors.errorTint
+                    else if (composerText.isNotBlank() || attachedImagePaths.isNotEmpty()) colors.accentFill
+                    else KumaColors.SurfaceContainerHigh,
+                    animationSpec = androidx.compose.animation.core.tween(160)
+                ).value
                 Box(
                     modifier = Modifier
                         .size(46.dp)
+                        .kumaScale(sendScale)
                         .clip(CircleShape)
-                        .background(
-                            if (isWorking) colors.errorTint
-                            else if (composerText.isNotBlank() || attachedImagePath != null) colors.accentFill
-                            else KumaColors.SurfaceContainerHigh
-                        )
-                        .clickable {
+                        .background(sendBgColor)
+                        .clickable(
+                            enabled = canSendOrStop,
+                            interactionSource = sendInteraction,
+                            indication = androidx.compose.foundation.LocalIndication.current
+                        ) {
+                            sendHaptic.performHapticFeedback(
+                                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                            )
                             if (isWorking) {
                                 agentService.stopCurrentRequest()
-                            } else if (composerText.isNotBlank() || attachedImagePath != null) {
+                            } else if (composerText.isNotBlank() || attachedImagePaths.isNotEmpty()) {
                                 val textToSend = composerText
-                                val imgToSend = attachedImagePath
+                                val imgsToSend = attachedImagePaths
                                 composerText = ""
-                                attachedImagePath = null
+                                attachedImagePaths = emptyList()
                                 agentService.sendMessage(
                                     promptText = textToSend,
-                                    imagePath = imgToSend,
+                                    imagePaths = imgsToSend,
                                     strings = s,
                                     language = settings.appearance.language
                                 )
@@ -529,14 +818,219 @@ fun KumaAiChatScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
+                    KumaAnimatedIcon(
                         imageVector = if (isWorking) Icons.Default.Stop else Icons.AutoMirrored.Filled.Send,
                         contentDescription = if (isWorking) s.aiStopDesc else s.aiSendDesc,
                         tint = if (isWorking) colors.error
-                        else if (composerText.isNotBlank() || attachedImagePath != null) colors.onAccentFill
+                        else if (composerText.isNotBlank() || attachedImagePaths.isNotEmpty()) colors.onAccentFill
                         else colors.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
+                }
+            }
+        }
+        }
+    }
+}
+
+@Composable
+private fun AiHistorySidebarContent(
+    threads: List<AiChatThread>,
+    currentThreadId: String?,
+    isTemporaryChat: Boolean,
+    onNewChat: () -> Unit,
+    onToggleTemporary: (Boolean) -> Unit,
+    onSelectThread: (String) -> Unit,
+    onRequestDeleteThread: (AiChatThread) -> Unit
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val tz = remember { TimeZone.currentSystemDefault() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            KumaLogoMark(
+                modifier = Modifier.size(28.dp),
+                darkColor = KumaColors.SurfaceDim
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = s.aiTitle,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+                Text(
+                    text = s.aiHistoryTitle,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = colors.textSecondary
+                    )
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.accentFill)
+                .clickable(onClick = onNewChat)
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.EditNote,
+                contentDescription = null,
+                tint = colors.onAccentFill,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = s.aiNewChatAction,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    color = colors.onAccentFill,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(KumaColors.SurfaceContainer)
+                .border(
+                    1.dp,
+                    if (isTemporaryChat) colors.accentFillBorder else colors.border,
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable { onToggleTemporary(!isTemporaryChat) }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.VisibilityOff,
+                contentDescription = null,
+                tint = if (isTemporaryChat) colors.accentText else colors.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = s.aiTempChatToggleDesc,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Medium
+                )
+            )
+            Switch(
+                checked = isTemporaryChat,
+                onCheckedChange = onToggleTemporary,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = colors.onAccentFill,
+                    checkedTrackColor = colors.accentFill,
+                    uncheckedThumbColor = colors.textSecondary,
+                    uncheckedTrackColor = KumaColors.SurfaceContainerHigh
+                )
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(colors.border)
+        )
+
+        if (threads.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = s.aiHistoryEmpty,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textSubtle)
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(threads, key = { it.id }) { thread ->
+                    val isSelected = !isTemporaryChat && thread.id == currentThreadId
+                    val dateLabel = remember(thread.updatedAtEpochMs) {
+                        if (thread.updatedAtEpochMs > 0L) {
+                            Instant.fromEpochMilliseconds(thread.updatedAtEpochMs)
+                                .toLocalDateTime(tz).date.toString()
+                        } else ""
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) KumaColors.SurfaceContainerHigh
+                                else KumaColors.SurfaceContainer.copy(alpha = 0.6f)
+                            )
+                            .then(
+                                if (isSelected) Modifier.border(1.dp, colors.accentFillBorder, RoundedCornerShape(12.dp))
+                                else Modifier
+                            )
+                            .clickable { onSelectThread(thread.id) }
+                            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = thread.title.ifBlank { s.aiTitle },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isSelected) colors.accentText else colors.textPrimary
+                                )
+                            )
+                            if (dateLabel.isNotBlank()) {
+                                Text(
+                                    text = dateLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = colors.textSubtle
+                                    )
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = { onRequestDeleteThread(thread) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = s.aiDeleteThreadDesc,
+                                tint = colors.textSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -544,8 +1038,12 @@ fun KumaAiChatScreen(
 }
 
 @Composable
-private fun UserChatBubble(message: AiChatMessage) {
+private fun UserChatBubble(
+    message: AiChatMessage,
+    onImageClick: (List<String>, Int) -> Unit
+) {
     val colors = LocalKumaColors.current
+    val imgs = message.effectiveImagePaths
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End
@@ -559,14 +1057,32 @@ private fun UserChatBubble(message: AiChatMessage) {
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            message.imagePath?.let { path ->
+            if (imgs.size == 1) {
                 AiChatImageThumbnail(
-                    imagePath = path,
+                    imagePath = imgs.first(),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp)
+                        .height(170.dp)
+                        .clickable { onImageClick(imgs, 0) }
                 )
+            } else if (imgs.size > 1) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    imgs.chunked(3).forEachIndexed { rowIdx, rowItems ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            rowItems.forEachIndexed { colIdx, path ->
+                                val globalIdx = rowIdx * 3 + colIdx
+                                AiChatImageThumbnail(
+                                    imagePath = path,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(82.dp)
+                                        .clickable { onImageClick(imgs, globalIdx) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
             if (message.text.isNotBlank()) {
                 Text(

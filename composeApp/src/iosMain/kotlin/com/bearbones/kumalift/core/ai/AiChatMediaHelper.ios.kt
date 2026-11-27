@@ -16,12 +16,21 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 
 @Composable
 actual fun rememberAiMediaLaunchers(
-    onImageReady: (String) -> Unit
+    onImagesReady: (List<String>) -> Unit
 ): AiMediaLaunchers {
     return remember { AiMediaLaunchers(launchCamera = {}, launchGallery = {}) }
 }
 
 actual suspend fun loadCompressedImageBase64(localPath: String): Pair<String, String>? = null
+
+@Composable
+actual fun AiChatFullscreenImageViewer(
+    imagePaths: List<String>,
+    initialIndex: Int,
+    closeContentDescription: String,
+    pageIndicatorProvider: (current: Int, total: Int) -> String,
+    onDismiss: () -> Unit
+) = Unit
 
 @Composable
 actual fun AiChatImageThumbnail(

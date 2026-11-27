@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -64,16 +65,44 @@ actual fun ControllableGifPlayer(
                 try {
                     spriteResult = DefaultSpriteCache.getOrLoad(stem) {
                         withContext(Dispatchers.IO) {
-                            context.assets.open("anim/$stem.webp").use { stream ->
-                                val bitmap = BitmapFactory.decodeStream(stream)
+                            val assetPathWebp = "anim/$stem.webp"
+                            val boundsOpts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                            context.assets.open(assetPathWebp).use { stream ->
+                                BitmapFactory.decodeStream(stream, null, boundsOpts)
+                            }
+                            val rawW = if (boundsOpts.outWidth > 0) boundsOpts.outWidth else meta.frameW * meta.cols
+                            val rawH = if (boundsOpts.outHeight > 0) boundsOpts.outHeight else meta.frameH * meta.rows
+                            var sampleSize = 1
+                            if (rawW > 0 && rawH > 0) {
+                                val maxBytes = 24L * 1024L * 1024L
+                                while ((rawW / sampleSize) > 4096 || (rawH / sampleSize) > 4096 ||
+                                    ((rawW / sampleSize).toLong() * (rawH / sampleSize).toLong() * 4L) > maxBytes
+                                ) {
+                                    sampleSize *= 2
+                                }
+                            }
+                            val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+                            context.assets.open(assetPathWebp).use { stream ->
+                                val bitmap = BitmapFactory.decodeStream(stream, null, decodeOpts)
                                     ?: throw IllegalStateException("Failed to decode WebP stream for $stem")
+                                val scaledMeta = if (meta.cols > 0 && meta.rows > 0 &&
+                                    (bitmap.width != meta.frameW * meta.cols || bitmap.height != meta.frameH * meta.rows)
+                                ) {
+                                    meta.copy(
+                                        frameW = (bitmap.width / meta.cols).coerceAtLeast(1),
+                                        frameH = (bitmap.height / meta.rows).coerceAtLeast(1)
+                                    )
+                                } else {
+                                    meta
+                                }
                                 val imageBitmap = bitmap.asImageBitmap()
                                 val byteSize = bitmap.allocationByteCount.toLong()
-                                SpriteAnimation(stem, imageBitmap, meta, byteSize)
+                                SpriteAnimation(stem, imageBitmap, scaledMeta, byteSize)
                             }
                         }
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     spriteResult = null
                 }
             }
@@ -93,7 +122,8 @@ actual fun ControllableGifPlayer(
                 loadedGif = gifResult
                 loadedSprite = null
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
             loadedSprite = null
             loadedGif = null
         } finally {

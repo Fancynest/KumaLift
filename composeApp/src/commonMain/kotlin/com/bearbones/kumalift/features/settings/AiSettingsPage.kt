@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.ai.AiSecretStore
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
 import com.bearbones.kumalift.core.localization.LocalStrings
@@ -73,6 +74,7 @@ import kotlinx.coroutines.launch
 fun AiSettingsPage(
     settingsRepository: SettingsRepository,
     secretStore: AiSecretStore,
+    geminiClient: GeminiApiClient = remember { GeminiApiClient() },
     onNavigateBack: () -> Unit,
     onOpenAiChat: (() -> Unit)? = null
 ) {
@@ -80,7 +82,6 @@ fun AiSettingsPage(
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     val scope = rememberCoroutineScope()
-    val geminiClient = remember { GeminiApiClient() }
 
     var apiKeyInput by remember { mutableStateOf(secretStore.getGeminiApiKey()) }
     val hasStoredKey by secretStore.hasApiKeyFlow.collectAsState()
@@ -204,6 +205,23 @@ fun AiSettingsPage(
                                     )
                                 )
                             }
+                            var showClearKeyDialog by remember { mutableStateOf(false) }
+                            if (showClearKeyDialog) {
+                                KumaDeleteConfirmationDialog(
+                                    title = s.aiClearKeyConfirmTitle,
+                                    message = s.aiClearKeyConfirmMessage,
+                                    confirmText = s.aiClearApiKeyAction,
+                                    cancelText = s.cancel,
+                                    onConfirm = {
+                                        showClearKeyDialog = false
+                                        secretStore.clearGeminiApiKey()
+                                        apiKeyInput = ""
+                                        testStatusMessage = null
+                                        testStatusSuccess = null
+                                    },
+                                    onDismiss = { showClearKeyDialog = false }
+                                )
+                            }
                             if (hasStoredKey) {
                                 Text(
                                     text = s.aiClearApiKeyAction,
@@ -213,12 +231,7 @@ fun AiSettingsPage(
                                     ),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
-                                        .clickable {
-                                            secretStore.clearGeminiApiKey()
-                                            apiKeyInput = ""
-                                            testStatusMessage = null
-                                            testStatusSuccess = null
-                                        }
+                                        .clickable { showClearKeyDialog = true }
                                         .padding(horizontal = 8.dp, vertical = 6.dp)
                                 )
                             }

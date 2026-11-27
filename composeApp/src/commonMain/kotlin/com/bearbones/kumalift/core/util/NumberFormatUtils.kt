@@ -19,22 +19,31 @@ object NumberFormatUtils {
         trimTrailingZeros: Boolean = false
     ): String {
         if (value.isNaN() || value.isInfinite()) return "0"
+        val safeDecimals = decimals.coerceIn(0, 6)
         val followsEnglish = resolveIsEnglish(language)
-        val factor = 10.0.pow(decimals.toDouble())
+        val factor = 10.0.pow(safeDecimals.toDouble())
         val roundedLong = (value * factor).roundToLong()
-        val absLong = kotlin.math.abs(roundedLong)
-        val factorLong = factor.toLong()
-
-        val whole = if (factorLong > 0) absLong / factorLong else absLong
-        val frac = if (factorLong > 0 && decimals > 0) (absLong % factorLong).toString().padStart(decimals, '0') else ""
+        val absStrFull = if (roundedLong == Long.MIN_VALUE) {
+            "9223372036854775808"
+        } else {
+            kotlin.math.abs(roundedLong).toString()
+        }
         val sign = if (roundedLong < 0) "-" else ""
 
-        val raw = if (decimals == 0) {
-            "$sign$whole"
-        } else if (trimTrailingZeros && (frac.isEmpty() || frac.all { it == '0' })) {
-            "$sign$whole"
+        val raw = if (safeDecimals == 0) {
+            val wholeLong = value.roundToLong()
+            val wholeStr = if (wholeLong == Long.MIN_VALUE) "9223372036854775808" else kotlin.math.abs(wholeLong).toString()
+            "${if (wholeLong < 0) "-" else ""}$wholeStr"
         } else {
-            "$sign$whole.$frac"
+            val padded = absStrFull.padStart(safeDecimals + 1, '0')
+            val splitIdx = padded.length - safeDecimals
+            val whole = padded.substring(0, splitIdx)
+            val frac = padded.substring(splitIdx)
+            if (trimTrailingZeros && frac.all { it == '0' }) {
+                "$sign$whole"
+            } else {
+                "$sign$whole.$frac"
+            }
         }
 
         return if (followsEnglish) raw else raw.replace('.', ',')
@@ -91,7 +100,11 @@ object NumberFormatUtils {
         val followsEnglish = resolveIsEnglish(language)
         val separator = if (followsEnglish) ',' else '.'
         val sign = if (value < 0) "-" else ""
-        val absStr = kotlin.math.abs(value).toString()
+        val absStr = if (value == Long.MIN_VALUE) {
+            "9223372036854775808"
+        } else {
+            kotlin.math.abs(value).toString()
+        }
         val sb = StringBuilder()
         val len = absStr.length
         for (i in 0 until len) {

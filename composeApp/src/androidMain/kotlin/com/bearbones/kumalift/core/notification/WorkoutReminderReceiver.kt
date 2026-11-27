@@ -23,10 +23,12 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
 
         val prefs = context.getSharedPreferences("kumalift_reminders", Context.MODE_PRIVATE)
 
-        // Prevent duplicate delivery for the same trigger window (within 60s)
+        // Prevent duplicate notification delivery for the same trigger window (within 60s),
+        // but always reschedule the next reminder so the chain never stops.
         val now = System.currentTimeMillis()
         val lastTrigger = prefs.getLong("last_trigger_ms", 0L)
         if (now - lastTrigger < 60_000L) {
+            AndroidWorkoutReminderScheduler.scheduleNext(context)
             return
         }
         prefs.edit().putLong("last_trigger_ms", now).apply()

@@ -46,17 +46,28 @@ class AppNavigator(
         get() = overlays.lastOrNull()
 
     fun selectTab(tab: Tab) {
+        pendingSettingsDestinationName = null
         overlays.clear()
         selectedTab = tab
     }
 
     fun push(overlay: Overlay) {
-        overlays.add(overlay)
+        if (overlays.lastOrNull() != overlay) {
+            overlays.add(overlay)
+        }
+    }
+
+    fun clearOverlays() {
+        overlays.clear()
+        pendingSettingsDestinationName = null
     }
 
     fun popOverlay(): Boolean {
         if (overlays.isNotEmpty()) {
-            overlays.removeAt(overlays.lastIndex)
+            val removed = overlays.removeAt(overlays.lastIndex)
+            if (removed == Overlay.Settings) {
+                pendingSettingsDestinationName = null
+            }
             return true
         }
         return false
@@ -64,7 +75,10 @@ class AppNavigator(
 
     fun back(): Boolean {
         if (overlays.isNotEmpty()) {
-            overlays.removeAt(overlays.lastIndex)
+            val removed = overlays.removeAt(overlays.lastIndex)
+            if (removed == Overlay.Settings) {
+                pendingSettingsDestinationName = null
+            }
             return true
         }
         if (selectedTab != Tab.HOME) {

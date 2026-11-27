@@ -87,6 +87,9 @@ actual object BackupCrypto {
             }
             throw BackupException(BackupErrorCode.UNSUPPORTED_FORMAT, null, "Unsupported or unrecognized encrypted backup format")
         }
+        if (inspection.version != FORMAT_VERSION.toInt()) {
+            throw BackupException(BackupErrorCode.UNSUPPORTED_FORMAT, null, "Unsupported backup container version ${inspection.version}")
+        }
 
         val minExpectedSize = 6 + SALT_LENGTH_BYTES + IV_LENGTH_BYTES + 16 // 16 bytes auth tag minimum
         if (fileBytes.size < minExpectedSize) {
@@ -131,7 +134,7 @@ actual object BackupCrypto {
         val secretKey = getOrCreateKeystoreKey()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-        val iv = cipher.iv ?: ByteArray(IV_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+        val iv = cipher.iv ?: throw BackupException(BackupErrorCode.UNKNOWN, null, "Missing cipher IV")
         val ciphertext = cipher.doFinal(payloadBytes)
 
         val header = byteArrayOf(
@@ -145,12 +148,12 @@ actual object BackupCrypto {
 
     actual fun decryptWithKeystore(fileBytes: ByteArray): ByteArray {
         val inspection = inspectFile(fileBytes)
-        if (inspection.type != BackupFileType.KEYSTORE_ENCRYPTED) {
-            throw IllegalArgumentException("Not a keystore-encrypted backup file")
+        if (inspection.type != BackupFileType.KEYSTORE_ENCRYPTED || inspection.version != FORMAT_VERSION.toInt()) {
+            throw BackupException(BackupErrorCode.UNSUPPORTED_FORMAT, null, "Not a supported keystore-encrypted backup file")
         }
 
         if (fileBytes.size < 6 + IV_LENGTH_BYTES + 16) {
-            throw IllegalArgumentException("Corrupted keystore backup file")
+            throw BackupException(BackupErrorCode.INVALID_FILE, null, "Corrupted keystore backup file")
         }
 
         val iv = fileBytes.copyOfRange(6, 6 + IV_LENGTH_BYTES)
@@ -162,21 +165,36 @@ actual object BackupCrypto {
             cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv))
             cipher.doFinal(ciphertext)
         } catch (e: Exception) {
-            throw IllegalArgumentException("Cannot decrypt hardware-encrypted backup on this device", e)
+            throw BackupException(BackupErrorCode.WRONG_PASSWORD_OR_CORRUPTED, e, "Cannot decrypt hardware-encrypted backup on this device")
         }
     }
 
     private fun deriveKey(password: String, salt: ByteArray): SecretKey {
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
         val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH_BITS)
-        val secretBytes = factory.generateSecret(spec).encoded
-        return SecretKeySpec(secretBytes, "AES")
+        return try {
+            val secretBytes = factory.generateSecret(spec).encoded
+            SecretKeySpec(secretBytes, "AES")
+        } finally {
+            spec.clearPassword()
+        }
     }
 
+    private val keystoreLock = Any()
+    @Volatile
     private var jvmFallbackKey: SecretKey? = null
 
-    private fun getOrCreateKeystoreKey(): SecretKey {
+    private fun isRealAndroidDevice(): Boolean {
         return try {
+            val fp = android.os.Build.FINGERPRINT
+            !fp.isNullOrBlank() && !fp.equals("robolectric", ignoreCase = true)
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun getOrCreateKeystoreKey(): SecretKey = synchronized(keystoreLock) {
+        try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
             if (!keyStore.containsAlias(KEYSTORE_ALIAS)) {
                 val keyGen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
@@ -191,9 +209,13 @@ actual object BackupCrypto {
                 keyGen.init(keyGenSpec)
                 keyGen.generateKey()
             }
-            (keyStore.getEntry(KEYSTORE_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
-        } catch (_: Exception) {
-            // Fallback for JVM unit tests where AndroidKeyStore is not present
+            val entry = keyStore.getEntry(KEYSTORE_ALIAS, null) as? KeyStore.SecretKeyEntry
+            entry?.secretKey ?: throw BackupException(BackupErrorCode.UNKNOWN, null, "Keystore entry missing")
+        } catch (e: Exception) {
+            if (isRealAndroidDevice()) {
+                throw BackupException(BackupErrorCode.UNKNOWN, e, "AndroidKeyStore failure: ${e.message}")
+            }
+            // Fallback strictly for host JVM unit tests where AndroidKeyStore does not exist
             jvmFallbackKey ?: run {
                 val keyGen = KeyGenerator.getInstance("AES")
                 keyGen.init(256)

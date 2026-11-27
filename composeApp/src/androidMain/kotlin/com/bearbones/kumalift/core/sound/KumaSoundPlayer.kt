@@ -166,25 +166,24 @@ object KumaSoundPlayer {
     private var activeFallbackPlayer: MediaPlayer? = null
 
     private fun playFallbackMediaPlayer(context: Context, resId: Int, volumeMultiplier: Float) {
+        var mp: MediaPlayer? = null
         try {
             stopFallbackPlayer()
-            val afd = context.resources.openRawResourceFd(resId)
-            val mp = MediaPlayer()
-            if (afd != null) {
-                mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                afd.close()
-            } else {
-                return
+            val afd = context.resources.openRawResourceFd(resId) ?: return
+            val player = MediaPlayer()
+            mp = player
+            afd.use { descriptor ->
+                player.setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
             }
             val isAlarm = resId == R.raw.kumalift_rest_end
-            mp.setAudioAttributes(
+            player.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(if (isAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
-            mp.setVolume(volumeMultiplier, volumeMultiplier)
-            mp.setOnCompletionListener {
+            player.setVolume(volumeMultiplier, volumeMultiplier)
+            player.setOnCompletionListener {
                 synchronized(customPlayerLock) {
                     if (activeFallbackPlayer === it) {
                         activeFallbackPlayer = null
@@ -192,7 +191,7 @@ object KumaSoundPlayer {
                 }
                 try { it.release() } catch (_: Throwable) {}
             }
-            mp.setOnErrorListener { it, _, _ ->
+            player.setOnErrorListener { it, _, _ ->
                 synchronized(customPlayerLock) {
                     if (activeFallbackPlayer === it) {
                         activeFallbackPlayer = null
@@ -201,13 +200,14 @@ object KumaSoundPlayer {
                 try { it.release() } catch (_: Throwable) {}
                 true
             }
-            mp.prepare()
-            mp.start()
+            player.prepare()
+            player.start()
             synchronized(customPlayerLock) {
-                activeFallbackPlayer = mp
+                activeFallbackPlayer = player
             }
             KumaLogger.i(TAG, "Fallback MediaPlayer played resId=$resId (vol=$volumeMultiplier)")
         } catch (t: Throwable) {
+            try { mp?.release() } catch (_: Throwable) {}
             KumaLogger.e(TAG, "Fallback MediaPlayer failed for resId=$resId", t)
         }
     }
@@ -225,6 +225,7 @@ object KumaSoundPlayer {
         }
     }
 
+    private val focusLock = Any()
     private var activeFocusRequest: AudioFocusRequest? = null
     private var pendingAbandonRunnable: Runnable? = null
 
@@ -242,7 +243,9 @@ object KumaSoundPlayer {
                     .setOnAudioFocusChangeListener { /* Ducking handled by system */ }
                     .build()
 
-                activeFocusRequest = focusRequest
+                synchronized(focusLock) {
+                    activeFocusRequest = focusRequest
+                }
                 audioManager.requestAudioFocus(focusRequest)
             } else {
                 @Suppress("DEPRECATION")
@@ -258,20 +261,27 @@ object KumaSoundPlayer {
     }
 
     private fun scheduleAbandonFocus(audioManager: AudioManager, durationMs: Long) {
-        pendingAbandonRunnable?.let { handler.removeCallbacks(it) }
         val runnable = Runnable {
             abandonFocus(audioManager)
-            pendingAbandonRunnable = null
         }
-        pendingAbandonRunnable = runnable
+        synchronized(focusLock) {
+            pendingAbandonRunnable?.let { handler.removeCallbacks(it) }
+            pendingAbandonRunnable = runnable
+        }
         handler.postDelayed(runnable, durationMs + 100L)
     }
 
     private fun abandonFocus(audioManager: AudioManager) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                activeFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+            val request = synchronized(focusLock) {
+                pendingAbandonRunnable?.let { handler.removeCallbacks(it) }
+                pendingAbandonRunnable = null
+                val req = activeFocusRequest
                 activeFocusRequest = null
+                req
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                request?.let { audioManager.abandonAudioFocusRequest(it) }
             } else {
                 @Suppress("DEPRECATION")
                 audioManager.abandonAudioFocus(null)
@@ -312,55 +322,8 @@ object KumaSoundPlayer {
             return
         }
 
-        try {
-            val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.let { am ->
-                requestTransientDuckFocus(am)
-            }
-
-            val mp = MediaPlayer().apply {
-                setDataSource(file.absolutePath)
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                setVolume(volumeMultiplier, volumeMultiplier)
-                setOnCompletionListener {
-                    synchronized(customPlayerLock) {
-                        if (activeCustomPlayer === it) {
-                            activeCustomPlayer = null
-                        }
-                    }
-                    try { it.release() } catch (_: Throwable) {}
-                    audioManager?.let { am -> abandonFocus(am) }
-                    notifyPlaybackStopped()
-                }
-                setOnErrorListener { it, what, extra ->
-                    KumaLogger.w(TAG, "MediaPlayer custom sound error what=$what extra=$extra. Falling back to built-in.")
-                    synchronized(customPlayerLock) {
-                        if (activeCustomPlayer === it) {
-                            activeCustomPlayer = null
-                        }
-                    }
-                    try { it.release() } catch (_: Throwable) {}
-                    audioManager?.let { am -> abandonFocus(am) }
-                    notifyPlaybackStopped()
-                    play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
-                    true
-                }
-                prepare()
-                start()
-            }
-            synchronized(customPlayerLock) {
-                activeCustomPlayer = mp
-            }
-            KumaLogger.i(TAG, "Playing custom sound from $filePath at volume $volumeMultiplier")
-        } catch (e: Exception) {
-            KumaLogger.e(TAG, "Failed to play custom sound from $filePath: ${e.message}. Falling back.", e)
-            stopCustomSound()
-            play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
+        playAlarmMediaPlayer(appContext, volumeMultiplier, "custom sound from $filePath") { mp ->
+            mp.setDataSource(file.absolutePath)
         }
     }
 
@@ -371,58 +334,73 @@ object KumaSoundPlayer {
             return
         }
         val appContext = context.applicationContext ?: context
+        val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        if (defaultUri == null) {
+            play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
+            return
+        }
+
+        playAlarmMediaPlayer(appContext, volumeMultiplier, "system default sound") { mp ->
+            mp.setDataSource(appContext, defaultUri)
+        }
+    }
+
+    private fun playAlarmMediaPlayer(
+        appContext: Context,
+        volumeMultiplier: Float,
+        label: String,
+        configureSource: (MediaPlayer) -> Unit
+    ) {
+        var mp: MediaPlayer? = null
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         try {
-            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            if (defaultUri == null) {
+            audioManager?.let { requestTransientDuckFocus(it) }
+
+            val player = MediaPlayer()
+            mp = player
+            configureSource(player)
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+            )
+            player.setVolume(volumeMultiplier, volumeMultiplier)
+            player.setOnCompletionListener {
+                synchronized(customPlayerLock) {
+                    if (activeCustomPlayer === it) {
+                        activeCustomPlayer = null
+                    }
+                }
+                try { it.release() } catch (_: Throwable) {}
+                audioManager?.let { am -> abandonFocus(am) }
+                notifyPlaybackStopped()
+            }
+            player.setOnErrorListener { it, what, extra ->
+                KumaLogger.w(TAG, "MediaPlayer $label error what=$what extra=$extra. Falling back to built-in.")
+                synchronized(customPlayerLock) {
+                    if (activeCustomPlayer === it) {
+                        activeCustomPlayer = null
+                    }
+                }
+                try { it.release() } catch (_: Throwable) {}
+                audioManager?.let { am -> abandonFocus(am) }
+                notifyPlaybackStopped()
                 play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
-                return
+                true
             }
-
-            val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            audioManager?.let { am ->
-                requestTransientDuckFocus(am)
-            }
-
-            val mp = MediaPlayer().apply {
-                setDataSource(appContext, defaultUri)
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
-                )
-                setVolume(volumeMultiplier, volumeMultiplier)
-                setOnCompletionListener {
-                    synchronized(customPlayerLock) {
-                        if (activeCustomPlayer === it) {
-                            activeCustomPlayer = null
-                        }
-                    }
-                    try { it.release() } catch (_: Throwable) {}
-                    audioManager?.let { am -> abandonFocus(am) }
-                    notifyPlaybackStopped()
-                }
-                setOnErrorListener { it, _, _ ->
-                    synchronized(customPlayerLock) {
-                        if (activeCustomPlayer === it) {
-                            activeCustomPlayer = null
-                        }
-                    }
-                    try { it.release() } catch (_: Throwable) {}
-                    audioManager?.let { am -> abandonFocus(am) }
-                    notifyPlaybackStopped()
-                    play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
-                    true
-                }
-                prepare()
-                start()
-            }
+            player.prepare()
+            player.start()
             synchronized(customPlayerLock) {
-                activeCustomPlayer = mp
+                activeCustomPlayer = player
             }
+            KumaLogger.i(TAG, "Playing $label at volume $volumeMultiplier")
         } catch (e: Exception) {
-            KumaLogger.e(TAG, "Failed to play system default sound: ${e.message}", e)
+            KumaLogger.e(TAG, "Failed to play $label: ${e.message}. Falling back.", e)
+            try { mp?.release() } catch (_: Throwable) {}
+            audioManager?.let { abandonFocus(it) }
+            stopCustomSound()
             play(appContext, SoundEvent.REST_END, (volumeMultiplier * 100).toInt())
         }
     }

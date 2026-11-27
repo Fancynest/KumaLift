@@ -345,9 +345,16 @@ fun MuscleRecoveryDetailDialog(
                                     .clip(PillShape)
                                     .background(KumaColors.SurfaceContainerHigh)
                             ) {
+                                val animatedWidthFraction = androidx.compose.animation.core.animateFloatAsState(
+                                    targetValue = (state.readinessPercentage / 100f).coerceIn(0f, 1f),
+                                    animationSpec = androidx.compose.animation.core.spring(
+                                        dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                        stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                    )
+                                ).value
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(state.readinessPercentage / 100f)
+                                        .fillMaxWidth(animatedWidthFraction)
                                         .height(6.dp)
                                         .clip(PillShape)
                                         .background(statusColor)

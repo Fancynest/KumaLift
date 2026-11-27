@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.kumaKeyboardAvoidance
@@ -1120,12 +1121,26 @@ private fun SelectedExerciseRow(
                         }
 
                         // Remove button
+                        var showRemoveExerciseConfirm by remember { mutableStateOf(false) }
+                        if (showRemoveExerciseConfirm) {
+                            KumaDeleteConfirmationDialog(
+                                title = s.removeRoutineExerciseConfirmTitle,
+                                message = s.removeRoutineExerciseConfirmMessage(exercise.name),
+                                confirmText = s.delete,
+                                cancelText = s.cancel,
+                                onConfirm = {
+                                    showRemoveExerciseConfirm = false
+                                    onRemove()
+                                },
+                                onDismiss = { showRemoveExerciseConfirm = false }
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
                                 .clip(CircleShape)
                                 .background(KumaColors.SurfaceContainer)
-                                .clickable(onClick = onRemove),
+                                .clickable { showRemoveExerciseConfirm = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1352,16 +1367,30 @@ private fun SelectedExerciseRow(
 
                         // Delete Set button
                         if (effectiveSets.size > 1) {
+                            var pendingDeleteSetIndex by remember { mutableStateOf<Int?>(null) }
+                            pendingDeleteSetIndex?.let { setIdxToRemove ->
+                                KumaDeleteConfirmationDialog(
+                                    title = s.deleteRoutineSetConfirmTitle,
+                                    message = s.deleteRoutineSetConfirmMessage(setIdxToRemove + 1),
+                                    confirmText = s.delete,
+                                    cancelText = s.cancel,
+                                    onConfirm = {
+                                        val currentSets = effectiveSets.toMutableList()
+                                        if (setIdxToRemove in currentSets.indices) {
+                                            currentSets.removeAt(setIdxToRemove)
+                                            val renumbered = currentSets.mapIndexed { i, sCfg -> sCfg.copy(setNumber = i + 1) }
+                                            onConfigChange(config.copy(targetSets = renumbered.size, setConfigs = renumbered))
+                                        }
+                                        pendingDeleteSetIndex = null
+                                    },
+                                    onDismiss = { pendingDeleteSetIndex = null }
+                                )
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
-                                    .clickable {
-                                        val currentSets = effectiveSets.toMutableList()
-                                        currentSets.removeAt(sIndex)
-                                        val renumbered = currentSets.mapIndexed { i, sCfg -> sCfg.copy(setNumber = i + 1) }
-                                        onConfigChange(config.copy(targetSets = renumbered.size, setConfigs = renumbered))
-                                    },
+                                    .clickable { pendingDeleteSetIndex = sIndex },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(

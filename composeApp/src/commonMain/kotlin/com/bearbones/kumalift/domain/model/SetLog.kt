@@ -28,7 +28,11 @@ data class SetLog(
     val restTimerSeconds: Int? = null
 ) {
     val estimated1RmEpley: Double
-        get() = if (reps > 0 && weightKg > 0) weightKg * (1.0 + reps / 30.0) else 0.0
+        get() = when {
+            reps <= 0 || weightKg <= 0.0 -> 0.0
+            reps == 1 -> weightKg
+            else -> weightKg * (1.0 + reps / 30.0)
+        }
 
     val volume: Double
         get() = if (isCompleted) weightKg * reps else 0.0

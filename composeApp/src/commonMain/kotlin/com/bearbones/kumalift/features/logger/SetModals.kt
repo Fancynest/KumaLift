@@ -84,17 +84,35 @@ fun WeightInputDialog(
     var showPlateCalcModal by remember { mutableStateOf(false) }
 
     val handleConfirm = {
-        val parsed = NumberFormatUtils.parseDecimalInput(textValue) ?: 0.0
-        onConfirm(parsed)
+        val trimmed = textValue.trim()
+        if (trimmed.isEmpty()) {
+            onConfirm(0.0)
+        } else {
+            val parsed = NumberFormatUtils.parseDecimalInput(trimmed)
+            if (parsed != null && parsed.isFinite() && parsed in 0.0..1500.0) {
+                onConfirm(parsed)
+            } else {
+                errorMessage = s.enterValidWeightHint
+            }
+        }
     }
 
     if (showPlateCalcModal) {
+        val currentDisplayWeight = NumberFormatUtils.parseDecimalInput(textValue) ?: initialWeight
+        val initialKg = UnitConverters.toStorageWeightKg(currentDisplayWeight, unit)
         PlateCalculatorDialog(
-            initialWeightKg = textValue.toDoubleOrNull() ?: initialWeight,
+            initialWeightKg = initialKg,
             unit = unit,
             onDismiss = { showPlateCalcModal = false },
-            onConfirm = { calculatedWeight ->
-                textValue = calculatedWeight.toString().removeSuffix(".0")
+            onConfirm = { calculatedWeightKg ->
+                val converted = UnitConverters.toDisplayWeight(calculatedWeightKg, unit)
+                val formatted = if (converted == converted.toLong().toDouble()) {
+                    converted.toLong().toString()
+                } else {
+                    converted.toString()
+                }
+                textValue = formatted
+                errorMessage = null
                 showPlateCalcModal = false
             }
         )
@@ -236,8 +254,12 @@ fun RepsInputDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val handleConfirm = {
-        val reps = textValue.toIntOrNull() ?: 0
-        onConfirm(reps)
+        val reps = textValue.trim().toIntOrNull()
+        if (reps != null && reps in 1..999) {
+            onConfirm(reps)
+        } else {
+            errorMessage = s.enterValidRepsHint
+        }
     }
 
     AlertDialog(
@@ -475,7 +497,7 @@ fun RpePickerDialog(
                 }
                 Button(
                     onClick = {
-                        val parsed = textValue.toDoubleOrNull() ?: selectedRpe
+                        val parsed = NumberFormatUtils.parseDecimalInput(textValue) ?: selectedRpe
                         val finalRpe = parsed?.coerceIn(1.0, 10.0)
                         onConfirm(finalRpe)
                     },

@@ -137,16 +137,33 @@ fun KumaSessionBarChart(
                         .padding(horizontal = horizontalSlotPadding),
                     verticalAlignment = Alignment.Bottom
                 ) {
+                    val chartHaptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                     bars.forEachIndexed { idx, item ->
                         val active = idx == selectedIndex
-                        val heightFraction = (item.valueDisplay / yMax).toFloat().coerceIn(0.06f, 1f)
+                        val targetFraction = (item.valueDisplay / yMax).toFloat().coerceIn(0.06f, 1f)
+                        val heightFraction = androidx.compose.animation.core.animateFloatAsState(
+                            targetValue = targetFraction,
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                            )
+                        ).value
+                        val barColor = androidx.compose.animation.animateColorAsState(
+                            targetValue = if (active) accentColor else colors.surfaceBright,
+                            animationSpec = androidx.compose.animation.core.tween(180)
+                        ).value
                         val barDp = (barPlotHeight * heightFraction).coerceAtLeast(6.dp)
 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clickable { onSelectBar(idx) },
+                                .clickable {
+                                    chartHaptic.performHapticFeedback(
+                                        androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
+                                    )
+                                    onSelectBar(idx)
+                                },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Bottom
                         ) {
@@ -167,7 +184,7 @@ fun KumaSessionBarChart(
                                     .width(26.dp)
                                     .height(barDp)
                                     .clip(RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
-                                    .background(if (active) accentColor else colors.surfaceBright)
+                                    .background(barColor)
                             )
                         }
                     }

@@ -92,16 +92,21 @@ object AutoBackupRunner {
             val contentHash = backupManager.computeContentHash(settings)
             val packageBytes = backupManager.exportPackage(settings)
 
-            val sdf = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
+            val sdf = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
             val timestampStr = sdf.format(Date())
             val fileName = "KumaLift-backup-$timestampStr.kumalift"
 
             val fileDoc = folderDoc.createFile("application/octet-stream", fileName)
                 ?: throw BackupException(BackupErrorCode.WRITE_FAILED, null, "Cannot create backup file in destination folder")
 
-            context.contentResolver.openOutputStream(fileDoc.uri)?.use { out ->
-                out.write(packageBytes)
-            } ?: throw BackupException(BackupErrorCode.WRITE_FAILED, null, "Cannot write to destination backup file")
+            try {
+                val out = context.contentResolver.openOutputStream(fileDoc.uri)
+                    ?: throw BackupException(BackupErrorCode.WRITE_FAILED, null, "Cannot write to destination backup file")
+                out.use { it.write(packageBytes) }
+            } catch (writeErr: Throwable) {
+                runCatching { fileDoc.delete() }
+                throw writeErr
+            }
 
             // Pruning old backups past autoBackupKeepLast
             val keepLast = dataBackup.autoBackupKeepLast.coerceAtLeast(1)
@@ -135,6 +140,17 @@ object AutoBackupRunner {
             databaseRepo.saveUserSettings(updated)
             KumaLogger.i(TAG, "Auto-backup succeeded: $fileName")
             AutoBackupExecutionResult(true, fileName, null, null, contentHash = contentHash, skippedDuplicate = false)
+        } catch (e: SecurityException) {
+            val code = BackupErrorCode.PERMISSION_LOST
+            KumaLogger.e(TAG, "Auto-backup permission lost: ${e.message}", e)
+            val updated = settings.copy(
+                dataBackup = dataBackup.copy(
+                    lastBackupResultSuccess = false,
+                    lastBackupResultError = code.name
+                )
+            )
+            databaseRepo.saveUserSettings(updated)
+            AutoBackupExecutionResult(false, null, code.name, code)
         } catch (e: Exception) {
             val code = (e as? BackupException)?.errorCode ?: BackupErrorCode.WRITE_FAILED
             KumaLogger.e(TAG, "Auto-backup failed: ${e.message}", e)
@@ -158,9 +174,7 @@ class AutoBackupWorker(
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         var userSettings: UserSettings? = null
         try {
-            val driver = DatabaseDriverFactory(applicationContext).createDriver()
-            val database = KumaDatabase(driver)
-            val databaseRepo = KumaDatabaseRepository(database)
+            val databaseRepo = com.bearbones.kumalift.data.local.AndroidDatabaseProvider.getRepository(applicationContext)
             val settings = databaseRepo.loadUserSettings() ?: return@withContext Result.failure()
             userSettings = settings
 

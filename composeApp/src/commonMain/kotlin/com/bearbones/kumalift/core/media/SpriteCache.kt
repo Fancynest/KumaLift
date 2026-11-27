@@ -2,8 +2,10 @@ package com.bearbones.kumalift.core.media
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Thread-safe LRU Cache for decoded Sprite sheet animations.
@@ -66,9 +68,11 @@ class SpriteCache(
                 }
                 return loaded
             } catch (t: Throwable) {
-                lock.withLock {
-                    (deferred as CompletableDeferred<SpriteAnimation>).completeExceptionally(t)
-                    inFlight.remove(stem)
+                withContext(NonCancellable) {
+                    lock.withLock {
+                        (deferred as CompletableDeferred<SpriteAnimation>).completeExceptionally(t)
+                        inFlight.remove(stem)
+                    }
                 }
                 throw t
             }

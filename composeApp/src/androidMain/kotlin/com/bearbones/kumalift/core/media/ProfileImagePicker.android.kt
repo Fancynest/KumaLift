@@ -58,23 +58,31 @@ private fun saveAvatarFromUri(
     uri: Uri,
     onImagePicked: (String) -> Unit
 ) {
+    var destFile: File? = null
     try {
         val timestamp = System.currentTimeMillis()
-        val destFile = File(context.filesDir, "profile_avatar_$timestamp.jpg")
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            destFile.outputStream().use { output ->
+        val targetFile = File(context.filesDir, "profile_avatar_$timestamp.jpg")
+        destFile = targetFile
+        val copied = context.contentResolver.openInputStream(uri)?.use { input ->
+            targetFile.outputStream().use { output ->
                 input.copyTo(output)
             }
+            true
+        } ?: false
+        if (!copied) {
+            targetFile.delete()
+            return
         }
         // Clean up older avatar files in private app storage
         context.filesDir.listFiles { _, name ->
-            name.startsWith("profile_avatar_") && name != destFile.name
+            name.startsWith("profile_avatar_") && name != targetFile.name
         }?.forEach { oldFile ->
             try { oldFile.delete() } catch (_: Exception) {}
         }
 
-        onImagePicked(destFile.absolutePath)
+        onImagePicked(targetFile.absolutePath)
     } catch (e: Exception) {
+        try { destFile?.delete() } catch (_: Exception) {}
         e.printStackTrace()
     }
 }

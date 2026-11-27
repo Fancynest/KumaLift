@@ -54,18 +54,17 @@ object PlateCalculator {
         barWeightKg: Double = 20.0,
         availablePlatesKg: List<Double> = listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25)
     ): PlateCalculationResult {
-        val safeTarget = targetWeightKg.coerceAtLeast(0.0)
-        val safeBar = barWeightKg.coerceAtLeast(0.0)
+        val safeTarget = (if (targetWeightKg.isFinite()) targetWeightKg else 0.0).coerceIn(0.0, 2000.0)
+        val safeBar = (if (barWeightKg.isFinite()) barWeightKg else 0.0).coerceIn(0.0, 500.0)
 
         val weightToLoad = (safeTarget - safeBar).coerceAtLeast(0.0)
         var remainingPerSide = weightToLoad / 2.0
 
-        val sortedPlates = availablePlatesKg.distinct().sortedDescending()
+        val sortedPlates = availablePlatesKg.filter { it.isFinite() && it > 0.0 }.distinct().sortedDescending()
         val resultPlates = mutableListOf<PlateCount>()
 
         for (plateWeight in sortedPlates) {
-            if (plateWeight <= 0.0) continue
-            val count = (remainingPerSide / plateWeight).toInt()
+            val count = ((remainingPerSide + 1e-4) / plateWeight).toInt()
             if (count > 0) {
                 val spec = STANDARD_METRIC_PLATES.firstOrNull { it.first == plateWeight }
                 val color = spec?.second ?: 0xFF90A4AE
@@ -79,7 +78,7 @@ object PlateCalculator {
                         heightFraction = heightFrac
                     )
                 )
-                remainingPerSide -= count * plateWeight
+                remainingPerSide = (remainingPerSide - count * plateWeight).coerceAtLeast(0.0)
             }
         }
 

@@ -545,4 +545,116 @@ class DataBackupManagerTests {
             )
         )
     }
+
+    @Test
+    fun testMergePreservesDistinctRepPrsReadinessAndRejectsInvalidSchemaVersion() {
+        val settings = UserSettings()
+        val readinessRepo = com.bearbones.kumalift.data.repository.DailyReadinessRepository(repository)
+        val existingCheckIn = readinessRepo.recordCheckIn(
+            sleep = 5,
+            soreness = 5,
+            energy = 5,
+            stress = 5,
+            notes = "existing note",
+            dateString = "2026-11-28"
+        )
+        val existingPr = PersonalRecord(
+            exerciseId = "ex_squat_merge",
+            exerciseName = "Squat",
+            weightKg = 140.0,
+            reps = 1,
+            estimated1RmKg = 140.0,
+            dateAchieved = "Nov 27"
+        )
+        repository.savePersonalRecord(existingPr)
+
+        // Invalid schemaVersion <= 0 must be rejected cleanly
+        val invalidSchema = """{"schemaVersion":0,"exportedAtEpochMs":1,"settings":${kotlinx.serialization.json.Json.encodeToString(UserSettings.serializer(), settings)}}"""
+        val badRes = backupManager.importBackup(invalidSchema, ImportMode.REPLACE, settings)
+        assertFalse(badRes.success)
+
+        // Merge with BOM, 5RM PR on same exercise, and conflicting readiness date
+        val incomingPr = existingPr.copy(weightKg = 120.0, reps = 5, estimated1RmKg = 140.0)
+        val (incomingPct, incomingRec) = com.bearbones.kumalift.domain.model.DailyReadinessCheckIn.calculate(1, 1, 1, 1)
+        val incomingReadiness = com.bearbones.kumalift.domain.model.DailyReadinessCheckIn(
+            id = "r_incoming",
+            dateString = "2026-11-28",
+            sleepScore = 1,
+            sorenessScore = 1,
+            energyScore = 1,
+            stressScore = 1,
+            overallPercentage = incomingPct,
+            recommendation = incomingRec,
+            notes = "should not overwrite",
+            createdAtEpochMs = 1L
+        )
+        val mergeJson = "\uFEFF" + """
+            {
+              "schemaVersion": 1,
+              "exportedAtEpochMs": 1730000000000,
+              "appVersion": "1.0.0",
+              "settings": ${kotlinx.serialization.json.Json.encodeToString(UserSettings.serializer(), settings)},
+              "workouts": [],
+              "personalRecords": [${kotlinx.serialization.json.Json.encodeToString(PersonalRecord.serializer(), incomingPr)}],
+              "customRoutines": [],
+              "customExercises": [],
+              "trainingPrograms": [],
+              "dailyReadiness": [${kotlinx.serialization.json.Json.encodeToString(com.bearbones.kumalift.domain.model.DailyReadinessCheckIn.serializer(), incomingReadiness)}]
+            }
+        """.trimIndent()
+        val mergeRes = backupManager.importBackup(mergeJson, ImportMode.MERGE, settings)
+        assertTrue(mergeRes.success, mergeRes.message)
+        val mergedPrs = repository.getAllPersonalRecords().filter { it.exerciseId == "ex_squat_merge" }
+        assertEquals(2, mergedPrs.size)
+        val checkInAfter = repository.getAllDailyReadiness().first { it.dateString == "2026-11-28" }
+        assertEquals(existingCheckIn.id, checkInAfter.id)
+        assertEquals("existing note", checkInAfter.notes)
+    }
+
+    @Test
+    fun testCsvExportEscapesQuotesAndFormulaPrefixes() {
+        val maliciousWorkout = Workout(
+            id = "w_csv_sec",
+            title = """=CMD|"calc",A1""",
+            startTimeEpochMs = 1730000000000L,
+            durationSeconds = 600L,
+            notes = """+SUM(1,2) "quoted"""",
+            exercises = listOf(
+                WorkoutExercise(
+                    id = "we_csv",
+                    exercise = Exercise(
+                        id = "ex_csv",
+                        name = "-Bench \"Press\"",
+                        primaryMuscle = MuscleGroup.CHEST,
+                        equipment = Equipment.BARBELL
+                    ),
+                    sets = listOf(
+                        SetLog(id = "s_csv", setNumber = 1, weightKg = 60.0, reps = 8, isCompleted = true)
+                    )
+                )
+            ),
+            isFinished = true
+        )
+        repository.saveCompletedWorkout(maliciousWorkout)
+        repository.insertScheduleEvent(
+            WorkoutScheduleEvent(
+                id = "sched_csv_sec",
+                routineId = "rt_csv",
+                scheduledDate = "2026-11-28",
+                status = ScheduleStatus.PLANNED,
+                routineTitleSnapshot = "@IMPORTXML(A1)",
+                notes = "+SUM(1,2) \"quoted\"",
+                createdAtEpochMs = 1730000000000L,
+                updatedAtEpochMs = 1730000000000L
+            )
+        )
+        val csvFiles = backupManager.exportCsvFiles(UserSettings())
+        val workoutsCsv = csvFiles["workouts.csv"].orEmpty()
+        val setsCsv = csvFiles["sets.csv"].orEmpty()
+        val schedCsv = csvFiles["schedule_events.csv"].orEmpty()
+        assertTrue(workoutsCsv.contains("\"'=CMD|\"\"calc\"\",A1\""), "Expected formula-neutralized escaped title in:\n$workoutsCsv")
+        assertTrue(setsCsv.contains("\"'-Bench \"\"Press\"\"\""), "Expected escaped exercise name in:\n$setsCsv")
+        assertTrue(schedCsv.contains("\"'@IMPORTXML(A1)\""), "Expected escaped snapshot in:\n$schedCsv")
+        assertTrue(schedCsv.contains("\"'+SUM(1,2) \"\"quoted\"\"\""), "Expected escaped notes in:\n$schedCsv")
+    }
 }

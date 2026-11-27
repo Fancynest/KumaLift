@@ -178,6 +178,9 @@ actual class DatabaseDriverFactory(private val context: Context) {
                 "CREATE INDEX IF NOT EXISTS idx_mesocycles_status ON mesocycles(status);",
                 0
             )
+        } catch (_: Exception) {}
+
+        try {
             driver.execute(
                 null,
                 """
@@ -201,14 +204,50 @@ actual class DatabaseDriverFactory(private val context: Context) {
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_readiness_date ON daily_readiness(dateString);",
                 0
             )
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS safety_snapshots (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    createdAtEpochMs INTEGER NOT NULL,
+                    payloadJson TEXT NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+        } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS ai_chat_threads (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    contextSummary TEXT NOT NULL DEFAULT '',
+                    messageCount INTEGER NOT NULL DEFAULT 0,
+                    createdAtEpochMs INTEGER NOT NULL,
+                    updatedAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+        } catch (_: Exception) {}
+
+        try {
             driver.execute(
                 null,
                 """
                 CREATE TABLE IF NOT EXISTS ai_chat_messages (
                     id TEXT NOT NULL PRIMARY KEY,
+                    threadId TEXT NOT NULL DEFAULT 'thread_default',
                     role TEXT NOT NULL,
                     messageText TEXT NOT NULL,
                     imagePath TEXT,
+                    imagePathsJson TEXT NOT NULL DEFAULT '[]',
                     stepLogsJson TEXT NOT NULL DEFAULT '[]',
                     proposalJson TEXT,
                     nutritionJson TEXT,
@@ -219,5 +258,46 @@ actual class DatabaseDriverFactory(private val context: Context) {
                 0
             )
         } catch (_: Exception) {}
+
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE ai_chat_messages ADD COLUMN threadId TEXT NOT NULL DEFAULT 'thread_default';",
+                0
+            )
+        } catch (_: Exception) {}
+        try {
+            driver.execute(
+                null,
+                "ALTER TABLE ai_chat_messages ADD COLUMN imagePathsJson TEXT NOT NULL DEFAULT '[]';",
+                0
+            )
+        } catch (_: Exception) {}
+        try {
+            driver.execute(
+                null,
+                "CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_thread ON ai_chat_messages(threadId, createdAtEpochMs);",
+                0
+            )
+        } catch (_: Exception) {}
+    }
+}
+
+object AndroidDatabaseProvider {
+    private val lock = Any()
+    @Volatile
+    private var cachedRepo: KumaDatabaseRepository? = null
+
+    fun getRepository(context: Context): KumaDatabaseRepository {
+        cachedRepo?.let { return it }
+        return synchronized(lock) {
+            cachedRepo ?: run {
+                val appContext = context.applicationContext ?: context
+                val driver = DatabaseDriverFactory(appContext).createDriver()
+                val repo = KumaDatabaseRepository(KumaDatabase(driver))
+                cachedRepo = repo
+                repo
+            }
+        }
     }
 }

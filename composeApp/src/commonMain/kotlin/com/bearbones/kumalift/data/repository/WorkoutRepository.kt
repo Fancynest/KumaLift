@@ -42,8 +42,15 @@ class ExerciseRepository(
     private val databaseRepo: KumaDatabaseRepository? = null,
     private val onSaveCustom: ((List<Exercise>) -> Unit)? = null
 ) {
+    private val baseExercises = initialExercises.filterNot { it.id.startsWith("custom_") }
     private val _exercises = MutableStateFlow(initialExercises)
     val exercises: StateFlow<List<Exercise>> = _exercises.asStateFlow()
+
+    fun reloadFromDatabase() {
+        val db = databaseRepo ?: return
+        val custom = db.getAllCustomExercises()
+        _exercises.value = custom + baseExercises
+    }
 
     fun getExerciseById(id: String): Exercise? {
         return _exercises.value.find { it.id == id }
@@ -111,6 +118,13 @@ class RoutineRepository(
     private val _routines = MutableStateFlow(initialRoutines)
     val routines: StateFlow<List<RoutineBlueprint>> = _routines.asStateFlow()
 
+    fun reloadFromDatabase(exerciseLookup: (String) -> Exercise?) {
+        val db = databaseRepo ?: return
+        val loaded = db.getAllCustomRoutines(exerciseLookup)
+            .filterNot { it.id.startsWith("rt_") }
+        _routines.value = loaded
+    }
+
     fun getRoutineById(id: String): RoutineBlueprint? {
         return _routines.value.find { it.id == id }
     }
@@ -170,6 +184,11 @@ class PersonalRecordRepository(
         sanitizeInitialPrs(initialPrs, calculationSettingsProvider(), databaseRepo)
     )
     val personalRecords: StateFlow<List<PersonalRecord>> = _prs.asStateFlow()
+
+    fun reloadFromDatabase() {
+        val db = databaseRepo ?: return
+        _prs.value = sanitizeInitialPrs(db.getAllPersonalRecords(), calculationSettingsProvider(), db)
+    }
 
     companion object {
         fun sanitizeInitialPrs(
@@ -239,11 +258,12 @@ class PersonalRecordRepository(
 
         // Check each metric independently (no else-if short circuiting e1rm)
         val isWeightPr = hasWeightMetric && (currentMaxWeight > 0.0 && weightKg > currentMaxWeight)
-        val isE1rmPr = hasE1rmMetric && (currentMaxE1rm > 0.0 && e1rm > currentMaxE1rm)
+        val isE1rmPr = hasE1rmMetric && e1rm > 0.0 && (currentMaxE1rm > 0.0 && e1rm > currentMaxE1rm)
         val isRepRangePr = calcSettings.repRangePrs && (weightKg > currentRepMax)
 
+        val canEstablishInitial = hasWeightMetric || (hasE1rmMetric && e1rm > 0.0) || calcSettings.repRangePrs
         val isPr = if (!hasAnyRecord) {
-            true // Initial completed normal set for an unrecorded exercise establishes the initial PR
+            canEstablishInitial // Initial completed normal set establishes the initial PR when eligible
         } else {
             isWeightPr || isE1rmPr || isRepRangePr
         }
@@ -251,8 +271,8 @@ class PersonalRecordRepository(
         if (isPr) {
             val delta = when {
                 !hasAnyRecord -> 0.0
-                isWeightPr -> weightKg - currentMaxWeight
-                isRepRangePr && currentRepMax > 0.0 -> weightKg - currentRepMax
+                isWeightPr -> (weightKg - currentMaxWeight).coerceAtLeast(0.0)
+                isRepRangePr && currentRepMax > 0.0 -> (weightKg - currentRepMax).coerceAtLeast(0.0)
                 else -> 0.0
             }
             val now = currentEpochMillis()
@@ -322,7 +342,7 @@ class PersonalRecordRepository(
                     )
 
                     val isWeightPr = hasWeightMetric && (set.weightKg > maxWeight)
-                    val isE1rmPr = hasE1rmMetric && (e1rm > maxE1rm)
+                    val isE1rmPr = hasE1rmMetric && e1rm > 0.0 && (e1rm > maxE1rm)
                     val prevRepWeight = repMap[set.reps]?.weightKg ?: 0.0
                     val isRepRangePr = calcSettings.repRangePrs && (set.weightKg > prevRepWeight)
 
@@ -332,6 +352,11 @@ class PersonalRecordRepository(
                         isWeightPr -> "Max Weight PR"
                         else -> "e1RM PR"
                     }
+                    val delta = when {
+                        isWeightPr && maxWeight > 0.0 -> (set.weightKg - maxWeight).coerceAtLeast(0.0)
+                        isRepRangePr && prevRepWeight > 0.0 -> (set.weightKg - prevRepWeight).coerceAtLeast(0.0)
+                        else -> 0.0
+                    }
                     val pr = PersonalRecord(
                         exerciseId = exerciseId,
                         exerciseName = we.exercise.name,
@@ -339,7 +364,7 @@ class PersonalRecordRepository(
                         reps = set.reps,
                         estimated1RmKg = e1rm,
                         dateAchieved = formatDateEpoch(workout.startTimeEpochMs, dateFormatProvider()),
-                        deltaWeightKg = if (maxWeight > 0.0) set.weightKg - maxWeight else 0.0,
+                        deltaWeightKg = delta,
                         prTier = tier,
                         dateAchievedEpochMs = workout.startTimeEpochMs,
                         sourceSetId = set.id
@@ -348,7 +373,7 @@ class PersonalRecordRepository(
                     if (isWeightPr) maxWeight = set.weightKg
                     if (isE1rmPr) maxE1rm = e1rm
                     if (isWeightPr || isE1rmPr) overallBest = pr
-                    if (isRepRangePr || repMap[set.reps] == null) {
+                    if (calcSettings.repRangePrs && isRepRangePr) {
                         repMap[set.reps] = pr
                     }
                 }
@@ -370,7 +395,10 @@ class PersonalRecordRepository(
         allWorkouts: List<Workout>,
         calcSettings: CalculationSettings
     ) {
-        val allExerciseIds = allWorkouts.flatMap { it.exercises.map { we -> we.exercise.id } }.distinct()
+        val allExerciseIds = (
+            allWorkouts.flatMap { it.exercises.map { we -> we.exercise.id } } +
+                _prs.value.map { it.exerciseId }
+            ).distinct()
         for (exId in allExerciseIds) {
             recomputePersonalRecordsForExercise(exId, allWorkouts, calcSettings)
         }
@@ -416,7 +444,10 @@ class WorkoutRepository(
     private val mesocycleRepository: MesocycleRepository? = null,
     private val calculationSettingsProvider: () -> CalculationSettings = { CalculationSettings() },
     private val loggingSettingsProvider: () -> LoggingSettings = { LoggingSettings() },
-    staleWorkoutHours: Int = 24
+    private val staleWorkoutHours: Int = 24,
+    private val healthSettingsProvider: () -> com.bearbones.kumalift.domain.model.HealthSettings = {
+        com.bearbones.kumalift.domain.model.HealthSettings()
+    }
 ) {
     private val _activeWorkout = MutableStateFlow<Workout?>(null)
     val activeWorkout: StateFlow<Workout?> = _activeWorkout.asStateFlow()
@@ -439,6 +470,16 @@ class WorkoutRepository(
         val restoredActive = databaseRepo?.loadActiveWorkout(staleWorkoutHours)
         _activeWorkout.value = restoredActive
 
+        // Clean any orphaned PRs left behind by an expired active workout
+        if (databaseRepo != null && restoredActive == null) {
+            val validSetIds = savedCompleted.flatMap { w ->
+                w.exercises.flatMap { we -> we.sets.map { it.id } }
+            }.toSet()
+            if (prRepository.personalRecords.value.any { it.sourceSetId != null && it.sourceSetId !in validSetIds }) {
+                recomputeDerivedStats()
+            }
+        }
+
         // Smartwatch Companion Event Listener
         SmartwatchCompanionManager.registerEventListener { event ->
             handleSmartwatchEvent(event)
@@ -451,6 +492,13 @@ class WorkoutRepository(
                 }
             }
         }
+    }
+
+    fun reloadFromDatabase() {
+        val db = databaseRepo ?: return
+        com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
+        _completedWorkouts.value = db.getCompletedWorkouts()
+        _activeWorkout.value = db.loadActiveWorkout(staleWorkoutHours)
     }
 
     private fun handleSmartwatchEvent(event: com.bearbones.kumalift.domain.model.SmartwatchSyncEvent) {
@@ -491,6 +539,14 @@ class WorkoutRepository(
             ?: (currentExercise.sets.size - 1).coerceAtLeast(0)
         val currentSet = currentExercise.sets.getOrNull(currentSetIndex)
 
+        val referenceNow = if (workout.isPaused && workout.pausedAtEpochMs != null) {
+            workout.pausedAtEpochMs
+        } else {
+            currentEpochMillis()
+        }
+        val elapsedSec = ((referenceNow - workout.startTimeEpochMs - workout.totalPausedDurationMs) / 1000L)
+            .coerceAtLeast(0L)
+
         val payload = com.bearbones.kumalift.domain.model.SmartwatchWorkoutPayload(
             workoutId = workout.id,
             workoutTitle = workout.title,
@@ -501,7 +557,7 @@ class WorkoutRepository(
             targetReps = currentSet?.targetReps ?: currentSet?.reps ?: 0,
             isRestTimerActive = com.bearbones.kumalift.core.timer.RestTimerCoordinator.activeRestTimer?.state?.value?.isRunning == true,
             restSecondsRemaining = com.bearbones.kumalift.core.timer.RestTimerCoordinator.activeRestTimer?.state?.value?.remainingSeconds ?: 0,
-            elapsedWorkoutSeconds = ((currentEpochMillis() - workout.startTimeEpochMs) / 1000L).coerceAtLeast(0L)
+            elapsedWorkoutSeconds = elapsedSec
         )
         SmartwatchCompanionManager.sendActiveWorkoutUpdate(payload)
     }
@@ -682,7 +738,24 @@ class WorkoutRepository(
         onCompleted(isNowCompleted)
     }
 
+    private fun syncActiveExercisePrs(exerciseId: String) {
+        val allHistory = _completedWorkouts.value + listOfNotNull(_activeWorkout.value)
+        prRepository.recomputePersonalRecordsForExercise(exerciseId, allHistory, calculationSettingsProvider())
+        val activePrSetIds = prRepository.personalRecords.value.mapNotNull { it.sourceSetId }.toSet()
+        _activeWorkout.update { cur ->
+            cur?.copy(
+                exercises = cur.exercises.map { we ->
+                    if (we.exercise.id == exerciseId) {
+                        we.copy(sets = we.sets.map { s -> s.copy(isPr = s.id in activePrSetIds) })
+                    } else we
+                }
+            )
+        }
+    }
+
     fun updateSet(exerciseId: String, setId: String, weightKg: Double, reps: Int) {
+        var touchedExerciseId: String? = null
+        var touchedCompletedSet = false
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
@@ -691,6 +764,10 @@ class WorkoutRepository(
                 if (isMatch) {
                     val updatedSets = we.sets.map { set ->
                         if (set.id == setId) {
+                            if (set.isCompleted) {
+                                touchedExerciseId = we.exercise.id
+                                touchedCompletedSet = true
+                            }
                             set.copy(weightKg = weightKg, reps = reps)
                         } else set
                     }
@@ -699,10 +776,15 @@ class WorkoutRepository(
             }
             currentWorkout.copy(exercises = updatedExercises)
         }
+        if (touchedCompletedSet && touchedExerciseId != null) {
+            syncActiveExercisePrs(touchedExerciseId!!)
+        }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
 
     fun updateSetType(exerciseId: String, setId: String, setType: SetType) {
+        var touchedExerciseId: String? = null
+        var touchedCompletedSet = false
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
@@ -710,12 +792,21 @@ class WorkoutRepository(
                 val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
                 if (isMatch) {
                     val updatedSets = we.sets.map { set ->
-                        if (set.id == setId) set.copy(setType = setType) else set
+                        if (set.id == setId) {
+                            if (set.isCompleted) {
+                                touchedExerciseId = we.exercise.id
+                                touchedCompletedSet = true
+                            }
+                            set.copy(setType = setType)
+                        } else set
                     }
                     we.copy(sets = updatedSets)
                 } else we
             }
             currentWorkout.copy(exercises = updatedExercises)
+        }
+        if (touchedCompletedSet && touchedExerciseId != null) {
+            syncActiveExercisePrs(touchedExerciseId!!)
         }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
     }
@@ -928,16 +1019,39 @@ class WorkoutRepository(
     }
 
     fun replaceExerciseInActiveWorkout(workoutExerciseId: String, newExercise: Exercise) {
+        val targetWe = _activeWorkout.value?.exercises?.find {
+            it.id == workoutExerciseId || it.exercise.id == workoutExerciseId
+        }
+        val oldExerciseId = targetWe?.exercise?.id
+        val oldSetIds = targetWe?.sets?.map { it.id }.orEmpty()
+        val hasCompletedWorkingSets = targetWe?.sets?.any {
+            it.isCompleted && it.setType != SetType.WARMUP && it.setType != SetType.DROP
+        } == true
+
         _activeWorkout.update { currentWorkout ->
             if (currentWorkout == null) return@update null
             val updatedExercises = currentWorkout.exercises.map { we ->
                 if (we.id == workoutExerciseId || we.exercise.id == workoutExerciseId) {
-                    we.copy(exercise = newExercise)
+                    we.copy(
+                        exercise = newExercise,
+                        sets = we.sets.map { it.copy(isPr = false) }
+                    )
                 } else {
                     we
                 }
             }
             currentWorkout.copy(exercises = updatedExercises)
+        }
+
+        if (oldSetIds.isNotEmpty() || oldExerciseId != null) {
+            oldSetIds.forEach { setId -> prRepository.revokePrBySetId(setId) }
+            val allHistory = _completedWorkouts.value + listOfNotNull(_activeWorkout.value)
+            if (oldExerciseId != null) {
+                prRepository.recomputePersonalRecordsForExercise(oldExerciseId, allHistory, calculationSettingsProvider())
+            }
+            if (hasCompletedWorkingSets) {
+                syncActiveExercisePrs(newExercise.id)
+            }
         }
         databaseRepo?.saveActiveWorkout(_activeWorkout.value)
         KumaLogger.i("WorkoutRepository", "Replaced exercise $workoutExerciseId with ${newExercise.name}")
@@ -969,9 +1083,14 @@ class WorkoutRepository(
             val updatedExercises = currentWorkout.exercises.map { we ->
                 val isMatch = if (hasDirectMatch) we.id == exerciseId else (we.id == exerciseId || we.exercise.id == exerciseId)
                 if (isMatch) {
-                    val workingWeight = we.sets.firstOrNull { it.weightKg > 0.0 }?.weightKg
-                        ?: we.exercise.currentPrWeightKg ?: 60.0
-                    val barWeight = if (we.exercise.equipment == Equipment.DUMBBELL) 0.0 else 20.0
+                    val workingWeight = we.sets
+                        .firstOrNull { it.setType != SetType.WARMUP && it.weightKg > 0.0 }?.weightKg
+                        ?: we.exercise.currentPrWeightKg?.takeIf { it > 0.0 } ?: 60.0
+                    val barWeight = when (we.exercise.equipment) {
+                        Equipment.BARBELL -> 20.0
+                        Equipment.SMITH_MACHINE -> 15.0
+                        else -> 0.0
+                    }
                     val warmupSets = com.bearbones.kumalift.domain.model.WarmupSetCalculator.generateWarmupSets(
                         workingWeightKg = workingWeight,
                         barWeightKg = barWeight,
@@ -1080,7 +1199,14 @@ class WorkoutRepository(
         peakHeartRateBpm: Int? = null,
         activeCaloriesKcal: Double? = null
     ): Workout? {
-        val current = _activeWorkout.value ?: return null
+        var current: Workout
+        while (true) {
+            val cur = _activeWorkout.value ?: return null
+            if (_activeWorkout.compareAndSet(cur, null)) {
+                current = cur
+                break
+            }
+        }
         val now = currentEpochMillis()
         val durationSec = if (current.startTimeEpochMs > 0L) {
             val finalNow = if (current.isPaused && current.pausedAtEpochMs != null) current.pausedAtEpochMs else now
@@ -1089,6 +1215,8 @@ class WorkoutRepository(
 
         val finished = current.copy(
             isFinished = true,
+            isPaused = false,
+            pausedAtEpochMs = null,
             sessionRpe = sessionRpe,
             endTimeEpochMs = now,
             durationSeconds = durationSec,
@@ -1098,7 +1226,6 @@ class WorkoutRepository(
         )
 
         _completedWorkouts.update { listOf(finished) + it }
-        _activeWorkout.value = null
         com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
 
         // T1: Persist to database and clear active state
@@ -1117,21 +1244,24 @@ class WorkoutRepository(
 
         KumaLogger.i("WorkoutRepository", "Finished workout '${finished.title}' (${finished.id}) - duration ${durationSec}s, volume ${finished.totalVolumeKg}kg, sets ${finished.totalCompletedSets}")
 
-        val estCalories = activeCaloriesKcal ?: WorkoutHealthRecord.estimateCalories(durationSec / 60.0)
-        val healthRecord = WorkoutHealthRecord(
-            workoutId = finished.id,
-            title = finished.title,
-            startTimeEpochMs = finished.startTimeEpochMs,
-            endTimeEpochMs = now,
-            activeDurationSeconds = durationSec,
-            estimatedCaloriesBurned = estCalories,
-            totalTonnageKg = finished.totalVolumeKg,
-            totalSetsCompleted = finished.totalCompletedSets
-        )
-        CoroutineScope(Dispatchers.Default).launch {
-            try {
-                HealthSyncManager.syncWorkout(healthRecord)
-            } catch (_: Exception) {}
+        val healthCfg = healthSettingsProvider()
+        if (healthCfg.healthEnabled && healthCfg.writeWorkouts) {
+            val estCalories = activeCaloriesKcal ?: WorkoutHealthRecord.estimateCalories(durationSec / 60.0)
+            val healthRecord = WorkoutHealthRecord(
+                workoutId = finished.id,
+                title = finished.title,
+                startTimeEpochMs = finished.startTimeEpochMs,
+                endTimeEpochMs = now,
+                activeDurationSeconds = durationSec,
+                estimatedCaloriesBurned = estCalories,
+                totalTonnageKg = finished.totalVolumeKg,
+                totalSetsCompleted = finished.totalCompletedSets
+            )
+            repoScope.launch {
+                try {
+                    HealthSyncManager.syncWorkout(healthRecord)
+                } catch (_: Exception) {}
+            }
         }
         SmartwatchCompanionManager.sendHapticPulse()
 
@@ -1139,28 +1269,45 @@ class WorkoutRepository(
     }
 
     fun cancelWorkout() {
-        val active = _activeWorkout.value
+        var active: Workout?
+        while (true) {
+            val cur = _activeWorkout.value
+            if (cur == null) {
+                active = null
+                break
+            }
+            if (_activeWorkout.compareAndSet(cur, null)) {
+                active = cur
+                break
+            }
+        }
         if (active != null) {
             val activeSetIds = active.exercises.flatMap { it.sets }.map { it.id }
             for (setId in activeSetIds) {
                 prRepository.revokePrBySetId(setId)
             }
+            val affectedExerciseIds = active.exercises.map { it.exercise.id }.distinct()
+            val calcSettings = calculationSettingsProvider()
+            for (exId in affectedExerciseIds) {
+                prRepository.recomputePersonalRecordsForExercise(exId, _completedWorkouts.value, calcSettings)
+            }
         }
-        _activeWorkout.value = null
         com.bearbones.kumalift.core.timer.RestTimerCoordinator.dismiss()
         databaseRepo?.clearActiveWorkout()
     }
 
     private fun findPreviousSet(exerciseId: String, prefillSource: PrefillSource): SetLog? {
         if (prefillSource == PrefillSource.NONE) return null
-        val workouts = _completedWorkouts.value
+        val workouts = _completedWorkouts.value.sortedByDescending { it.endTimeEpochMs ?: it.startTimeEpochMs }
         val sets = workouts.flatMap { w ->
             w.exercises.filter { it.exercise.id == exerciseId }.flatMap { it.sets.filter { s -> s.isCompleted } }
         }
+        val workingSets = sets.filter { it.setType != SetType.WARMUP && it.setType != SetType.DROP }
+        val candidates = workingSets.ifEmpty { sets }
 
         return when (prefillSource) {
-            PrefillSource.BEST_SET -> sets.maxByOrNull { it.weightKg }
-            PrefillSource.LAST_SESSION -> sets.firstOrNull()
+            PrefillSource.BEST_SET -> candidates.maxByOrNull { it.weightKg }
+            PrefillSource.LAST_SESSION -> candidates.firstOrNull()
             PrefillSource.NONE -> null
         }
     }

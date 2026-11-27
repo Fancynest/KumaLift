@@ -28,6 +28,7 @@ actual object HealthSyncManager {
     )
 
     private val scope = CoroutineScope(Dispatchers.IO)
+    @Volatile
     private var hasPermissionsGranted: Boolean = false
 
     var isTestMode: Boolean = false
@@ -83,6 +84,13 @@ actual object HealthSyncManager {
         } else {
             HealthSyncStatus.PERMISSION_REQUIRED
         }
+    }
+
+    actual suspend fun refreshStatus(): HealthSyncStatus {
+        if (!isTestMode) {
+            checkPermissionsInternal()
+        }
+        return getStatus()
     }
 
     actual suspend fun requestPermissions(): Boolean {

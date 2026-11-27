@@ -196,8 +196,8 @@ class KumaAiToolExecutor(
             toolDoc = "Search KumaLift Exercise Library by name, muscleGroup, or equipment. Always call this before creating or updating routines to get real exerciseId values.",
             props = {
                 putJsonObject("query") { put("type", "STRING"); put("description", "Optional exercise name filter") }
-                putJsonObject("muscleGroup") { put("type", "STRING"); put("description", "Optional enum: CHEST, BACK, SHOULDERS, BICEPS, TRICEPS, QUADS, HAMSTRINGS, GLUTES, CALVES, CORE, FOREARMS, TRAPS, CARDIO, FULL_BODY") }
-                putJsonObject("equipment") { put("type", "STRING"); put("description", "Optional enum: BARBELL, DUMBBELL, CABLE, MACHINE, BODYWEIGHT, KETTLEBELL, RESISTANCE_BAND, SMITH_MACHINE, OTHER") }
+                putJsonObject("muscleGroup") { put("type", "STRING"); put("description", "Optional enum: CHEST, BACK, LEGS, SHOULDERS, ARMS, CORE, CARDIO, NECK, FULL_BODY") }
+                putJsonObject("equipment") { put("type", "STRING"); put("description", "Optional enum: BARBELL, DUMBBELL, CABLE, BODYWEIGHT, MACHINE, SMITH_MACHINE, BAND, KETTLEBELL, OTHER") }
                 putJsonObject("limit") { put("type", "INTEGER"); put("description", "Max results (default 30)") }
             }
         ))
@@ -391,6 +391,16 @@ class KumaAiToolExecutor(
             },
             required = listOf("preferencesNote")
         ))
+
+        add(fnDecl(
+            name = "search_chat_history",
+            toolDoc = "Search or inspect messages from past saved conversations (by keyword query and/or threadId) so you understand full details from previous chat histories.",
+            props = {
+                putJsonObject("query") { put("type", "STRING"); put("description", "Optional keyword or topic to search across past saved chats") }
+                putJsonObject("threadId") { put("type", "STRING"); put("description", "Optional threadId from savedChatHistories to read exact messages") }
+                putJsonObject("limit") { put("type", "INTEGER"); put("description", "Max messages to return (default 8)") }
+            }
+        ))
     }
 
     fun stepLabelForCall(name: String, strings: AppStrings): String = when (name) {
@@ -398,6 +408,7 @@ class KumaAiToolExecutor(
         "get_schedule_events" -> strings.aiStepReadingSchedule
         "get_recent_workouts", "get_personal_records", "get_muscle_recovery_and_volume", "get_active_workout" -> strings.aiStepReadingProgress
         "search_exercises" -> strings.aiStepReadingExercises
+        "search_chat_history" -> strings.aiStepSearchingHistory
         "present_nutrition_analysis" -> strings.aiStepPreparingNutrition
         else -> strings.aiStepStagingDraft
     }
@@ -416,6 +427,7 @@ class KumaAiToolExecutor(
             "get_personal_records" -> handleGetPersonalRecords()
             "get_muscle_recovery_and_volume" -> handleGetMuscleRecoveryAndVolume()
             "get_active_workout" -> handleGetActiveWorkout()
+            "search_chat_history" -> handleSearchChatHistory(call.args, strings)
             "present_nutrition_analysis" -> handlePresentNutritionAnalysis(call.args, session)
             "stage_create_routine" -> handleStageCreateRoutine(call.args, session, strings)
             "stage_update_routine" -> handleStageUpdateRoutine(call.args, session, strings)
@@ -594,7 +606,12 @@ class KumaAiToolExecutor(
     }
 
     /** Builds an instant (<1ms) in-memory DB snapshot so read and hybrid queries avoid extra tool round-trips. */
-    fun buildFastContextSnapshot(strings: AppStrings): String {
+    fun buildFastContextSnapshot(
+        strings: AppStrings,
+        activeThreadId: String? = null,
+        includeChatHistories: Boolean = true,
+        earlierMessagesSummary: String? = null
+    ): String {
         val tz = TimeZone.currentSystemDefault()
         val todayCtx = buildAiTodayContext(nowProvider(), strings)
         val base = buildOverviewPayload(strings)
@@ -609,6 +626,11 @@ class KumaAiToolExecutor(
         }
         val prs = personalRecordRepository.personalRecords.value
         val active = workoutRepository.activeWorkout.value
+        val savedThreads = if (includeChatHistories) {
+            databaseRepo?.getAllAiChatThreads().orEmpty().take(10)
+        } else {
+            emptyList()
+        }
 
         return buildJsonObject {
             base.forEach { (k, v) -> put(k, v) }
@@ -622,6 +644,25 @@ class KumaAiToolExecutor(
             if (yesterdayWorkouts.isNotEmpty()) {
                 putJsonArray("yesterdayWorkouts") {
                     yesterdayWorkouts.forEach { add(buildCompletedWorkoutJson(it, todayCtx, tz, includeSetDetails = false)) }
+                }
+            }
+            if (!earlierMessagesSummary.isNullOrBlank()) {
+                put("currentThreadEarlierContext", earlierMessagesSummary)
+            }
+            if (savedThreads.isNotEmpty()) {
+                putJsonArray("savedChatHistories") {
+                    savedThreads.forEach { thread ->
+                        val dateStr = Instant.fromEpochMilliseconds(thread.updatedAtEpochMs)
+                            .toLocalDateTime(tz).date.toString()
+                        add(buildJsonObject {
+                            put("threadId", thread.id)
+                            put("title", thread.title)
+                            put("date", dateStr)
+                            put("messageCount", thread.messageCount)
+                            if (thread.id == activeThreadId) put("isCurrent", true)
+                            if (thread.contextSummary.isNotBlank()) put("summary", thread.contextSummary)
+                        })
+                    }
                 }
             }
             if (active != null) {
@@ -694,12 +735,8 @@ class KumaAiToolExecutor(
 
     private fun handleSearchExercises(args: JsonObject): JsonElement {
         val query = args.str("query").orEmpty()
-        val muscle = args.str("muscleGroup")?.let { raw ->
-            MuscleGroup.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
-        }
-        val equipment = args.str("equipment")?.let { raw ->
-            Equipment.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
-        }
+        val muscle = args.str("muscleGroup")?.let { resolveMuscleGroup(it) }
+        val equipment = args.str("equipment")?.let { resolveEquipment(it) }
         val limit = (args.intVal("limit") ?: 30).coerceIn(1, 50)
         val matches = exerciseRepository.searchExercises(query, muscle, equipment).take(limit)
         return buildJsonObject {
@@ -715,6 +752,30 @@ class KumaAiToolExecutor(
                     })
                 }
             }
+        }
+    }
+
+    private fun resolveMuscleGroup(raw: String): MuscleGroup? {
+        val norm = raw.trim().uppercase().replace(' ', '_').replace('-', '_')
+        MuscleGroup.entries.firstOrNull { it.name == norm }?.let { return it }
+        return when (norm) {
+            "BICEPS", "TRICEPS", "FOREARMS", "ARM" -> MuscleGroup.ARMS
+            "QUADS", "QUADRICEPS", "HAMSTRINGS", "GLUTES", "CALVES", "LEG" -> MuscleGroup.LEGS
+            "TRAPS", "LATS", "LOWER_BACK", "UPPER_BACK" -> MuscleGroup.BACK
+            "ABS", "ABDOMINALS", "OBLIQUES" -> MuscleGroup.CORE
+            "DELTS", "DELTOIDS" -> MuscleGroup.SHOULDERS
+            else -> null
+        }
+    }
+
+    private fun resolveEquipment(raw: String): Equipment? {
+        val norm = raw.trim().uppercase().replace(' ', '_').replace('-', '_')
+        Equipment.entries.firstOrNull { it.name == norm }?.let { return it }
+        return when (norm) {
+            "RESISTANCE_BAND", "RESISTANCE_BANDS", "BANDS" -> Equipment.BAND
+            "SMITH" -> Equipment.SMITH_MACHINE
+            "BODY_WEIGHT", "BW" -> Equipment.BODYWEIGHT
+            else -> null
         }
     }
 
@@ -875,6 +936,100 @@ class KumaAiToolExecutor(
                         put("completedSets", we.sets.count { it.isCompleted })
                         put("totalSets", we.sets.size)
                     })
+                }
+            }
+        }
+    }
+
+    private fun handleSearchChatHistory(args: JsonObject, strings: AppStrings): JsonElement {
+        val repo = databaseRepo ?: return buildJsonObject {
+            put("threadsCount", 0)
+            putJsonArray("matches") {}
+        }
+        val tz = TimeZone.currentSystemDefault()
+        val targetThreadId = args.str("threadId")
+        val rawQuery = args.str("query").orEmpty()
+        val limit = (args.intVal("limit") ?: 8).coerceIn(1, 20)
+        val allThreads = repo.getAllAiChatThreads()
+        val threadById = allThreads.associateBy { it.id }
+
+        if (targetThreadId != null) {
+            val thread = threadById[targetThreadId] ?: return errorJson("Chat thread not found: $targetThreadId")
+            val msgs = repo.getAiChatMessages(targetThreadId)
+                .filter { !it.isError && it.text.isNotBlank() }
+                .let { list ->
+                    if (rawQuery.isBlank()) list
+                    else list.filter { it.text.contains(rawQuery, ignoreCase = true) }
+                }
+                .takeLast(limit)
+            return buildJsonObject {
+                put("threadId", thread.id)
+                put("title", thread.title)
+                put("contextSummary", thread.contextSummary)
+                put("matchCount", msgs.size)
+                putJsonArray("messages") {
+                    msgs.forEach { m ->
+                        val dateStr = Instant.fromEpochMilliseconds(m.createdAtEpochMs)
+                            .toLocalDateTime(tz).date.toString()
+                        add(buildJsonObject {
+                            put("role", m.role.name.lowercase())
+                            put("date", dateStr)
+                            put("text", m.text.take(420))
+                        })
+                    }
+                }
+            }
+        }
+
+        val tokens = rawQuery.split(Regex("""\s+""")).map { it.trim() }.filter { it.length >= 2 }
+        val matchingThreads = if (tokens.isEmpty()) {
+            allThreads.take(limit)
+        } else {
+            allThreads.filter { t ->
+                tokens.any { kw ->
+                    t.title.contains(kw, ignoreCase = true) ||
+                        t.contextSummary.contains(kw, ignoreCase = true)
+                }
+            }.take(limit)
+        }
+        val directMsgHits = if (rawQuery.isNotBlank()) {
+            val hits = repo.searchAiChatMessages(rawQuery, limit)
+            if (hits.isNotEmpty()) hits
+            else tokens.flatMap { repo.searchAiChatMessages(it, 6) }.distinctBy { it.id }.take(limit)
+        } else {
+            emptyList()
+        }
+
+        return buildJsonObject {
+            put("todayDate", buildAiTodayContext(nowProvider(), strings).isoDate)
+            put("totalSavedThreads", allThreads.size)
+            putJsonArray("threads") {
+                matchingThreads.forEach { t ->
+                    val dateStr = Instant.fromEpochMilliseconds(t.updatedAtEpochMs)
+                        .toLocalDateTime(tz).date.toString()
+                    add(buildJsonObject {
+                        put("threadId", t.id)
+                        put("title", t.title)
+                        put("date", dateStr)
+                        put("messageCount", t.messageCount)
+                        put("contextSummary", t.contextSummary)
+                    })
+                }
+            }
+            if (directMsgHits.isNotEmpty()) {
+                putJsonArray("messages") {
+                    directMsgHits.forEach { m ->
+                        val dateStr = Instant.fromEpochMilliseconds(m.createdAtEpochMs)
+                            .toLocalDateTime(tz).date.toString()
+                        val parentTitle = threadById[m.threadId]?.title.orEmpty()
+                        add(buildJsonObject {
+                            put("threadId", m.threadId)
+                            if (parentTitle.isNotBlank()) put("threadTitle", parentTitle)
+                            put("role", m.role.name.lowercase())
+                            put("date", dateStr)
+                            put("text", m.text.take(420))
+                        })
+                    }
                 }
             }
         }
@@ -1160,6 +1315,60 @@ class KumaAiToolExecutor(
         val appliedTitles = mutableListOf<String>()
 
         return try {
+            // Pre-validate all operations before mutating any repository so batches remain atomic
+            var pendingRoutineCreates = 0
+            val pendingCreateOpIds = mutableSetOf<String>()
+            proposal.operations.forEach { op ->
+                when (op.actionType) {
+                    AiActionType.CREATE_ROUTINE -> {
+                        val dto = json.decodeFromString<StageCreateRoutinePayload>(op.payloadJson)
+                        val validCount = dto.exercises.count { exerciseRepository.getExerciseById(it.exerciseId) != null }
+                        require(validCount > 0) { "No valid exercises in routine ${dto.title}" }
+                        pendingRoutineCreates++
+                        pendingCreateOpIds.add(op.id)
+                    }
+                    AiActionType.UPDATE_ROUTINE -> {
+                        val dto = json.decodeFromString<StageUpdateRoutinePayload>(op.payloadJson)
+                        routineRepository.getRoutineById(dto.routineId)
+                            ?: error("Routine ${dto.routineId} no longer exists")
+                        dto.exercises?.let { list ->
+                            val validCount = list.count { exerciseRepository.getExerciseById(it.exerciseId) != null }
+                            require(validCount > 0) { "No valid exercises in routine update" }
+                        }
+                    }
+                    AiActionType.SCHEDULE_WORKOUT -> {
+                        val dto = json.decodeFromString<StageScheduleWorkoutPayload>(op.payloadJson)
+                        val hasRoutine = routineRepository.getRoutineById(dto.routineId) != null ||
+                            dto.routineId in pendingCreateOpIds ||
+                            pendingRoutineCreates > 0
+                        require(hasRoutine) { "Routine not found for scheduling" }
+                        LocalDate.parse(dto.scheduledDate)
+                    }
+                    AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT -> {
+                        val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
+                        check(workoutRepository.activeWorkout.value != null) { "No active workout session" }
+                        exerciseRepository.getExerciseById(dto.id) ?: error("Exercise not found")
+                    }
+                    AiActionType.DELETE_ROUTINE,
+                    AiActionType.CANCEL_SCHEDULE,
+                    AiActionType.DELETE_SCHEDULE -> {
+                        json.decodeFromString<StageIdPayload>(op.payloadJson)
+                    }
+                    AiActionType.START_MESOCYCLE -> {
+                        json.decodeFromString<StageStartMesocyclePayload>(op.payloadJson)
+                    }
+                    AiActionType.LOG_BODYWEIGHT -> {
+                        json.decodeFromString<StageLogBodyweightPayload>(op.payloadJson)
+                    }
+                    AiActionType.UPDATE_TRAINING_GOAL -> {
+                        json.decodeFromString<StageUpdateGoalPayload>(op.payloadJson)
+                    }
+                    AiActionType.UPDATE_AI_PREFERENCES -> {
+                        json.decodeFromString<StageTextPayload>(op.payloadJson)
+                    }
+                }
+            }
+
             proposal.operations.forEach { op ->
                 when (op.actionType) {
                     AiActionType.CREATE_ROUTINE -> {
@@ -1193,9 +1402,13 @@ class KumaAiToolExecutor(
                         val dto = json.decodeFromString<StageUpdateRoutinePayload>(op.payloadJson)
                         val existing = routineRepository.getRoutineById(dto.routineId)
                             ?: error("Routine ${dto.routineId} no longer exists")
-                        val newConfigs = dto.exercises?.mapNotNull { item ->
-                            val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
-                            item.toRoutineExerciseConfig(ex)
+                        val newConfigs = dto.exercises?.let { list ->
+                            val resolved = list.mapNotNull { item ->
+                                val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
+                                item.toRoutineExerciseConfig(ex)
+                            }
+                            require(resolved.isNotEmpty()) { "No valid exercises in routine update" }
+                            resolved
                         } ?: existing.effectiveConfigs
                         val updated = existing.copy(
                             title = dto.title ?: existing.title,
@@ -1264,6 +1477,7 @@ class KumaAiToolExecutor(
                     }
                     AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT -> {
                         val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
+                        check(workoutRepository.activeWorkout.value != null) { "No active workout session" }
                         val ex = exerciseRepository.getExerciseById(dto.id) ?: error("Exercise not found")
                         workoutRepository.addExerciseToActiveWorkout(ex)
                         appliedTitles.add(ex.name)

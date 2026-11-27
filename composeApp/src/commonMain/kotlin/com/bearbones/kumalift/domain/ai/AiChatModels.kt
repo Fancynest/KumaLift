@@ -67,15 +67,32 @@ data class AiNutritionCardData(
     val summary: String
 )
 
+const val DEFAULT_CHAT_THREAD_ID = "thread_default"
+
+@Serializable
+data class AiChatThread(
+    val id: String,
+    val title: String,
+    val contextSummary: String = "",
+    val messageCount: Int = 0,
+    val createdAtEpochMs: Long = 0L,
+    val updatedAtEpochMs: Long = 0L
+)
+
 @Serializable
 data class AiChatMessage(
     val id: String,
     val role: AiChatRole,
     val text: String,
+    val threadId: String = DEFAULT_CHAT_THREAD_ID,
     val imagePath: String? = null,
+    val imagePaths: List<String> = emptyList(),
     val stepLogs: List<String> = emptyList(),
     val proposal: AiActionProposal? = null,
     val nutritionCard: AiNutritionCardData? = null,
     val isError: Boolean = false,
     val createdAtEpochMs: Long = 0L
-)
+) {
+    val effectiveImagePaths: List<String>
+        get() = if (imagePaths.isNotEmpty()) imagePaths else listOfNotNull(imagePath)
+}

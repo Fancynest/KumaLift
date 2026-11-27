@@ -1,28 +1,27 @@
 package com.bearbones.kumalift.data.repository
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.bearbones.kumalift.core.backup.AutoBackupScheduler
-import com.bearbones.kumalift.data.local.DatabaseDriverFactory
+import com.bearbones.kumalift.data.local.AndroidDatabaseProvider
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.data.local.SeedData
-import com.bearbones.kumalift.database.KumaDatabase
 
 @Composable
 actual fun rememberDatabaseRepository(): KumaDatabaseRepository {
     val context = LocalContext.current.applicationContext
-    return remember(context) {
-        val driver = DatabaseDriverFactory(context).createDriver()
-        val database = KumaDatabase(driver)
-        KumaDatabaseRepository(database)
+    return remember<KumaDatabaseRepository>(context) {
+        val repo = AndroidDatabaseProvider.getRepository(context)
+        repo
     }
 }
 
 @Composable
 actual fun rememberSettingsRepository(databaseRepo: KumaDatabaseRepository): SettingsRepository {
     val context = LocalContext.current.applicationContext
-    return remember(context, databaseRepo) {
+    return remember<SettingsRepository>(context, databaseRepo) {
         // Load from SQLDelight database first
         val savedDbSettings = databaseRepo.loadUserSettings()
         val initial = if (savedDbSettings != null) {
@@ -51,22 +50,28 @@ actual fun rememberSettingsRepository(databaseRepo: KumaDatabaseRepository): Set
 @Composable
 actual fun rememberExerciseRepository(databaseRepo: KumaDatabaseRepository): ExerciseRepository {
     val context = LocalContext.current.applicationContext
-    return remember(context, databaseRepo) {
+    return remember<ExerciseRepository>(context, databaseRepo) {
+        val migPrefs = context.getSharedPreferences("kumalift_legacy_migrations", Context.MODE_PRIVATE)
         val dbCustom = databaseRepo.getAllCustomExercises()
-        val custom = if (dbCustom.isNotEmpty()) {
+        val custom = if (dbCustom.isNotEmpty() || migPrefs.getBoolean("migrated_exercises_v1", false)) {
+            if (!migPrefs.getBoolean("migrated_exercises_v1", false)) {
+                migPrefs.edit().putBoolean("migrated_exercises_v1", true).apply()
+            }
             dbCustom
         } else {
             // First run migration from legacy json
             val legacyStore = AndroidExerciseStore(context)
             val migrated = legacyStore.loadCustomExercises()
             migrated.forEach { databaseRepo.saveCustomExercise(it) }
+            migPrefs.edit().putBoolean("migrated_exercises_v1", true).apply()
             migrated
         }
 
-        ExerciseRepository(
+        val repo = ExerciseRepository(
             initialExercises = custom + SeedData.defaultExercises,
             databaseRepo = databaseRepo
         )
+        repo
     }
 }
 
@@ -76,22 +81,28 @@ actual fun rememberRoutineRepository(
     databaseRepo: KumaDatabaseRepository
 ): RoutineRepository {
     val context = LocalContext.current.applicationContext
-    return remember(context, exerciseRepository, databaseRepo) {
+    return remember<RoutineRepository>(context, exerciseRepository, databaseRepo) {
+        val migPrefs = context.getSharedPreferences("kumalift_legacy_migrations", Context.MODE_PRIVATE)
         val dbCustom = databaseRepo.getAllCustomRoutines { id -> exerciseRepository.getExerciseById(id) }
-        val custom = if (dbCustom.isNotEmpty()) {
+        val custom = if (dbCustom.isNotEmpty() || migPrefs.getBoolean("migrated_routines_v1", false)) {
+            if (!migPrefs.getBoolean("migrated_routines_v1", false)) {
+                migPrefs.edit().putBoolean("migrated_routines_v1", true).apply()
+            }
             dbCustom
         } else {
             // First run migration from legacy json
             val legacyStore = AndroidRoutineStore(context, exerciseRepository)
             val migrated = legacyStore.loadCustomRoutines()
             migrated.forEach { databaseRepo.saveCustomRoutine(it) }
+            migPrefs.edit().putBoolean("migrated_routines_v1", true).apply()
             migrated
         }
 
-        RoutineRepository(
+        val repo = RoutineRepository(
             initialRoutines = custom.filterNot { it.id.startsWith("rt_") },
             databaseRepo = databaseRepo
         )
+        repo
     }
 }
 
@@ -100,14 +111,14 @@ actual fun rememberTrainingProgramRepository(
     databaseRepo: KumaDatabaseRepository,
     settingsRepository: SettingsRepository
 ): TrainingProgramRepository {
-    return remember(databaseRepo, settingsRepository) {
+    return remember<TrainingProgramRepository>(databaseRepo, settingsRepository) {
         var dbPrograms = databaseRepo.getAllTrainingPrograms()
         if (dbPrograms.isEmpty()) {
             databaseRepo.saveTrainingProgram(com.bearbones.kumalift.domain.model.TrainingProgram.DEFAULT_HYPERTROPHY)
             dbPrograms = databaseRepo.getAllTrainingPrograms()
         }
         val activeId = settingsRepository.settings.value.profile.activeProgramId
-        TrainingProgramRepository(
+        val repo = TrainingProgramRepository(
             initialPrograms = dbPrograms,
             initialActiveProgramId = activeId,
             databaseRepo = databaseRepo,
@@ -115,5 +126,6 @@ actual fun rememberTrainingProgramRepository(
                 settingsRepository.updateProfile { it.copy(activeProgramId = newId) }
             }
         )
+        repo
     }
 }

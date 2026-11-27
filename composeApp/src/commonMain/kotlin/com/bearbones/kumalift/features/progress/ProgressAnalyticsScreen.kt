@@ -202,7 +202,7 @@ fun ProgressAnalyticsScreen(
 
                 // 1. Estimated 1RM Trajectory Card
                 item {
-                    val activePrPool = filteredPrs.ifEmpty { prs }
+                    val activePrPool = filteredPrs
                     val topPr = activePrPool.maxByOrNull { effectiveOneRmKg(it) }
                     if (topPr == null) {
                         KumaCard(
@@ -375,7 +375,7 @@ fun ProgressAnalyticsScreen(
 
                 // 2. Weekly Tonnage & Volume
                 item {
-                    val activeWorkouts = filteredWorkouts.ifEmpty { completedWorkouts }
+                    val activeWorkouts = filteredWorkouts
                     if (activeWorkouts.isEmpty()) {
                         KumaCard(
                             modifier = Modifier.fillMaxWidth(),

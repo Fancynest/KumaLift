@@ -90,4 +90,35 @@ class KumaLiftTests {
         assertEquals(155.0, newPr.weightKg)
         assertEquals(5.0, newPr.deltaWeightKg)
     }
+
+    @Test
+    fun testDomainMathEdgeCasesAndPlateEpsilon() {
+        assertEquals(0.0, OneRepMaxCalculator.calculateEpley(Double.NaN, 5))
+        assertEquals(0.0, OneRepMaxCalculator.calculateEstimated1Rm(Double.POSITIVE_INFINITY, 3))
+        assertEquals(100.0, SetLog(id = "s1", setNumber = 1, weightKg = 100.0, reps = 1).estimated1RmEpley)
+
+        // Binary float drift just below 22.5 kg must still match 1.25 kg plate per side cleanly
+        val plateResult = com.bearbones.kumalift.domain.model.PlateCalculator.calculate(
+            targetWeightKg = 22.499999,
+            barWeightKg = 20.0
+        )
+        assertEquals(1, plateResult.platesPerSide.size)
+        assertEquals(1.25, plateResult.platesPerSide.first().weightKg)
+
+        // Dumbbell (barWeightKg = 0.0) warmup sets must not be 0.0 kg
+        val dbWarmups = com.bearbones.kumalift.domain.model.WarmupSetCalculator.generateWarmupSets(
+            workingWeightKg = 30.0,
+            barWeightKg = 0.0,
+            weightStepKg = 2.5
+        )
+        assertTrue(dbWarmups.isNotEmpty())
+        assertTrue(dbWarmups.all { it.weightKg > 0.0 && it.setType == com.bearbones.kumalift.domain.model.SetType.WARMUP })
+
+        val formattedMinLong = com.bearbones.kumalift.core.util.NumberFormatUtils.formatIntegerWithSeparators(
+            Long.MIN_VALUE,
+            com.bearbones.kumalift.domain.model.AppLanguage.EN
+        )
+        assertTrue(formattedMinLong.startsWith("-9,223"), "Unexpected MIN_VALUE format: $formattedMinLong")
+        kotlin.test.assertFalse(formattedMinLong.startsWith("--"))
+    }
 }

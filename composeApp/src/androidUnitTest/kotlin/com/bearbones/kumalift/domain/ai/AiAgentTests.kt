@@ -4,6 +4,7 @@ import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.bearbones.kumalift.core.ai.AiHttpResponse
 import com.bearbones.kumalift.core.ai.AiHttpTransport
 import com.bearbones.kumalift.core.ai.InMemoryAiSecretStore
+import com.bearbones.kumalift.core.localization.EnStrings
 import com.bearbones.kumalift.core.localization.IdStrings
 import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
@@ -39,9 +40,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1113,5 +1116,318 @@ class AiAgentTests {
         assertEquals(75.0, updated.effectiveConfigs[0].targetWeightKg)
         assertEquals(8, updated.effectiveConfigs[0].targetReps)
         assertEquals(3, updated.effectiveConfigs[0].setConfigs.size)
+    }
+
+    @Test
+    fun testFivePersonalizedEmptyGreetingsInEnAndIdAreDistinctAndContainName() {
+        val name = "Gabriel"
+        val enGreetings = (0 until 5).map { EnStrings.aiEmptyGreeting(it, name) }
+        val idGreetings = (0 until 5).map { IdStrings.aiEmptyGreeting(it, name) }
+
+        assertEquals(5, enGreetings.distinct().size, "All 5 EN greetings must differ")
+        assertEquals(5, idGreetings.distinct().size, "All 5 ID greetings must differ")
+        enGreetings.forEach { msg ->
+            assertTrue(msg.contains(name), "EN greeting '$msg' must include user's name")
+            assertTrue(msg.isNotBlank())
+        }
+        idGreetings.forEach { msg ->
+            assertTrue(msg.contains(name), "ID greeting '$msg' must include user's name")
+            assertTrue(msg.isNotBlank())
+        }
+        assertEquals(enGreetings[0], EnStrings.aiEmptyGreeting(5, name))
+        assertEquals(idGreetings[2], IdStrings.aiEmptyGreeting(-3, name))
+    }
+
+    @Test
+    fun testTemporaryChatDoesNotPersistOrLeakToHistorySidebarOrBackup() = runBlocking {
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Jawaban sementara tidak disimpan."}]}}]}"""
+                )
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        service.setTemporaryChat(true)
+        assertTrue(service.isTemporaryChat.value)
+        service.sendMessage("rahasia temporary chat", null, IdStrings, AppLanguage.ID)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+
+        assertEquals(2, service.messages.value.size)
+        assertTrue(dbRepo.getAllAiChatThreads().isEmpty(), "Temporary chat must never create saved thread")
+        assertTrue(dbRepo.getAllAiChatMessages().isEmpty(), "Temporary chat must never write to SQLite")
+        assertTrue(service.threads.value.isEmpty(), "Temporary chat must never appear in sidebar")
+
+        // Turning temporary chat off clears volatile messages cleanly
+        service.setTemporaryChat(false)
+        assertFalse(service.isTemporaryChat.value)
+        assertTrue(service.messages.value.isEmpty())
+    }
+
+    @Test
+    fun testSavedHistorySidebarMultipleThreadsBackupSizeUnbloatedAndCrossThreadContext() = runBlocking {
+        val backupBeforeChats = DataBackupManager(dbRepo).exportJson(settingsRepo.settings.value)
+        val capturedSystems = mutableListOf<String>()
+        val queuedReplies = ArrayDeque(
+            listOf(
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Noted, hindari overhead barbell kalau bahu kiri sakit, pakai incline cable."}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Oatmeal 60g + whey + telur = 600 kkal, 48g protein."}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Di chat sebelumnya kita bahas bahu kiri sensitif dan menu 600 kkal."}]}}]}"""
+            )
+        )
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                capturedSystems.add(Json.parseToJsonElement(body).jsonObject["systemInstruction"]!!.toString())
+                return AiHttpResponse(200, queuedReplies.removeFirst())
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        // Thread 1
+        service.sendMessage("bahu kiri agak sakit pas overhead press", null, IdStrings, AppLanguage.ID)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        val thread1Id = service.currentThreadId.value
+        assertNotNull(thread1Id)
+
+        // Start Thread 2 -> separate thread preserved in sidebar
+        service.startNewChat()
+        assertTrue(service.messages.value.isEmpty())
+        service.sendMessage("saran menu sarapan 600 kkal", null, IdStrings, AppLanguage.ID)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        val thread2Id = service.currentThreadId.value
+        assertNotNull(thread2Id)
+        assertFalse(thread1Id == thread2Id)
+        assertEquals(2, service.threads.value.size)
+
+        // Switching back to Thread 1 restores exact conversation
+        service.selectThread(thread1Id)
+        assertEquals(2, service.messages.value.size)
+        assertTrue(service.messages.value.first().text.contains("bahu kiri"))
+
+        // Start Thread 3 -> AI automatically receives cross-thread context index (`savedChatHistories`)
+        service.startNewChat()
+        service.sendMessage("ingat saran bahu dan sarapan dari chat lalu?", null, IdStrings, AppLanguage.ID)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        val sysPrompt3 = capturedSystems.last()
+        assertTrue(sysPrompt3.contains("savedChatHistories"), "Snapshot must expose savedChatHistories across threads")
+        assertTrue(sysPrompt3.contains("bahu kiri"), "Thread 1 context summary must carry into new chats")
+        assertTrue(sysPrompt3.contains("600 kkal") || sysPrompt3.contains("menu sarapan"), "Thread 2 context must carry into new chats")
+
+        // Deep recall tool can fetch exact messages by keyword or threadId
+        val searchByQuery = executor.executeCall(
+            GeminiFunctionCall("search_chat_history", Json.parseToJsonElement("""{"query":"bahu"}""").jsonObject),
+            KumaAiToolSessionState(),
+            IdStrings
+        ).jsonObject
+        assertTrue(searchByQuery["messages"]!!.jsonArray.toString().contains("overhead barbell"))
+
+        val searchByThread = executor.executeCall(
+            GeminiFunctionCall("search_chat_history", Json.parseToJsonElement("""{"threadId":"$thread2Id"}""").jsonObject),
+            KumaAiToolSessionState(),
+            IdStrings
+        ).jsonObject
+        assertTrue(searchByThread["messages"]!!.jsonArray.toString().contains("48g protein"))
+
+        // Backup payload size stays 100% unbloated by chat transcripts
+        val backupAfterChats = DataBackupManager(dbRepo).exportJson(settingsRepo.settings.value)
+        assertFalse(backupAfterChats.contains("overhead barbell"))
+        assertEquals(
+            Json.parseToJsonElement(backupBeforeChats).jsonObject.filterKeys { it != "exportedAtEpochMs" },
+            Json.parseToJsonElement(backupAfterChats).jsonObject.filterKeys { it != "exportedAtEpochMs" }
+        )
+
+        // Deleting a single thread removes only that thread
+        service.deleteThread(thread1Id)
+        assertEquals(2, service.threads.value.size) // Thread 2 & Thread 3 remain
+        assertFalse(service.threads.value.any { it.id == thread1Id })
+    }
+
+    @Test
+    fun testMultiImageUploadUpTo10PersistsAndSendsAllToGemini() = runBlocking {
+        var capturedBody = ""
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                capturedBody = body
+                return AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Semua 10 foto sudah dianalisis."}]}}]}"""
+                )
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo,
+            imageLoader = { path -> "image/jpeg" to "B64_$path" }
+        )
+
+        // Supply 12 photos -> capped safely to max 10
+        val twelvePaths = (1..12).map { "/tmp/workout_shot_$it.jpg" }
+        service.sendMessage("baca semua screenshot jadwal latihan ini", twelvePaths, IdStrings, AppLanguage.ID)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+
+        val userMsg = service.messages.value.first()
+        assertEquals(10, userMsg.effectiveImagePaths.size)
+        assertTrue(capturedBody.contains("B64_/tmp/workout_shot_10.jpg"))
+        assertFalse(capturedBody.contains("B64_/tmp/workout_shot_11.jpg"))
+        assertTrue(capturedBody.contains(""""thinkingBudget":2048"""), "Multi-image requests must use DEEP reasoning")
+
+        val reloaded = dbRepo.getAiChatMessages(userMsg.threadId).first()
+        assertEquals(10, reloaded.effectiveImagePaths.size)
+        assertEquals("/tmp/workout_shot_10.jpg", reloaded.effectiveImagePaths.last())
+    }
+
+    @Test
+    fun testSwitchingToNewChatWhileWorkingDoesNotPolluteNewChatOrZeroPreviousThread() = runBlocking {
+        val slowTransport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                delay(400)
+                return AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Selesai."}]}}]}"""
+                )
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(slowTransport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        service.sendMessage("pertanyaan di thread A", null, IdStrings, AppLanguage.ID)
+        val threadAId = service.currentThreadId.value!!
+        delay(40)
+        assertTrue(service.isWorking.value)
+
+        // Switching to a brand-new chat mid-request silently cancels without injecting error into new chat
+        service.startNewChat(temporary = false)
+        delay(120)
+
+        assertFalse(service.isWorking.value)
+        assertTrue(service.messages.value.isEmpty(), "New chat must stay clean without cancelled banner from previous thread")
+        val threadAAfter = service.threads.value.first { it.id == threadAId }
+        assertEquals(1, threadAAfter.messageCount)
+
+        // Explicit Stop button on same thread DOES show cancelled banner
+        service.sendMessage("pertanyaan yang distop manual", null, IdStrings, AppLanguage.ID)
+        delay(40)
+        service.stopCurrentRequest()
+        repeat(25) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(20)
+        }
+        assertEquals(2, service.messages.value.size)
+        assertTrue(service.messages.value.last().isError)
+        assertEquals(IdStrings.aiErrorCancelled, service.messages.value.last().text)
+    }
+
+    @Test
+    fun testSearchExercisesMapsAliasesAndCommitRejectsInactiveAddExercise() {
+        val bandCurl = exerciseRepo.addCustomExercise(
+            name = "Band Bicep Curl",
+            primaryMuscle = MuscleGroup.ARMS,
+            equipment = Equipment.BAND,
+            movementType = MovementType.ISOLATION
+        )
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val session = KumaAiToolSessionState()
+
+        val searchRes = executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "search_exercises",
+                args = buildJsonObject {
+                    put("muscleGroup", "BICEPS")
+                    put("equipment", "RESISTANCE_BAND")
+                }
+            ),
+            session = session,
+            strings = EnStrings
+        )
+        val ids = searchRes.jsonObject["exercises"]!!.jsonArray
+            .map { it.jsonObject["id"]!!.jsonPrimitive.content }
+        assertTrue(ids.contains(bandCurl.id))
+
+        workoutRepo.startEmptyWorkout("Temp Active")
+        val stageRes = executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "stage_add_exercise_to_active_workout",
+                args = buildJsonObject { put("exerciseId", bandCurl.id) }
+            ),
+            session = session,
+            strings = EnStrings
+        )
+        assertEquals("DRAFTED_FOR_USER_REVIEW", stageRes.jsonObject["status"]?.jsonPrimitive?.content)
+        assertEquals(1, session.stagedOperations.size)
+
+        // Workout ends before user taps Approve -> commit must fail cleanly
+        workoutRepo.cancelWorkout()
+        val (ok, _) = executor.commitProposal(
+            AiActionProposal(
+                id = "prop_inactive_test",
+                summary = "Add",
+                status = AiProposalStatus.PENDING,
+                operations = session.stagedOperations.toList()
+            )
+        )
+        assertFalse(ok)
     }
 }

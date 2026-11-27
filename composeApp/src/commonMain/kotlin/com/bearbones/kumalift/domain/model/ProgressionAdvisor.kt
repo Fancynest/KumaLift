@@ -108,12 +108,20 @@ object ProgressionAdvisor {
         val rpeLoggedSets = completedWorkingSets.mapNotNull { it.rpe }
         val avgRpe = if (rpeLoggedSets.isNotEmpty()) rpeLoggedSets.average() else null
 
+        val maxRepsForE1Rm = maxOf(10, upperRep)
+
         // 1RM calculations
         val bestPreviousSet = completedWorkingSets.maxByOrNull {
-            OneRepMaxCalculator.calculate(it.weightKg, it.reps, oneRmFormula)
+            OneRepMaxCalculator.calculate(it.weightKg, it.reps, oneRmFormula, maxReps = maxRepsForE1Rm)
         }
         val previousE1Rm = if (bestPreviousSet != null && bestPreviousSet.weightKg > 0.0 && bestPreviousSet.reps > 0) {
-            OneRepMaxCalculator.calculateEstimated1Rm(bestPreviousSet.weightKg, bestPreviousSet.reps, oneRmFormula)
+            val raw = OneRepMaxCalculator.calculate(
+                bestPreviousSet.weightKg,
+                bestPreviousSet.reps,
+                oneRmFormula,
+                maxReps = maxRepsForE1Rm
+            )
+            if (raw.isFinite() && raw > 0.0) (raw * 10.0).roundToInt() / 10.0 else null
         } else null
 
         // Standard increments based on movement & muscle
@@ -173,7 +181,18 @@ object ProgressionAdvisor {
             }
 
             val nextTargetRep = (avgReps + 1.0).roundToInt().coerceIn(lowerRep, upperRep)
-            val projectedE1Rm = OneRepMaxCalculator.calculateEstimated1Rm(lastWeight, nextTargetRep, oneRmFormula)
+            val projectedRaw = OneRepMaxCalculator.calculate(
+                lastWeight,
+                nextTargetRep,
+                oneRmFormula,
+                maxReps = maxRepsForE1Rm
+            )
+            val projectedE1Rm = if (projectedRaw.isFinite() && projectedRaw > 0.0) {
+                val rounded = (projectedRaw * 10.0).roundToInt() / 10.0
+                if (previousE1Rm != null) maxOf(rounded, previousE1Rm) else rounded
+            } else {
+                previousE1Rm
+            }
             return ProgressionAdvice.IncreaseReps(
                 targetReps = nextTargetRep,
                 suggestedWeightKg = lastWeight,

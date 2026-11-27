@@ -1155,11 +1155,20 @@ object IdStrings : AppStrings {
     override val aiSetupNeededTitle = "Hubungkan API Key Gemini"
     override val aiSetupNeededDesc = "Masukkan API key Gemini pribadimu di Pengaturan agar Kuma AI bisa menyusun rutin, mengatur jadwal, serta menganalisis foto alat gym atau makanan."
     override val aiOpenSettingsAction = "Atur API Key"
-    override val aiEmptyStarterTitle = "Siap Membantu & Mengatur KumaLift"
-    override val aiEmptyStarterDesc = "Minta susunkan program, ubah jadwal, evaluasi progres, atau kirim foto alat gym, gerakan, dan makanan."
+    override fun aiEmptyGreeting(index: Int, name: String): String {
+        val options = listOf(
+            "Target siap, $name. Mau latihan apa hari ini?",
+            "Barbell siap, $name — gas kejar rekor PR baru?",
+            "Halo $name, mau atur split latihan atau cek pemulihan?",
+            "Fokus penuh, $name. Otot mana yang mau dilatih sekarang?",
+            "Saatnya progres, $name. Bahas program, gerakan, atau nutrisi?"
+        )
+        return options[((index % options.size) + options.size) % options.size]
+    }
     override val aiComposerPlaceholder = "Ketik perintah atau revisi..."
     override val aiSendDesc = "Kirim pesan"
     override val aiStopDesc = "Hentikan proses"
+    override val aiAttachMediaDesc = "Lampirkan foto"
     override val aiCameraDesc = "Ambil foto"
     override val aiGalleryDesc = "Import gambar"
     override val aiRemoveAttachmentDesc = "Hapus lampiran foto"
@@ -1207,7 +1216,40 @@ object IdStrings : AppStrings {
     override val aiStepStagingDraft = "Menyiapkan draft untuk ditinjau (belum disimpan)"
     override val aiStepPreparingNutrition = "Menyiapkan ringkasan gizi"
     override val aiStepCallingGemini = "Berpikir dengan Gemini..."
+    override val aiStepSearchingHistory = "Mengecek konteks riwayat obrolan"
     override val aiCommitSuccessPrefix = "Diterapkan:"
+    override val aiHistoryTitle = "Riwayat Obrolan"
+    override val aiHistoryOpenDesc = "Buka riwayat obrolan"
+    override val aiHistoryEmpty = "Belum ada riwayat percakapan"
+    override val aiTempChatToggleDesc = "Obrolan sementara"
+    override val aiTempChatBadge = "Obrolan Sementara • Tidak disimpan"
+    override val aiTempChatDesc = "Obrolan sementara tidak disimpan ke riwayat dan tidak tersisa setelah ditutup."
+    override val aiDeleteThreadDesc = "Hapus obrolan"
+    override val aiDeleteThreadTitle = "Hapus Percakapan?"
+    override fun aiDeleteThreadMessage(title: String) =
+        "Percakapan ini akan dihapus permanen dari riwayat obrolan lokal:\n\"$title\""
+    override fun aiSelectedImagesCount(count: Int, max: Int) = "$count / $max foto"
+    override fun aiPhotoPageIndicator(current: Int, total: Int) = "Foto $current dari $total"
+    override val aiMaxPhotosHint = "Maksimal 10 foto sudah terlampir"
+    override val deleteScheduleConfirmTitle = "Hapus Jadwal Latihan?"
+    override val deleteScheduleConfirmMessage = "Jadwal latihan pada tanggal ini akan dihapus permanen."
+    override val aiClearKeyConfirmTitle = "Hapus API Key Gemini?"
+    override val aiClearKeyConfirmMessage = "API key tersimpan akan dihapus dari perangkat ini dan Kuma AI tidak bisa digunakan sampai diisi ulang."
+    override val removeCustomSoundConfirmTitle = "Hapus Suara Kustom?"
+    override val removeCustomSoundConfirmMessage = "File suara timer istirahat kustom ini akan dihapus dan dikembalikan ke suara bawaan."
+    override val clearDiagnosticLogConfirmTitle = "Hapus Log Diagnostik?"
+    override val clearDiagnosticLogConfirmMessage = "Semua catatan log diagnostik lokal akan dihapus permanen."
+    override val removeExerciseConfirmTitle = "Hapus Gerakan dari Sesi?"
+    override fun removeExerciseConfirmMessage(name: String) =
+        "Hapus \"$name\" beserta seluruh set yang sudah dicatat di sesi ini?"
+    override val removeLastSetConfirmTitle = "Hapus Set Terakhir?"
+    override val removeLastSetConfirmMessage = "Baris set terakhir pada gerakan ini akan dihapus dari sesi latihan aktif."
+    override val removeRoutineExerciseConfirmTitle = "Hapus Gerakan dari Rutin?"
+    override fun removeRoutineExerciseConfirmMessage(name: String) =
+        "Hapus \"$name\" dan pengaturan set-nya dari rutin ini?"
+    override val deleteRoutineSetConfirmTitle = "Hapus Baris Set?"
+    override fun deleteRoutineSetConfirmMessage(setNumber: Int) =
+        "Hapus Set $setNumber dari konfigurasi gerakan ini?"
     override val aiClearChatConfirmTitle = "Mulai Obrolan Baru?"
     override val aiClearChatConfirmMessage = "Riwayat percakapan saat ini dan draft yang belum diterapkan akan dihapus."
     override val aiClearChatConfirmAction = "Hapus Obrolan"

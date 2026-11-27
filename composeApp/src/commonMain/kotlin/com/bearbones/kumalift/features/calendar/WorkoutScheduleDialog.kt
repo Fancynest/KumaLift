@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
@@ -57,7 +60,10 @@ import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import com.bearbones.kumalift.domain.model.localizeSplitCategory
 import com.bearbones.kumalift.domain.model.localizedSplitCategory
 import com.bearbones.kumalift.domain.model.localizedTitle
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,26 +132,54 @@ fun WorkoutScheduleDialog(
                 }
             }
 
-            // Target Date Display
-            Column(
+            // Target Date Display & Day Adjuster
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(colors.surfaceVariant)
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = s.scheduleDateLabel,
-                    style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
-                )
-                Text(
-                    text = dateDisplay,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = colors.accentText
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = s.scheduleDateLabel,
+                        style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
                     )
-                )
+                    Text(
+                        text = dateDisplay,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentText
+                        )
+                    )
+                }
+                if (existingEvent == null || (onReschedule != null && existingEvent.isPlanned)) {
+                    IconButton(
+                        onClick = { targetDate = targetDate.minus(DatePeriod(days = 1)) },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = null,
+                            tint = colors.textPrimary
+                        )
+                    }
+                    IconButton(
+                        onClick = { targetDate = targetDate.plus(DatePeriod(days = 1)) },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = colors.textPrimary
+                        )
+                    }
+                }
             }
 
             // Routine Selection (if creating fresh)
@@ -294,6 +328,30 @@ fun WorkoutScheduleDialog(
                 }
             } else {
                 // Existing Event controls: Reschedule / Cancel / Delete
+                if (existingEvent.isPlanned && onReschedule != null && targetDate != initialDate) {
+                    Button(
+                        onClick = {
+                            onReschedule(existingEvent.id, targetDate)
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.accentFill,
+                            contentColor = colors.onAccentFill
+                        ),
+                        shape = PillShape
+                    ) {
+                        Text(
+                            text = s.save,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -349,11 +407,23 @@ fun WorkoutScheduleDialog(
                     }
 
                     onDeleteSchedule?.let { onDelete ->
+                        var showDeleteConfirm by remember { mutableStateOf(false) }
+                        if (showDeleteConfirm) {
+                            KumaDeleteConfirmationDialog(
+                                title = s.deleteScheduleConfirmTitle,
+                                message = s.deleteScheduleConfirmMessage,
+                                confirmText = s.deleteSchedule,
+                                cancelText = s.cancel,
+                                onConfirm = {
+                                    showDeleteConfirm = false
+                                    onDelete(existingEvent.id)
+                                    onDismiss()
+                                },
+                                onDismiss = { showDeleteConfirm = false }
+                            )
+                        }
                         Button(
-                            onClick = {
-                                onDelete(existingEvent.id)
-                                onDismiss()
-                            },
+                            onClick = { showDeleteConfirm = true },
                             modifier = Modifier
                                 .weight(0.75f)
                                 .heightIn(min = 48.dp),

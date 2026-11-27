@@ -161,6 +161,15 @@ class DataBackupManager(
         return jsonStr
     }
 
+    private fun csvCell(raw: String): String {
+        val neutralized = if (raw.isNotEmpty() && raw[0] in charArrayOf('=', '+', '-', '@', '\t', '\r')) {
+            "'$raw"
+        } else {
+            raw
+        }
+        return "\"${neutralized.replace("\"", "\"\"")}\""
+    }
+
     fun exportCsvFiles(settings: UserSettings): Map<String, String> {
         val payload = createBackupPayload(settings)
         val files = mutableMapOf<String, String>()
@@ -169,7 +178,7 @@ class DataBackupManager(
         val workoutSb = StringBuilder()
         workoutSb.append("id,title,splitType,startTimeEpochMs,endTimeEpochMs,durationSeconds,totalVolumeKg,totalSets,totalCompletedSets,avgHeartRateBpm\n")
         payload.workouts.forEach { w ->
-            workoutSb.append("\"${w.id}\",\"${w.title}\",\"${w.splitType}\",${w.startTimeEpochMs},${w.endTimeEpochMs ?: 0},${w.durationSeconds},${w.totalVolumeKg},${w.totalSets},${w.totalCompletedSets},${w.avgHeartRateBpm ?: 0}\n")
+            workoutSb.append("${csvCell(w.id)},${csvCell(w.title)},${csvCell(w.splitType)},${w.startTimeEpochMs},${w.endTimeEpochMs ?: 0},${w.durationSeconds},${w.totalVolumeKg},${w.totalSets},${w.totalCompletedSets},${w.avgHeartRateBpm ?: 0}\n")
         }
         files["workouts.csv"] = workoutSb.toString()
 
@@ -179,7 +188,7 @@ class DataBackupManager(
         payload.workouts.forEach { w ->
             w.exercises.forEach { we ->
                 we.sets.forEach { s ->
-                    setsSb.append("\"${w.id}\",\"${we.exercise.id}\",\"${we.exercise.name}\",${s.setNumber},\"${s.setType.name}\",${s.weightKg},${s.reps},${s.isCompleted},${s.rpe ?: 0.0}\n")
+                    setsSb.append("${csvCell(w.id)},${csvCell(we.exercise.id)},${csvCell(we.exercise.name)},${s.setNumber},${csvCell(s.setType.name)},${s.weightKg},${s.reps},${s.isCompleted},${s.rpe ?: 0.0}\n")
                 }
             }
         }
@@ -189,7 +198,7 @@ class DataBackupManager(
         val prSb = StringBuilder()
         prSb.append("exerciseId,exerciseName,weightKg,reps,estimated1RmKg,dateAchieved,prTier\n")
         payload.personalRecords.forEach { pr ->
-            prSb.append("\"${pr.exerciseId}\",\"${pr.exerciseName}\",${pr.weightKg},${pr.reps},${pr.estimated1RmKg},\"${pr.dateAchieved}\",\"${pr.prTier}\"\n")
+            prSb.append("${csvCell(pr.exerciseId)},${csvCell(pr.exerciseName)},${pr.weightKg},${pr.reps},${pr.estimated1RmKg},${csvCell(pr.dateAchieved)},${csvCell(pr.prTier)}\n")
         }
         files["personal_records.csv"] = prSb.toString()
 
@@ -197,7 +206,7 @@ class DataBackupManager(
         val routineSb = StringBuilder()
         routineSb.append("id,title,splitCategory,muscleFocus,estimatedDurationMinutes,targetRpeTier\n")
         payload.customRoutines.forEach { r ->
-            routineSb.append("\"${r.id}\",\"${r.title}\",\"${r.splitCategory}\",\"${r.muscleFocus}\",${r.estimatedDurationMinutes},\"${r.targetRpeTier}\"\n")
+            routineSb.append("${csvCell(r.id)},${csvCell(r.title)},${csvCell(r.splitCategory)},${csvCell(r.muscleFocus)},${r.estimatedDurationMinutes},${csvCell(r.targetRpeTier)}\n")
         }
         files["custom_routines.csv"] = routineSb.toString()
 
@@ -205,7 +214,7 @@ class DataBackupManager(
         val exSb = StringBuilder()
         exSb.append("id,name,primaryMuscle,equipment,movementType\n")
         payload.customExercises.forEach { ex ->
-            exSb.append("\"${ex.id}\",\"${ex.name}\",\"${ex.primaryMuscle.name}\",\"${ex.equipment.name}\",\"${ex.movementType.name}\"\n")
+            exSb.append("${csvCell(ex.id)},${csvCell(ex.name)},${csvCell(ex.primaryMuscle.name)},${csvCell(ex.equipment.name)},${csvCell(ex.movementType.name)}\n")
         }
         files["custom_exercises.csv"] = exSb.toString()
 
@@ -213,7 +222,7 @@ class DataBackupManager(
         val schedSb = StringBuilder()
         schedSb.append("id,routineId,scheduledDate,status,routineTitleSnapshot,splitTypeSnapshot,notes\n")
         payload.scheduledEvents.forEach { ev ->
-            schedSb.append("\"${ev.id}\",\"${ev.routineId ?: ""}\",\"${ev.scheduledDate}\",\"${ev.status.name}\",\"${ev.routineTitleSnapshot}\",\"${ev.splitTypeSnapshot ?: ""}\",\"${ev.notes ?: ""}\"\n")
+            schedSb.append("${csvCell(ev.id)},${csvCell(ev.routineId ?: "")},${csvCell(ev.scheduledDate)},${csvCell(ev.status.name)},${csvCell(ev.routineTitleSnapshot)},${csvCell(ev.splitTypeSnapshot ?: "")},${csvCell(ev.notes ?: "")}\n")
         }
         files["schedule_events.csv"] = schedSb.toString()
 
@@ -253,7 +262,7 @@ class DataBackupManager(
                     Result.success(fileBytes.decodeToString())
                 }
                 BackupFileType.UNKNOWN -> {
-                    val str = fileBytes.decodeToString()
+                    val str = fileBytes.decodeToString().trimStart('\uFEFF')
                     if (str.trimStart().startsWith("{")) {
                         Result.success(str)
                     } else {
@@ -298,8 +307,9 @@ class DataBackupManager(
         strings: AppStrings = resolveAppStrings(currentSettings.appearance.language),
         onSettingsRestored: (UserSettings) -> Unit = {}
     ): ImportResult {
+        val cleanJson = jsonString.trimStart('\uFEFF')
         val backup = try {
-            json.decodeFromString<KumaBackupData>(jsonString)
+            json.decodeFromString<KumaBackupData>(cleanJson)
         } catch (e: Exception) {
             KumaLogger.e("DataBackup", "Failed to decode backup JSON: ${e.message}", e)
             return ImportResult(
@@ -308,6 +318,12 @@ class DataBackupManager(
             )
         }
 
+        if (backup.schemaVersion <= 0) {
+            return ImportResult(
+                success = false,
+                message = strings.backupInvalidJson(BackupErrorCode.INVALID_FILE.localizedMessage(strings))
+            )
+        }
         if (backup.schemaVersion > 1) {
             KumaLogger.w("DataBackup", "Backup schema version ${backup.schemaVersion} is newer than current (1)")
             return ImportResult(
@@ -318,25 +334,20 @@ class DataBackupManager(
 
         return when (mode) {
             ImportMode.REPLACE -> {
-                // Step 1: Automatic safety snapshot before destructive replace
                 val currentSnapshot = exportJson(currentSettings)
-                databaseRepo.saveSafetySnapshot(currentSnapshot)
-
-                // Step 2: Wipe all existing user data
-                databaseRepo.wipeAllUserData()
-
-                // Step 3: Insert backup data
-                backup.trainingPrograms.forEach { databaseRepo.saveTrainingProgram(it) }
-                backup.customExercises.forEach { databaseRepo.saveCustomExercise(it) }
-                backup.customRoutines.forEach { databaseRepo.saveCustomRoutine(it) }
-                backup.personalRecords.forEach { databaseRepo.savePersonalRecord(it) }
-                backup.workouts.forEach { databaseRepo.saveCompletedWorkout(it) }
-                backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
-                backup.mesocycles.forEach { databaseRepo.insertOrReplaceMesocycle(it) }
-                backup.dailyReadiness.forEach { databaseRepo.insertOrReplaceDailyReadiness(it) }
-
-                // Step 4: Restore settings
-                databaseRepo.saveUserSettings(backup.settings)
+                databaseRepo.runInTransaction {
+                    databaseRepo.saveSafetySnapshot(currentSnapshot)
+                    databaseRepo.wipeAllUserData()
+                    backup.trainingPrograms.forEach { databaseRepo.saveTrainingProgram(it) }
+                    backup.customExercises.forEach { databaseRepo.saveCustomExercise(it) }
+                    backup.customRoutines.forEach { databaseRepo.saveCustomRoutine(it) }
+                    backup.personalRecords.forEach { databaseRepo.savePersonalRecord(it) }
+                    backup.workouts.forEach { databaseRepo.saveCompletedWorkout(it) }
+                    backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
+                    backup.mesocycles.forEach { databaseRepo.insertOrReplaceMesocycle(it) }
+                    backup.dailyReadiness.forEach { databaseRepo.insertOrReplaceDailyReadiness(it) }
+                    databaseRepo.saveUserSettings(backup.settings)
+                }
                 onSettingsRestored(backup.settings)
 
                 val totalSets = backup.workouts.sumOf { it.totalSets }
@@ -354,65 +365,76 @@ class DataBackupManager(
             ImportMode.MERGE -> {
                 var addedWorkouts = 0
                 var addedSets = 0
-                val existingWorkouts = databaseRepo.getCompletedWorkouts().map { it.id }.toSet()
-                backup.workouts.forEach { w ->
-                    if (w.id !in existingWorkouts) {
-                        databaseRepo.saveCompletedWorkout(w)
-                        addedWorkouts++
-                        addedSets += w.totalSets
-                    }
-                }
-
                 var addedPrs = 0
-                val existingPrs = databaseRepo.getAllPersonalRecords().associateBy { it.exerciseId }
-                backup.personalRecords.forEach { pr ->
-                    val existing = existingPrs[pr.exerciseId]
-                    if (existing == null || pr.weightKg > existing.weightKg) {
-                        databaseRepo.savePersonalRecord(pr)
-                        addedPrs++
-                    }
-                }
-
                 var addedExercises = 0
-                val existingExercises = databaseRepo.getAllCustomExercises().map { it.id }.toSet()
-                backup.customExercises.forEach { ex ->
-                    if (ex.id !in existingExercises) {
-                        databaseRepo.saveCustomExercise(ex)
-                        addedExercises++
-                    }
-                }
-
                 var addedRoutines = 0
-                val existingRoutines = databaseRepo.getAllCustomRoutines { null }.map { it.id }.toSet()
-                backup.customRoutines.forEach { r ->
-                    if (r.id !in existingRoutines) {
-                        databaseRepo.saveCustomRoutine(r)
-                        addedRoutines++
-                    }
-                }
 
-                val existingPrograms = databaseRepo.getAllTrainingPrograms().map { it.id }.toSet()
-                backup.trainingPrograms.forEach { prog ->
-                    if (prog.id !in existingPrograms) {
-                        databaseRepo.saveTrainingProgram(prog)
+                databaseRepo.runInTransaction {
+                    val existingWorkouts = databaseRepo.getCompletedWorkouts().map { it.id }.toSet()
+                    backup.workouts.forEach { w ->
+                        if (w.id !in existingWorkouts) {
+                            databaseRepo.saveCompletedWorkout(w)
+                            addedWorkouts++
+                            addedSets += w.totalSets
+                        }
                     }
-                }
 
-                val existingEventIds = databaseRepo.getAllScheduleEvents().map { it.id }.toSet()
-                backup.scheduledEvents.forEach { ev ->
-                    if (ev.id !in existingEventIds) {
-                        databaseRepo.insertScheduleEvent(ev)
+                    val existingPrs = databaseRepo.getAllPersonalRecords()
+                        .associateBy { "${it.exerciseId}_${it.reps}" }
+                        .toMutableMap()
+                    backup.personalRecords.forEach { pr ->
+                        val key = "${pr.exerciseId}_${pr.reps}"
+                        val existing = existingPrs[key]
+                        if (existing == null || pr.weightKg > existing.weightKg) {
+                            databaseRepo.savePersonalRecord(pr)
+                            existingPrs[key] = pr
+                            addedPrs++
+                        }
                     }
-                }
 
-                val existingMesocycleIds = databaseRepo.getAllMesocycles().map { it.id }.toSet()
-                backup.mesocycles.forEach { meso ->
-                    if (meso.id !in existingMesocycleIds) {
-                        databaseRepo.insertOrReplaceMesocycle(meso)
+                    val existingExercises = databaseRepo.getAllCustomExercises().map { it.id }.toSet()
+                    backup.customExercises.forEach { ex ->
+                        if (ex.id !in existingExercises) {
+                            databaseRepo.saveCustomExercise(ex)
+                            addedExercises++
+                        }
                     }
-                }
-                backup.dailyReadiness.forEach { read ->
-                    databaseRepo.insertOrReplaceDailyReadiness(read)
+
+                    val existingRoutines = databaseRepo.getAllCustomRoutines { null }.map { it.id }.toSet()
+                    backup.customRoutines.forEach { r ->
+                        if (r.id !in existingRoutines) {
+                            databaseRepo.saveCustomRoutine(r)
+                            addedRoutines++
+                        }
+                    }
+
+                    val existingPrograms = databaseRepo.getAllTrainingPrograms().map { it.id }.toSet()
+                    backup.trainingPrograms.forEach { prog ->
+                        if (prog.id !in existingPrograms) {
+                            databaseRepo.saveTrainingProgram(prog)
+                        }
+                    }
+
+                    val existingEventIds = databaseRepo.getAllScheduleEvents().map { it.id }.toSet()
+                    backup.scheduledEvents.forEach { ev ->
+                        if (ev.id !in existingEventIds) {
+                            databaseRepo.insertScheduleEvent(ev)
+                        }
+                    }
+
+                    val existingMesocycleIds = databaseRepo.getAllMesocycles().map { it.id }.toSet()
+                    backup.mesocycles.forEach { meso ->
+                        if (meso.id !in existingMesocycleIds) {
+                            databaseRepo.insertOrReplaceMesocycle(meso)
+                        }
+                    }
+
+                    val existingReadinessDates = databaseRepo.getAllDailyReadiness().map { it.dateString }.toSet()
+                    backup.dailyReadiness.forEach { read ->
+                        if (read.dateString !in existingReadinessDates) {
+                            databaseRepo.insertOrReplaceDailyReadiness(read)
+                        }
+                    }
                 }
 
                 ImportResult(

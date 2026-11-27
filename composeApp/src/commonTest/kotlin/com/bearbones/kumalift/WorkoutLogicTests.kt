@@ -288,4 +288,100 @@ class WorkoutLogicTests {
         assertNotNull(recordRestored, "Previous PR must be restored from history, not left empty")
         assertEquals(100.0, recordRestored.weightKg, "Restored PR weight should be 100kg from past session")
     }
+
+    @Test
+    fun testCancelWorkoutRestoresPreviousPrFromHistory() {
+        val calcSettings = CalculationSettings()
+        val prRepo = PersonalRecordRepository(calculationSettingsProvider = { calcSettings })
+        val workoutRepo = WorkoutRepository(
+            prRepository = prRepo,
+            calculationSettingsProvider = { calcSettings }
+        )
+        val bench = Exercise(
+            id = "ex_bench_cancel",
+            name = "Bench Press",
+            primaryMuscle = MuscleGroup.CHEST,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        val pastWorkout = Workout(
+            id = "w_past_cancel",
+            title = "Past Push",
+            startTimeEpochMs = 1000L,
+            exercises = listOf(
+                WorkoutExercise(
+                    id = "we_past_cancel",
+                    exercise = bench,
+                    sets = listOf(
+                        SetLog(
+                            id = "s_past_cancel_1",
+                            setNumber = 1,
+                            weightKg = 100.0,
+                            reps = 5,
+                            isCompleted = true,
+                            setType = SetType.NORMAL
+                        )
+                    )
+                )
+            ),
+            isFinished = true
+        )
+        workoutRepo.setCompletedWorkoutsForTesting(listOf(pastWorkout))
+        prRepo.recomputePersonalRecords(listOf(pastWorkout), calcSettings)
+
+        workoutRepo.startEmptyWorkout("Active Cancel")
+        workoutRepo.addExerciseToActiveWorkout(bench)
+        val we = workoutRepo.activeWorkout.value!!.exercises.first()
+        val setId = we.sets.first().id
+        workoutRepo.updateSet(we.id, setId, weightKg = 120.0, reps = 5)
+        workoutRepo.toggleSetCompletion(we.id, setId) {}
+        assertEquals(120.0, prRepo.personalRecords.value.find { it.exerciseId == bench.id }?.weightKg)
+
+        workoutRepo.cancelWorkout()
+        assertNull(workoutRepo.activeWorkout.value)
+        val restored = prRepo.personalRecords.value.find { it.exerciseId == bench.id }
+        assertNotNull(restored)
+        assertEquals(100.0, restored.weightKg)
+    }
+
+    @Test
+    fun testUpdateSetWeightDropSetTypeWarmupRevokesPrAndFinishClearsPausedState() {
+        val prRepo = PersonalRecordRepository()
+        val workoutRepo = WorkoutRepository(prRepository = prRepo)
+        val bench = Exercise(
+            id = "ex_bench_rev",
+            name = "Bench Press",
+            primaryMuscle = MuscleGroup.CHEST,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        workoutRepo.startEmptyWorkout("Active Revoke")
+        workoutRepo.addExerciseToActiveWorkout(bench)
+        val we = workoutRepo.activeWorkout.value!!.exercises.first()
+        val setId = we.sets.first().id
+
+        // Record PR then drop weight -> revoked
+        workoutRepo.updateSet(we.id, setId, weightKg = 110.0, reps = 5)
+        workoutRepo.toggleSetCompletion(we.id, setId) {}
+        assertEquals(110.0, prRepo.personalRecords.value.find { it.exerciseId == bench.id }?.weightKg)
+
+        workoutRepo.updateSet(we.id, setId, weightKg = 0.0, reps = 5)
+        assertNull(prRepo.personalRecords.value.find { it.exerciseId == bench.id })
+        assertFalse(workoutRepo.activeWorkout.value!!.exercises.first().sets.first().isPr)
+
+        // Restore PR then mark as WARMUP -> revoked
+        workoutRepo.updateSet(we.id, setId, weightKg = 110.0, reps = 5)
+        assertEquals(110.0, prRepo.personalRecords.value.find { it.exerciseId == bench.id }?.weightKg)
+        workoutRepo.updateSetType(we.id, setId, SetType.WARMUP)
+        assertNull(prRepo.personalRecords.value.find { it.exerciseId == bench.id })
+        assertFalse(workoutRepo.activeWorkout.value!!.exercises.first().sets.first().isPr)
+
+        // Pausing then finishing must clear isPaused, and a second finish call returns null
+        workoutRepo.pauseWorkout()
+        val finished = workoutRepo.finishWorkout(sessionRpe = 8.0)
+        assertNotNull(finished)
+        assertFalse(finished.isPaused)
+        assertNull(finished.pausedAtEpochMs)
+        assertNull(workoutRepo.finishWorkout())
+    }
 }

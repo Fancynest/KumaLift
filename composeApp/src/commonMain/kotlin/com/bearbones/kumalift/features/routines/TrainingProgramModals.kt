@@ -340,7 +340,7 @@ private fun ProgramItemCard(
                                 overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = colors.accentFill
+                                    color = colors.accentText
                                 )
                             )
                         }
@@ -641,7 +641,7 @@ fun DeleteProgramConfirmationDialog(
                         onClick = onConfirm,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KumaColors.ErrorRed,
-                            contentColor = Color.White
+                            contentColor = LocalKumaColors.current.onError
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {

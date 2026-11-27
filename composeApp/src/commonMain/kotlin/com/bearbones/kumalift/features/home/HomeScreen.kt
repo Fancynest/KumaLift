@@ -57,6 +57,7 @@ import com.bearbones.kumalift.domain.model.localizedTitle
 import com.bearbones.kumalift.domain.model.localizedRpeTier
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
+import com.bearbones.kumalift.core.designsystem.KumaDeleteConfirmationDialog
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLogoMark
 import com.bearbones.kumalift.core.designsystem.KumaPrimaryButton
@@ -101,7 +102,9 @@ fun HomeScreen(
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
+    val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
+    var pendingStartWorkoutAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val scheduledEvents by (workoutScheduleRepository?.events ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val prList by (personalRecordRepository?.personalRecords ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
     val routines by (routineRepository?.routines ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList())).collectAsState()
@@ -507,13 +510,20 @@ fun HomeScreen(
                                         KumaPrimaryButton(
                                             text = if (routine != null) s.startWorkoutButton else s.freestyleWorkoutCardTitle,
                                             onClick = {
-                                                trainingProgramRepository?.setActiveProgramId(program.id)
-                                                if (routine != null) {
-                                                    workoutRepository.startWorkoutFromRoutine(routine)
-                                                } else {
-                                                    workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                                                val launchAction = {
+                                                    trainingProgramRepository?.setActiveProgramId(program.id)
+                                                    if (routine != null) {
+                                                        workoutRepository.startWorkoutFromRoutine(routine)
+                                                    } else {
+                                                        workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                                                    }
+                                                    onStartWorkout()
                                                 }
-                                                onStartWorkout()
+                                                if (activeWorkout != null) {
+                                                    pendingStartWorkoutAction = launchAction
+                                                } else {
+                                                    launchAction()
+                                                }
                                             }
                                         )
                                     }
@@ -581,12 +591,35 @@ fun HomeScreen(
                                 KumaPrimaryButton(
                                     text = s.freestyleWorkoutCardTitle,
                                     onClick = {
-                                        workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
-                                        onStartFreestyle()
+                                        val launchAction = {
+                                            workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                                            onStartFreestyle()
+                                        }
+                                        if (activeWorkout != null) {
+                                            pendingStartWorkoutAction = launchAction
+                                        } else {
+                                            launchAction()
+                                        }
                                     }
                                 )
                             }
                         }
+                    }
+                }
+
+                pendingStartWorkoutAction?.let { launchAction ->
+                    item {
+                        KumaDeleteConfirmationDialog(
+                            title = s.cancelWorkoutDialogTitle,
+                            message = s.cancelWorkoutDialogMessage,
+                            confirmText = s.startWorkoutButton,
+                            cancelText = s.cancel,
+                            onConfirm = {
+                                pendingStartWorkoutAction = null
+                                launchAction()
+                            },
+                            onDismiss = { pendingStartWorkoutAction = null }
+                        )
                     }
                 }
 

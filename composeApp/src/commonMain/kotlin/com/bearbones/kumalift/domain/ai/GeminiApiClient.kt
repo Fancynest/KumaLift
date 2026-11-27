@@ -4,6 +4,8 @@ import com.bearbones.kumalift.core.ai.AiHttpTransport
 import com.bearbones.kumalift.core.ai.PlatformAiHttpTransport
 import com.bearbones.kumalift.core.localization.AppStrings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -105,6 +107,7 @@ class GeminiApiClient(
         isLenient = true
     }
     // Keys where Search Grounding is unsupported/zero-quota (e.g. Free Tier); cleared on Test Connection
+    private val searchBlockMutex = Mutex()
     private val searchBlockedKeys = mutableSetOf<String>()
 
     suspend fun generateContent(
@@ -183,8 +186,9 @@ class GeminiApiClient(
         }
 
         var useExtras = true
-        var useSearch = enableWebSearch && !searchBlockedKeys.contains(cleanKey)
-        var useUrlContext = enableUrlContext && !searchBlockedKeys.contains(cleanKey)
+        val isSearchBlocked = searchBlockMutex.withLock { searchBlockedKeys.contains(cleanKey) }
+        var useSearch = enableWebSearch && !isSearchBlocked
+        var useUrlContext = enableUrlContext && !isSearchBlocked
         var response = send(buildBody(useExtras, useSearch, useUrlContext))
 
         if (response.statusCode in TRANSIENT_SERVER_CODES) {
@@ -202,29 +206,38 @@ class GeminiApiClient(
             response = send(buildBody(useExtras, useSearch, useUrlContext))
         }
 
-        val isWebToolRejected = (useSearch || useUrlContext) && (
-            response.statusCode == 429 || (
-                (response.statusCode == 400 || response.statusCode == 403) && (
-                    response.body.contains("search", ignoreCase = true) ||
-                        response.body.contains("grounding", ignoreCase = true) ||
-                        response.body.contains("url", ignoreCase = true) ||
-                        response.body.contains("tool", ignoreCase = true) ||
-                        response.body.contains("multiple", ignoreCase = true)
+        fun matchesWebToolRejection(statusCode: Int, body: String): Boolean =
+            statusCode == 429 || (
+                (statusCode == 400 || statusCode == 403) && (
+                    body.contains("search", ignoreCase = true) ||
+                        body.contains("grounding", ignoreCase = true) ||
+                        body.contains("url", ignoreCase = true) ||
+                        body.contains("tool", ignoreCase = true) ||
+                        body.contains("multiple", ignoreCase = true)
                     )
                 )
-            )
+
+        val isWebToolRejected = (useSearch || useUrlContext) && matchesWebToolRejection(response.statusCode, response.body)
 
         if (isWebToolRejected) {
             val originalStatus = response.statusCode
             if (useUrlContext && originalStatus != 429 && response.body.contains("url", ignoreCase = true)) {
                 useUrlContext = false
                 response = send(buildBody(useExtras, useSearch, false))
+                if (useSearch && matchesWebToolRejection(response.statusCode, response.body)) {
+                    val searchStatus = response.statusCode
+                    useSearch = false
+                    response = send(buildBody(useExtras, false, false))
+                    if ((searchStatus == 429 || searchStatus == 403) && response.statusCode in 200..299) {
+                        searchBlockMutex.withLock { searchBlockedKeys.add(cleanKey) }
+                    }
+                }
             } else {
                 useSearch = false
                 useUrlContext = false
                 response = send(buildBody(useExtras, false, false))
                 if ((originalStatus == 429 || originalStatus == 403) && response.statusCode in 200..299) {
-                    searchBlockedKeys.add(cleanKey)
+                    searchBlockMutex.withLock { searchBlockedKeys.add(cleanKey) }
                 }
             }
         }
@@ -234,29 +247,32 @@ class GeminiApiClient(
         }
 
         val root = try {
-            json.parseToJsonElement(response.body).jsonObject
+            json.parseToJsonElement(response.body) as? JsonObject
+                ?: throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "Unexpected root JSON type")
+        } catch (e: GeminiApiException) {
+            throw e
         } catch (e: Exception) {
             throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, e.message ?: "Invalid JSON")
         }
 
-        val firstCandidate = root["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
+        val firstCandidate = (root["candidates"] as? JsonArray)?.firstOrNull() as? JsonObject
             ?: throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "No candidates in response")
-        val contentObj = firstCandidate["content"]?.jsonObject
+        val contentObj = firstCandidate["content"] as? JsonObject
             ?: throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "No content in candidate")
-        val rawParts = contentObj["parts"]?.jsonArray ?: JsonArray(emptyList())
+        val rawParts = (contentObj["parts"] as? JsonArray) ?: JsonArray(emptyList())
 
         val textParts = mutableListOf<String>()
         val calls = mutableListOf<GeminiFunctionCall>()
 
         rawParts.forEach { element ->
             val partObj = element as? JsonObject ?: return@forEach
-            val text = partObj["text"]?.jsonPrimitive?.contentOrNull
+            val text = (partObj["text"] as? JsonPrimitive)?.contentOrNull
             if (!text.isNullOrBlank()) {
                 textParts.add(text)
             }
             val fnCall = partObj["functionCall"] as? JsonObject
             if (fnCall != null) {
-                val fnName = fnCall["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val fnName = (fnCall["name"] as? JsonPrimitive)?.contentOrNull.orEmpty()
                 val fnArgs = (fnCall["args"] as? JsonObject) ?: JsonObject(emptyMap())
                 if (fnName.isNotBlank()) {
                     calls.add(GeminiFunctionCall(name = fnName, args = fnArgs))
@@ -269,12 +285,12 @@ class GeminiApiClient(
             throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "Empty model parts")
         }
 
-        val webSources = firstCandidate["groundingMetadata"]?.jsonObject
-            ?.get("groundingChunks")?.jsonArray
+        val webSources = (firstCandidate["groundingMetadata"] as? JsonObject)
+            ?.get("groundingChunks")?.let { it as? JsonArray }
             ?.mapNotNull { chunk ->
                 val webObj = (chunk as? JsonObject)?.get("web") as? JsonObject ?: return@mapNotNull null
-                val title = webObj["title"]?.jsonPrimitive?.contentOrNull?.trim()
-                val uri = webObj["uri"]?.jsonPrimitive?.contentOrNull?.trim()
+                val title = (webObj["title"] as? JsonPrimitive)?.contentOrNull?.trim()
+                val uri = (webObj["uri"] as? JsonPrimitive)?.contentOrNull?.trim()
                 title?.takeIf { it.isNotBlank() } ?: uri?.takeIf { it.isNotBlank() }
             }
             ?.distinct()
@@ -314,7 +330,8 @@ class GeminiApiClient(
         }
 
         val root = try {
-            json.parseToJsonElement(response.body).jsonObject
+            json.parseToJsonElement(response.body) as? JsonObject
+                ?: throw IllegalArgumentException("Unexpected root JSON type")
         } catch (_: Exception) {
             return Result.failure(
                 GeminiApiException(
@@ -325,14 +342,14 @@ class GeminiApiClient(
             )
         }
 
-        val rawModels = root["models"]?.jsonArray.orEmpty()
+        val rawModels = (root["models"] as? JsonArray).orEmpty()
         val chatCapable = rawModels.mapNotNull { element ->
             val obj = element as? JsonObject ?: return@mapNotNull null
-            val rawName = obj["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val rawName = (obj["name"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
             val id = rawName.removePrefix("models/")
             if (!id.startsWith("gemini", ignoreCase = true)) return@mapNotNull null
-            val methods = obj["supportedGenerationMethods"]?.jsonArray
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            val methods = (obj["supportedGenerationMethods"] as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                 .orEmpty()
             if (!methods.contains("generateContent")) return@mapNotNull null
             id
@@ -352,7 +369,7 @@ class GeminiApiClient(
             if (cleanKey.isBlank()) {
                 return Result.failure(GeminiApiException(GeminiErrorType.INVALID_KEY, "Empty API key"))
             }
-            searchBlockedKeys.remove(cleanKey)
+            searchBlockMutex.withLock { searchBlockedKeys.remove(cleanKey) }
             val cleanModel = normalizeModelId(modelId)
 
             val listResult = listAvailableModels(cleanKey)

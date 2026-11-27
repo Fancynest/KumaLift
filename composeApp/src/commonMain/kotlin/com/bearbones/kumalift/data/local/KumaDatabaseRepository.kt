@@ -6,6 +6,7 @@ import com.bearbones.kumalift.database.KumaDatabase
 import com.bearbones.kumalift.domain.ai.AiActionProposal
 import com.bearbones.kumalift.domain.ai.AiChatMessage
 import com.bearbones.kumalift.domain.ai.AiChatRole
+import com.bearbones.kumalift.domain.ai.AiChatThread
 import com.bearbones.kumalift.domain.ai.AiNutritionCardData
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
@@ -46,6 +47,12 @@ class KumaDatabaseRepository(
 
     private val queries = database.kumaDatabaseQueries
 
+    fun runInTransaction(block: () -> Unit) {
+        database.transaction {
+            block()
+        }
+    }
+
     // ==========================================
     // WORKOUTS
     // ==========================================
@@ -77,16 +84,16 @@ class KumaDatabaseRepository(
                 val equipment = try { Equipment.valueOf(weRow.equipment) } catch (_: Exception) { Equipment.BARBELL }
                 val movementType = try { MovementType.valueOf(weRow.movementType) } catch (_: Exception) { MovementType.COMPOUND }
 
+                val (extractedSsId, cleanNote) = extractSupersetGroup(weRow.pinnedNote)
                 val exModel = Exercise(
                     id = weRow.exerciseId,
                     name = weRow.exerciseName,
                     primaryMuscle = primaryMuscle,
                     equipment = equipment,
                     movementType = movementType,
-                    pinnedNote = weRow.pinnedNote ?: ""
+                    pinnedNote = cleanNote
                 )
 
-                val (extractedSsId, cleanNote) = extractSupersetGroup(weRow.pinnedNote)
                 WorkoutExercise(
                     id = weRow.id,
                     exercise = exModel,
@@ -454,10 +461,11 @@ class KumaDatabaseRepository(
     }
 
     private fun formatNoteWithSuperset(note: String, supersetGroupId: String?): String {
+        val clean = extractSupersetGroup(note).second
         return if (supersetGroupId != null) {
-            "[SS:$supersetGroupId] $note".trim()
+            "[SS:$supersetGroupId] $clean".trim()
         } else {
-            note
+            clean
         }
     }
 
@@ -619,8 +627,10 @@ class KumaDatabaseRepository(
             queries.clearAllWorkoutScheduleEvents()
             queries.clearAllMesocycles()
             queries.clearAllDailyReadiness()
+            queries.clearAllAiChatMessages()
+            queries.clearAllAiChatThreads()
+            saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
         }
-        saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
     }
 
     fun clearWorkoutHistoryOnly() {
@@ -628,6 +638,7 @@ class KumaDatabaseRepository(
             queries.clearAllSets()
             queries.clearAllWorkoutExercises()
             queries.clearAllWorkouts()
+            queries.clearAllPersonalRecords()
             queries.clearActiveWorkout()
         }
     }
@@ -833,42 +844,125 @@ class KumaDatabaseRepository(
     }
 
     // ==========================================
-    // KUMA AI CHAT MESSAGES
+    // KUMA AI CHAT THREADS & MESSAGES
     // ==========================================
 
-    fun getAllAiChatMessages(): List<AiChatMessage> {
-        return queries.selectAllAiChatMessages().executeAsList().map { row ->
-            val steps = try {
-                json.decodeFromString<List<String>>(row.stepLogsJson)
-            } catch (_: Exception) {
-                emptyList()
-            }
-            val proposal = row.proposalJson?.takeIf { it.isNotBlank() }?.let { raw ->
-                try { json.decodeFromString<AiActionProposal>(raw) } catch (_: Exception) { null }
-            }
-            val nutrition = row.nutritionJson?.takeIf { it.isNotBlank() }?.let { raw ->
-                try { json.decodeFromString<AiNutritionCardData>(raw) } catch (_: Exception) { null }
-            }
-            AiChatMessage(
+    private fun com.bearbones.kumalift.database.Ai_chat_messages.toDomain(): AiChatMessage {
+        val steps = try {
+            json.decodeFromString<List<String>>(stepLogsJson)
+        } catch (_: Exception) {
+            emptyList()
+        }
+        val decodedImages = try {
+            json.decodeFromString<List<String>>(imagePathsJson)
+        } catch (_: Exception) {
+            emptyList()
+        }.ifEmpty { listOfNotNull(imagePath) }
+        val proposal = rowProposal(proposalJson)
+        val nutrition = nutritionJson?.takeIf { it.isNotBlank() }?.let { raw ->
+            try { json.decodeFromString<AiNutritionCardData>(raw) } catch (_: Exception) { null }
+        }
+        return AiChatMessage(
+            id = id,
+            role = try { AiChatRole.valueOf(role) } catch (_: Exception) { AiChatRole.ASSISTANT },
+            text = messageText,
+            threadId = threadId,
+            imagePath = decodedImages.firstOrNull() ?: imagePath,
+            imagePaths = decodedImages,
+            stepLogs = steps,
+            proposal = proposal,
+            nutritionCard = nutrition,
+            isError = isError == 1L,
+            createdAtEpochMs = createdAtEpochMs
+        )
+    }
+
+    private fun rowProposal(raw: String?): AiActionProposal? =
+        raw?.takeIf { it.isNotBlank() }?.let {
+            try { json.decodeFromString<AiActionProposal>(it) } catch (_: Exception) { null }
+        }
+
+    fun getAllAiChatThreads(): List<AiChatThread> {
+        val threads = queries.selectAllAiChatThreads().executeAsList().map { row ->
+            AiChatThread(
                 id = row.id,
-                role = try { AiChatRole.valueOf(row.role) } catch (_: Exception) { AiChatRole.ASSISTANT },
-                text = row.messageText,
-                imagePath = row.imagePath,
-                stepLogs = steps,
-                proposal = proposal,
-                nutritionCard = nutrition,
-                isError = row.isError == 1L,
-                createdAtEpochMs = row.createdAtEpochMs
+                title = row.title,
+                contextSummary = row.contextSummary,
+                messageCount = row.messageCount.toInt(),
+                createdAtEpochMs = row.createdAtEpochMs,
+                updatedAtEpochMs = row.updatedAtEpochMs
             )
+        }.toMutableList()
+
+        // Backfill legacy pre-thread messages automatically on upgrade so existing chat history isn't lost
+        val knownIds = threads.mapTo(mutableSetOf()) { it.id }
+        val orphansByThread = getAllAiChatMessages()
+            .filter { it.threadId !in knownIds }
+            .groupBy { it.threadId }
+        if (orphansByThread.isNotEmpty()) {
+            orphansByThread.forEach { (tid, msgs) ->
+                val firstUserText = msgs.firstOrNull { it.role == AiChatRole.USER && it.text.isNotBlank() }?.text
+                val synthesized = AiChatThread(
+                    id = tid,
+                    title = (firstUserText ?: "Kuma AI").trim().take(48),
+                    contextSummary = msgs.filter { !it.isError && it.text.isNotBlank() }
+                        .takeLast(4)
+                        .joinToString(" | ") { "${it.role.name.lowercase()}: ${it.text.trim().take(60)}" }
+                        .take(240),
+                    messageCount = msgs.size,
+                    createdAtEpochMs = msgs.minOfOrNull { it.createdAtEpochMs } ?: currentEpochMillis(),
+                    updatedAtEpochMs = msgs.maxOfOrNull { it.createdAtEpochMs } ?: currentEpochMillis()
+                )
+                saveAiChatThread(synthesized)
+                threads.add(synthesized)
+            }
+            threads.sortByDescending { it.updatedAtEpochMs }
+        }
+        return threads
+    }
+
+    fun saveAiChatThread(thread: AiChatThread) {
+        val now = currentEpochMillis()
+        queries.insertOrReplaceAiChatThread(
+            id = thread.id,
+            title = thread.title.take(80),
+            contextSummary = thread.contextSummary.take(280),
+            messageCount = thread.messageCount.toLong(),
+            createdAtEpochMs = if (thread.createdAtEpochMs > 0L) thread.createdAtEpochMs else now,
+            updatedAtEpochMs = if (thread.updatedAtEpochMs > 0L) thread.updatedAtEpochMs else now
+        )
+    }
+
+    fun deleteAiChatThread(threadId: String) {
+        database.transaction {
+            queries.deleteAiChatMessagesByThread(threadId)
+            queries.deleteAiChatThread(threadId)
         }
     }
 
+    fun getAiChatMessages(threadId: String): List<AiChatMessage> {
+        return queries.selectAiChatMessagesByThread(threadId).executeAsList().map { it.toDomain() }
+    }
+
+    fun getAllAiChatMessages(): List<AiChatMessage> {
+        return queries.selectAllAiChatMessages().executeAsList().map { it.toDomain() }
+    }
+
+    fun searchAiChatMessages(query: String, limit: Int = 12): List<AiChatMessage> {
+        val clean = query.trim().replace("%", "").replace("_", "")
+        if (clean.isBlank()) return emptyList()
+        return queries.searchAiChatMessages("%$clean%", limit.toLong()).executeAsList().map { it.toDomain() }
+    }
+
     fun saveAiChatMessage(message: AiChatMessage) {
+        val normalizedImages = message.effectiveImagePaths
         queries.insertOrReplaceAiChatMessage(
             id = message.id,
+            threadId = message.threadId,
             role = message.role.name,
             messageText = message.text,
-            imagePath = message.imagePath,
+            imagePath = normalizedImages.firstOrNull(),
+            imagePathsJson = json.encodeToString(normalizedImages),
             stepLogsJson = json.encodeToString(message.stepLogs),
             proposalJson = message.proposal?.let { json.encodeToString(it) },
             nutritionJson = message.nutritionCard?.let { json.encodeToString(it) },
@@ -877,7 +971,30 @@ class KumaDatabaseRepository(
         )
     }
 
+    fun pruneAiChatStorage(maxThreads: Int = 35, maxMessagesPerThread: Int = 80) {
+        val threads = queries.selectAllAiChatThreads().executeAsList()
+        if (threads.size > maxThreads) {
+            threads.drop(maxThreads).forEach { stale ->
+                deleteAiChatThread(stale.id)
+            }
+        }
+        threads.take(maxThreads).forEach { t ->
+            val msgs = queries.selectAiChatMessagesByThread(t.id).executeAsList()
+            if (msgs.size > maxMessagesPerThread) {
+                val excess = msgs.size - maxMessagesPerThread
+                database.transaction {
+                    msgs.take(excess).forEach { old ->
+                        queries.deleteAiChatMessage(old.id)
+                    }
+                }
+            }
+        }
+    }
+
     fun clearAllAiChatMessages() {
-        queries.clearAllAiChatMessages()
+        database.transaction {
+            queries.clearAllAiChatMessages()
+            queries.clearAllAiChatThreads()
+        }
     }
 }

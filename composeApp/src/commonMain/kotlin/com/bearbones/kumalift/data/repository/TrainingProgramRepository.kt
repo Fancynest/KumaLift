@@ -108,6 +108,18 @@ class TrainingProgramRepository(
         return true
     }
 
+    fun reloadFromDatabase(preferredActiveId: String? = null) {
+        val loaded = databaseRepo?.getAllTrainingPrograms().orEmpty()
+        val resolved = if (loaded.isEmpty()) listOf(TrainingProgram.DEFAULT_HYPERTROPHY) else loaded
+        _programs.value = resolved
+        val desiredId = preferredActiveId ?: _activeProgramId.value
+        _activeProgramId.value = if (resolved.any { it.id == desiredId }) {
+            desiredId
+        } else {
+            resolved.firstOrNull()?.id ?: DEFAULT_PROGRAM_ID
+        }
+    }
+
     fun getProgramById(id: String): TrainingProgram? {
         return _programs.value.find { it.id == id }
     }

@@ -37,6 +37,10 @@ class MesocycleRepository(
         }
     }
 
+    fun reloadFromDatabase() {
+        restoreFromDatabase()
+    }
+
     fun startNewMesocycle(
         name: String,
         totalWeeks: Int = 5,
@@ -118,6 +122,7 @@ class MesocycleRepository(
         if (_activeMesocycle.value?.id == id) {
             _activeMesocycle.value = null
         }
+        databaseRepo?.updateMesocycleWeek(id, target.currentWeek, false)
         databaseRepo?.updateMesocycleStatus(id, MesocycleStatus.COMPLETED, now)
         KumaLogger.i("MesocycleRepository", "Completed mesocycle ${target.name}")
         return completed

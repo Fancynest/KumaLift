@@ -95,7 +95,7 @@ actual object PlatformAiHttpTransport : AiHttpTransport {
 
         val client = baseClient.newBuilder()
             .readTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
-            .callTimeout((timeoutMs + 8_000).toLong(), TimeUnit.MILLISECONDS)
+            .callTimeout((timeoutMs + 25_000).toLong(), TimeUnit.MILLISECONDS)
             .build()
 
         val call = client.newCall(reqBuilder.build())
@@ -107,11 +107,15 @@ actual object PlatformAiHttpTransport : AiHttpTransport {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                response.use { res ->
-                    val responseText = res.body?.string().orEmpty()
-                    if (cont.isActive) {
-                        cont.resume(AiHttpResponse(statusCode = res.code, body = responseText))
+                try {
+                    response.use { res ->
+                        val responseText = res.body?.string().orEmpty()
+                        if (cont.isActive) {
+                            cont.resume(AiHttpResponse(statusCode = res.code, body = responseText))
+                        }
                     }
+                } catch (t: Throwable) {
+                    if (cont.isActive) cont.resumeWithException(t)
                 }
             }
         })

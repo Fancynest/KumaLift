@@ -25,6 +25,13 @@ class DailyReadinessRepository(
     )
     val todayCheckIn: StateFlow<DailyReadinessCheckIn?> = _todayCheckIn.asStateFlow()
 
+    fun reloadFromDatabase() {
+        val loaded = databaseRepo?.getAllDailyReadiness() ?: emptyList()
+        _allCheckIns.value = loaded
+        val today = DailyReadinessCheckIn.todayDateString()
+        _todayCheckIn.value = loaded.firstOrNull { it.dateString == today }
+    }
+
     fun recordCheckIn(
         sleep: Int,
         soreness: Int,
@@ -33,14 +40,23 @@ class DailyReadinessRepository(
         notes: String = "",
         dateString: String = DailyReadinessCheckIn.todayDateString()
     ): DailyReadinessCheckIn {
-        val (percentage, recommendation) = DailyReadinessCheckIn.calculate(sleep, soreness, energy, stress)
+        val safeSleep = sleep.coerceIn(1, 5)
+        val safeSoreness = soreness.coerceIn(1, 5)
+        val safeEnergy = energy.coerceIn(1, 5)
+        val safeStress = stress.coerceIn(1, 5)
+        val (percentage, recommendation) = DailyReadinessCheckIn.calculate(
+            safeSleep,
+            safeSoreness,
+            safeEnergy,
+            safeStress
+        )
         val checkIn = DailyReadinessCheckIn(
             id = IdGenerator.nextId("readiness"),
             dateString = dateString,
-            sleepScore = sleep.coerceIn(1, 5),
-            sorenessScore = soreness.coerceIn(1, 5),
-            energyScore = energy.coerceIn(1, 5),
-            stressScore = stress.coerceIn(1, 5),
+            sleepScore = safeSleep,
+            sorenessScore = safeSoreness,
+            energyScore = safeEnergy,
+            stressScore = safeStress,
             overallPercentage = percentage,
             recommendation = recommendation,
             notes = notes,

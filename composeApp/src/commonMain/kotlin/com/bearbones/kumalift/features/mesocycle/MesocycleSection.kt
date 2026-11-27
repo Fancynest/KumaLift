@@ -130,7 +130,7 @@ private fun ActiveMesocycleCard(
 
     val phaseColor = when (block.phase) {
         MesocyclePhase.INTRODUCTORY -> colors.info
-        MesocyclePhase.ACCUMULATION -> colors.accentFill
+        MesocyclePhase.ACCUMULATION -> colors.accentText
         MesocyclePhase.PEAK_OVERLOAD -> colors.warning
         MesocyclePhase.DELOAD -> colors.recoveryFresh
     }

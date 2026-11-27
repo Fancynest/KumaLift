@@ -22,6 +22,10 @@ class WorkoutScheduleRepository(
         _events.value = loaded
     }
 
+    fun reloadFromDatabase() {
+        _events.value = databaseRepo?.getAllScheduleEvents() ?: emptyList()
+    }
+
     fun setEventsForTesting(testEvents: List<WorkoutScheduleEvent>) {
         _events.value = testEvents
     }
@@ -67,7 +71,9 @@ class WorkoutScheduleRepository(
         databaseRepo?.updateScheduleEventStatus(eventId, ScheduleStatus.CANCELLED, null, now)
         _events.update { list ->
             list.map { ev ->
-                if (ev.id == eventId) ev.copy(status = ScheduleStatus.CANCELLED, updatedAtEpochMs = now) else ev
+                if (ev.id == eventId) {
+                    ev.copy(status = ScheduleStatus.CANCELLED, linkedWorkoutId = null, updatedAtEpochMs = now)
+                } else ev
             }
         }
     }
@@ -77,7 +83,9 @@ class WorkoutScheduleRepository(
         databaseRepo?.updateScheduleEventStatus(eventId, ScheduleStatus.PLANNED, null, now)
         _events.update { list ->
             list.map { ev ->
-                if (ev.id == eventId) ev.copy(status = ScheduleStatus.PLANNED, updatedAtEpochMs = now) else ev
+                if (ev.id == eventId) {
+                    ev.copy(status = ScheduleStatus.PLANNED, linkedWorkoutId = null, updatedAtEpochMs = now)
+                } else ev
             }
         }
     }

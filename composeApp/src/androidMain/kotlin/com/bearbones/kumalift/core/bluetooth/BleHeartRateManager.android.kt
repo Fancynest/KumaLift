@@ -15,9 +15,15 @@ import androidx.compose.runtime.Composable
 import com.bearbones.kumalift.core.logging.KumaLogger
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
 import com.bearbones.kumalift.domain.model.BleHeartRateDevice
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 actual object BleHeartRateManager {
@@ -45,6 +51,8 @@ actual object BleHeartRateManager {
 
     private var activeGatt: BluetoothGatt? = null
     private var pendingDevice: BleHeartRateDevice? = null
+    private var scanTimeoutJob: Job? = null
+    private val bleScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     var isTestMode: Boolean = false
 
     private fun closeGattSafely(gatt: BluetoothGatt?) {
@@ -186,6 +194,13 @@ actual object BleHeartRateManager {
             _discoveredDevices.value = emptyList()
             _isScanning.value = true
             scanner.startScan(scanCallback)
+            scanTimeoutJob?.cancel()
+            scanTimeoutJob = bleScope.launch {
+                delay(15_000L)
+                if (_isScanning.value) {
+                    stopScan()
+                }
+            }
         } catch (e: SecurityException) {
             KumaLogger.e("BleHeartRateManager", "Missing BLUETOOTH_SCAN permission: ${e.message}")
             _isScanning.value = false
@@ -193,6 +208,8 @@ actual object BleHeartRateManager {
     }
 
     actual fun stopScan() {
+        scanTimeoutJob?.cancel()
+        scanTimeoutJob = null
         if (isTestMode || AndroidAppProvider.appContext == null) {
             _isScanning.value = false
             return

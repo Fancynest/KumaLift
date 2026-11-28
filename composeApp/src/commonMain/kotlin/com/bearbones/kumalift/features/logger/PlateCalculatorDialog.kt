@@ -49,6 +49,7 @@ import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.PlateCalculator
 import com.bearbones.kumalift.domain.model.WeightUnit
@@ -68,13 +69,31 @@ fun PlateCalculatorDialog(
     val s = LocalStrings.current
     val colors = LocalKumaColors.current
 
-    var selectedBarWeight by remember { mutableStateOf(20.0) }
-    var targetWeight by remember { mutableStateOf(if (initialWeightKg > 0.0) initialWeightKg else 60.0) }
+    val isLb = unit == WeightUnit.LB
+    val unitLabel = if (isLb) s.unitLb else s.unitKg
+    val defaultBar = if (isLb) 45.0 else 20.0
+    val defaultTarget = if (isLb) 135.0 else 60.0
+    val stepIncrement = if (isLb) 5.0 else 2.5
+    val barPresets = if (isLb) listOf(45.0, 35.0, 25.0) else listOf(20.0, 15.0, 10.0)
+    val availablePlates = if (isLb) {
+        listOf(45.0, 35.0, 25.0, 10.0, 5.0, 2.5)
+    } else {
+        listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25)
+    }
 
-    val calcResult = remember(targetWeight, selectedBarWeight) {
+    var selectedBarWeight by remember(unit) { mutableStateOf(defaultBar) }
+    var targetWeight by remember(unit, initialWeightKg) {
+        mutableStateOf(
+            if (initialWeightKg > 0.0) UnitConverters.toDisplayWeight(initialWeightKg, unit) else defaultTarget
+        )
+    }
+
+    val calcResult = remember(targetWeight, selectedBarWeight, isLb) {
         PlateCalculator.calculate(
             targetWeightKg = targetWeight,
-            barWeightKg = selectedBarWeight
+            barWeightKg = selectedBarWeight,
+            availablePlatesKg = availablePlates,
+            useImperialPalette = isLb
         )
     }
 
@@ -147,14 +166,14 @@ fun PlateCalculatorDialog(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             IconButton(
-                                onClick = { targetWeight = (targetWeight - 2.5).coerceAtLeast(selectedBarWeight) },
+                                onClick = { targetWeight = (targetWeight - stepIncrement).coerceAtLeast(selectedBarWeight) },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.Remove, contentDescription = "-2.5", tint = colors.textPrimary)
+                                Icon(Icons.Default.Remove, contentDescription = "-${formatWeightDisplay(stepIncrement, language)}", tint = colors.textPrimary)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "${formatWeightDisplay(targetWeight, language)} ${s.unitKg}",
+                                text = "${formatWeightDisplay(targetWeight, language)} $unitLabel",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = colors.accentText
@@ -162,10 +181,10 @@ fun PlateCalculatorDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
-                                onClick = { targetWeight += 2.5 },
+                                onClick = { targetWeight += stepIncrement },
                                 modifier = Modifier.size(36.dp)
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "+2.5", tint = colors.textPrimary)
+                                Icon(Icons.Default.Add, contentDescription = "+${formatWeightDisplay(stepIncrement, language)}", tint = colors.textPrimary)
                             }
                         }
 
@@ -176,7 +195,8 @@ fun PlateCalculatorDialog(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
                         ) {
-                            listOf(-10.0, -5.0, 5.0, 10.0).forEach { delta ->
+                            val quickDeltas = if (isLb) listOf(-20.0, -10.0, 10.0, 20.0) else listOf(-10.0, -5.0, 5.0, 10.0)
+                            quickDeltas.forEach { delta ->
                                 val label = if (delta > 0) "+${delta.toInt()}" else "${delta.toInt()}"
                                 Box(
                                     modifier = Modifier
@@ -217,11 +237,7 @@ fun PlateCalculatorDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        listOf(
-                            20.0 to "Olympic (20 kg)",
-                            15.0 to "Women (15 kg)",
-                            10.0 to "EZ (10 kg)"
-                        ).forEach { (barWeight, barLabel) ->
+                        barPresets.forEach { barWeight ->
                             val isSelected = selectedBarWeight == barWeight
                             Box(
                                 modifier = Modifier
@@ -236,7 +252,7 @@ fun PlateCalculatorDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "${barWeight.toInt()} ${s.unitKg}",
+                                    text = "${barWeight.toInt()} $unitLabel",
                                     maxLines = 1,
                                     softWrap = false,
                                     style = MaterialTheme.typography.labelSmall.copy(
@@ -259,7 +275,7 @@ fun PlateCalculatorDialog(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "${s.loadEachSide}: ${formatWeightDisplay(calcResult.weightPerSideKg, language)} ${s.unitKg}",
+                        text = "${s.loadEachSide}: ${formatWeightDisplay(calcResult.weightPerSideKg, language)} $unitLabel",
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontWeight = FontWeight.Bold,
@@ -314,14 +330,25 @@ fun PlateCalculatorDialog(
                             } else {
                                 // Draw plates from largest to smallest
                                 calcResult.platesPerSide.forEach { plateCount ->
-                                    val (plateColor, onPlateColor) = when (plateCount.weightKg) {
-                                        25.0 -> Pair(colors.plateRed, colors.onPlateRed)
-                                        20.0 -> Pair(colors.plateBlue, colors.onPlateBlue)
-                                        15.0 -> Pair(colors.plateYellow, colors.onPlateYellow)
-                                        10.0 -> Pair(colors.plateGreen, colors.onPlateGreen)
-                                        5.0 -> Pair(colors.plateWhite, colors.onPlateWhite)
-                                        2.5 -> Pair(colors.plateBlack, colors.onPlateBlack)
-                                        else -> Pair(colors.plateGray, colors.onPlateGray)
+                                    val (plateColor, onPlateColor) = if (isLb) {
+                                        when (plateCount.weightKg) {
+                                            45.0 -> Pair(colors.plateBlue, colors.onPlateBlue)
+                                            35.0 -> Pair(colors.plateYellow, colors.onPlateYellow)
+                                            25.0 -> Pair(colors.plateGreen, colors.onPlateGreen)
+                                            10.0 -> Pair(colors.plateWhite, colors.onPlateWhite)
+                                            5.0 -> Pair(colors.plateBlack, colors.onPlateBlack)
+                                            else -> Pair(colors.plateGray, colors.onPlateGray)
+                                        }
+                                    } else {
+                                        when (plateCount.weightKg) {
+                                            25.0 -> Pair(colors.plateRed, colors.onPlateRed)
+                                            20.0 -> Pair(colors.plateBlue, colors.onPlateBlue)
+                                            15.0 -> Pair(colors.plateYellow, colors.onPlateYellow)
+                                            10.0 -> Pair(colors.plateGreen, colors.onPlateGreen)
+                                            5.0 -> Pair(colors.plateWhite, colors.onPlateWhite)
+                                            2.5 -> Pair(colors.plateBlack, colors.onPlateBlack)
+                                            else -> Pair(colors.plateGray, colors.onPlateGray)
+                                        }
                                     }
                                     repeat(minOf(plateCount.countPerSide, 24)) {
                                         val plateHeight = (80 * plateCount.heightFraction).dp
@@ -335,7 +362,7 @@ fun PlateCalculatorDialog(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = plateCount.weightKg.toString().removeSuffix(".0"),
+                                                text = formatWeightDisplay(plateCount.weightKg, language),
                                                 maxLines = 1,
                                                 softWrap = false,
                                                 style = MaterialTheme.typography.labelSmall.copy(
@@ -362,14 +389,25 @@ fun PlateCalculatorDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             calcResult.platesPerSide.forEach { item ->
-                                val chipPlateColor = when (item.weightKg) {
-                                    25.0 -> colors.plateRed
-                                    20.0 -> colors.plateBlue
-                                    15.0 -> colors.plateYellow
-                                    10.0 -> colors.plateGreen
-                                    5.0 -> colors.plateWhite
-                                    2.5 -> colors.plateBlack
-                                    else -> colors.plateGray
+                                val chipPlateColor = if (isLb) {
+                                    when (item.weightKg) {
+                                        45.0 -> colors.plateBlue
+                                        35.0 -> colors.plateYellow
+                                        25.0 -> colors.plateGreen
+                                        10.0 -> colors.plateWhite
+                                        5.0 -> colors.plateBlack
+                                        else -> colors.plateGray
+                                    }
+                                } else {
+                                    when (item.weightKg) {
+                                        25.0 -> colors.plateRed
+                                        20.0 -> colors.plateBlue
+                                        15.0 -> colors.plateYellow
+                                        10.0 -> colors.plateGreen
+                                        5.0 -> colors.plateWhite
+                                        2.5 -> colors.plateBlack
+                                        else -> colors.plateGray
+                                    }
                                 }
                                 Row(
                                     modifier = Modifier
@@ -386,7 +424,7 @@ fun PlateCalculatorDialog(
                                             .background(chipPlateColor)
                                     )
                                     Text(
-                                        text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg, language)} ${s.unitKg}",
+                                        text = "${item.countPerSide} × ${formatWeightDisplay(item.weightKg, language)} $unitLabel",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
                                             color = colors.textPrimary
@@ -402,7 +440,7 @@ fun PlateCalculatorDialog(
         confirmButton = {
             androidx.compose.material3.Button(
                 onClick = {
-                    onConfirm(calcResult.totalCalculatedWeightKg)
+                    onConfirm(UnitConverters.toStorageWeightKg(calcResult.totalCalculatedWeightKg, unit))
                     onDismiss()
                 },
                 colors = androidx.compose.material3.ButtonDefaults.buttonColors(
@@ -412,7 +450,7 @@ fun PlateCalculatorDialog(
                 shape = PillShape
             ) {
                 Text(
-                    text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg, language)} ${s.unitKg})",
+                    text = "${s.save} (${formatWeightDisplay(calcResult.totalCalculatedWeightKg, language)} $unitLabel)",
                     maxLines = 1,
                     softWrap = false,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)

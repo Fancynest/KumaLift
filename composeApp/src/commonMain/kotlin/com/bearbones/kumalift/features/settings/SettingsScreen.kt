@@ -1181,7 +1181,7 @@ private fun NotificationSettingsPage(
         }
     }
 
-    val audioPickerLauncher = rememberAudioPickerLauncher { fileName, localPath, errorMsg ->
+    val audioPickerLauncher = rememberAudioPickerLauncher(strings = s) { fileName, localPath, errorMsg ->
         if (errorMsg != null) {
             customSoundError = errorMsg
         } else if (fileName != null && localPath != null) {
@@ -3188,6 +3188,7 @@ private fun ExportImportDataPage(
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var isRunningBackupNow by remember { mutableStateOf(false) }
+    var isDataOperationRunning by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     var pendingImportBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -3387,19 +3388,31 @@ private fun ExportImportDataPage(
                     }
                     Button(
                         onClick = {
-                            val content = pendingImportContent!!
+                            if (isDataOperationRunning) return@Button
+                            val content = pendingImportContent ?: return@Button
                             pendingImportContent = null
-                            val result = backupManager?.importBackup(
-                                jsonString = content,
-                                mode = ImportMode.MERGE,
-                                currentSettings = settings,
-                                strings = s,
-                                onSettingsRestored = { settingsRepository.save(it) }
-                            )
-                            if (result?.success == true) {
-                                onDataMutated(false)
+                            isDataOperationRunning = true
+                            coroutineScope.launch {
+                                try {
+                                    var restoredSettings: UserSettings? = null
+                                    val result = withContext(Dispatchers.Default) {
+                                        backupManager?.importBackup(
+                                            jsonString = content,
+                                            mode = ImportMode.MERGE,
+                                            currentSettings = settings,
+                                            strings = s,
+                                            onSettingsRestored = { restoredSettings = it }
+                                        )
+                                    }
+                                    restoredSettings?.let { settingsRepository.save(it) }
+                                    if (result?.success == true) {
+                                        onDataMutated(false)
+                                    }
+                                    statusMessage = result?.message ?: s.failedToMergeBackup
+                                } finally {
+                                    isDataOperationRunning = false
+                                }
                             }
-                            statusMessage = result?.message ?: s.failedToMergeBackup
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = KumaColors.SurfaceContainerHigh)
                     ) {
@@ -3413,19 +3426,31 @@ private fun ExportImportDataPage(
                     }
                     Button(
                         onClick = {
-                            val content = pendingImportContent!!
+                            if (isDataOperationRunning) return@Button
+                            val content = pendingImportContent ?: return@Button
                             pendingImportContent = null
-                            val result = backupManager?.importBackup(
-                                jsonString = content,
-                                mode = ImportMode.REPLACE,
-                                currentSettings = settings,
-                                strings = s,
-                                onSettingsRestored = { settingsRepository.save(it) }
-                            )
-                            if (result?.success == true) {
-                                onDataMutated(false)
+                            isDataOperationRunning = true
+                            coroutineScope.launch {
+                                try {
+                                    var restoredSettings: UserSettings? = null
+                                    val result = withContext(Dispatchers.Default) {
+                                        backupManager?.importBackup(
+                                            jsonString = content,
+                                            mode = ImportMode.REPLACE,
+                                            currentSettings = settings,
+                                            strings = s,
+                                            onSettingsRestored = { restoredSettings = it }
+                                        )
+                                    }
+                                    restoredSettings?.let { settingsRepository.save(it) }
+                                    if (result?.success == true) {
+                                        onDataMutated(false)
+                                    }
+                                    statusMessage = result?.message ?: s.failedToRestoreBackup
+                                } finally {
+                                    isDataOperationRunning = false
+                                }
                             }
-                            statusMessage = result?.message ?: s.failedToRestoreBackup
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = colors.accentText)
                     ) {
@@ -3584,10 +3609,20 @@ private fun ExportImportDataPage(
             confirmButton = {
                 Button(
                     onClick = {
+                        if (isDataOperationRunning) return@Button
                         showClearHistoryDialog = false
-                        databaseRepo?.clearWorkoutHistoryOnly()
-                        onDataMutated(false)
-                        statusMessage = s.workoutHistoryClearedSuccess
+                        isDataOperationRunning = true
+                        coroutineScope.launch {
+                            try {
+                                withContext(Dispatchers.Default) {
+                                    databaseRepo?.clearWorkoutHistoryOnly()
+                                }
+                                onDataMutated(false)
+                                statusMessage = s.workoutHistoryClearedSuccess
+                            } finally {
+                                isDataOperationRunning = false
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.error)
                 ) {
@@ -3621,11 +3656,21 @@ private fun ExportImportDataPage(
             confirmButton = {
                 Button(
                     onClick = {
+                        if (isDataOperationRunning) return@Button
                         showDeleteAllDialog = false
-                        databaseRepo?.wipeAllUserData()
-                        settingsRepository.save(UserSettings())
-                        onDataMutated(true)
-                        statusMessage = s.allDataDeletedSuccess
+                        isDataOperationRunning = true
+                        coroutineScope.launch {
+                            try {
+                                withContext(Dispatchers.Default) {
+                                    databaseRepo?.wipeAllUserData()
+                                }
+                                settingsRepository.save(UserSettings())
+                                onDataMutated(true)
+                                statusMessage = s.allDataDeletedSuccess
+                            } finally {
+                                isDataOperationRunning = false
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.error)
                 ) {
@@ -4073,13 +4118,23 @@ private fun ExportImportDataPage(
                                 subtitle = s.exportBackupJsonSubtitle,
                                 onClick = {
                                     if (backupManager != null) {
+                                        if (isDataOperationRunning) return@SettingsNavigationRow
                                         checkDuplicateBeforeManualBackup {
-                                            val jsonPayload = backupManager.exportJson(settings)
-                                            val now = currentEpochMillis()
-                                            val fileName = "kumalift_backup_$now.json"
-                                            pendingExportHash = backupManager.computeContentHash(settings)
-                                            pendingExportFileName = fileName
-                                            exportLauncher(fileName, jsonPayload)
+                                            isDataOperationRunning = true
+                                            coroutineScope.launch {
+                                                try {
+                                                    val (jsonPayload, contentHash) = withContext(Dispatchers.Default) {
+                                                        backupManager.exportJson(settings) to backupManager.computeContentHash(settings)
+                                                    }
+                                                    val now = currentEpochMillis()
+                                                    val fileName = "kumalift_backup_$now.json"
+                                                    pendingExportHash = contentHash
+                                                    pendingExportFileName = fileName
+                                                    exportLauncher(fileName, jsonPayload)
+                                                } finally {
+                                                    isDataOperationRunning = false
+                                                }
+                                            }
                                         }
                                     } else {
                                         statusMessage = s.databaseRepoUnavailable
@@ -4117,17 +4172,26 @@ private fun ExportImportDataPage(
                                 title = s.restoreSafetySnapshotTitle,
                                 subtitle = s.restoreSafetySnapshotSub,
                                 onClick = {
-                                    if (backupManager != null) {
-                                        val result = backupManager.restoreSafetySnapshot(
-                                            currentSettings = settings,
-                                            strings = s
-                                        ) {
-                                            settingsRepository.save(it)
+                                    if (backupManager != null && !isDataOperationRunning) {
+                                        isDataOperationRunning = true
+                                        coroutineScope.launch {
+                                            try {
+                                                var restoredSettings: UserSettings? = null
+                                                val result = withContext(Dispatchers.Default) {
+                                                    backupManager.restoreSafetySnapshot(
+                                                        currentSettings = settings,
+                                                        strings = s
+                                                    ) { restoredSettings = it }
+                                                }
+                                                restoredSettings?.let { settingsRepository.save(it) }
+                                                if (result.success) {
+                                                    onDataMutated(false)
+                                                }
+                                                statusMessage = result.message
+                                            } finally {
+                                                isDataOperationRunning = false
+                                            }
                                         }
-                                        if (result.success) {
-                                            onDataMutated(false)
-                                        }
-                                        statusMessage = result.message
                                     }
                                 }
                             )
@@ -4153,11 +4217,20 @@ private fun ExportImportDataPage(
                                 title = s.exportWorkoutsCsvTitle,
                                 subtitle = s.exportWorkoutsCsvSubtitle,
                                 onClick = {
-                                    if (backupManager != null) {
-                                        val csvFiles = backupManager.exportCsvFiles(settings)
-                                        val workoutsCsv = csvFiles["workouts.csv"] ?: ""
-                                        val now = currentEpochMillis()
-                                        exportLauncher("kumalift_workouts_$now.csv", workoutsCsv)
+                                    if (backupManager != null && !isDataOperationRunning) {
+                                        isDataOperationRunning = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val csvFiles = withContext(Dispatchers.Default) {
+                                                    backupManager.exportCsvFiles(settings)
+                                                }
+                                                val workoutsCsv = csvFiles["workouts.csv"] ?: ""
+                                                val now = currentEpochMillis()
+                                                exportLauncher("kumalift_workouts_$now.csv", workoutsCsv)
+                                            } finally {
+                                                isDataOperationRunning = false
+                                            }
+                                        }
                                     }
                                 }
                             )

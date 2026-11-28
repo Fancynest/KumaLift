@@ -1,11 +1,18 @@
 package com.bearbones.kumalift.core.health
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.domain.model.HealthBodyMetricsSyncPayload
 import com.bearbones.kumalift.domain.model.HealthPlatformType
 import com.bearbones.kumalift.domain.model.HealthSyncResult
 import com.bearbones.kumalift.domain.model.HealthSyncStatus
 import com.bearbones.kumalift.domain.model.WorkoutHealthRecord
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.launch
 import platform.Foundation.NSDate
 import platform.Foundation.dateWithTimeIntervalSince1970
 import platform.HealthKit.HKHealthStore
@@ -34,7 +41,25 @@ actual object HealthSyncManager {
         }
     }
 
+    actual fun hasWorkoutSyncPermission(): Boolean = hasPermissionsGranted
+    actual fun hasWeightReadPermission(): Boolean = false
+    actual fun hasHeightReadPermission(): Boolean = false
+    actual fun hasWeightWritePermission(): Boolean = false
+    actual fun hasHeightWritePermission(): Boolean = false
+
     actual suspend fun refreshStatus(): HealthSyncStatus = getStatus()
+
+    actual fun openHealthSettings(): Boolean = false
+
+    actual suspend fun readLatestBodyMetrics(): HealthBodyMetricsSyncPayload =
+        HealthBodyMetricsSyncPayload(status = getStatus())
+
+    actual suspend fun writeBodyMetrics(
+        bodyweightKg: Double?,
+        heightCm: Double?,
+        weightClientRecordId: String?,
+        heightClientRecordId: String?
+    ): HealthSyncResult = HealthSyncResult(isSuccess = false)
 
     @OptIn(ExperimentalForeignApi::class)
     actual suspend fun requestPermissions(): Boolean {
@@ -95,6 +120,23 @@ actual object HealthSyncManager {
             } catch (e: Exception) {
                 KumaLogger.e("HealthSyncManager", "Exception during HealthKit sync: ${e.message}")
                 cont.resume(HealthSyncResult(isSuccess = false, syncDetails = e.message ?: "HealthKit error"))
+            }
+        }
+    }
+}
+
+@Composable
+actual fun rememberHealthPermissionLauncher(
+    includeBodyMetrics: Boolean,
+    onResult: (HealthSyncStatus) -> Unit
+): () -> Unit {
+    val scope = rememberCoroutineScope()
+    val latestOnResult by rememberUpdatedState(onResult)
+    return remember(includeBodyMetrics) {
+        {
+            scope.launch {
+                HealthSyncManager.requestPermissions()
+                latestOnResult(HealthSyncManager.refreshStatus())
             }
         }
     }

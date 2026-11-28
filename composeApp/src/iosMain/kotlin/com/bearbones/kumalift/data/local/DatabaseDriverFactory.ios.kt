@@ -279,5 +279,51 @@ actual class DatabaseDriverFactory {
                 0
             )
         } catch (_: Exception) {}
+        try {
+            driver.execute(null, "ALTER TABLE routines ADD COLUMN sharedByCreator TEXT DEFAULT NULL;", 0)
+        } catch (_: Exception) {}
+        try {
+            driver.execute(null, "ALTER TABLE routines ADD COLUMN sharedSourceTitle TEXT DEFAULT NULL;", 0)
+        } catch (_: Exception) {}
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS progress_photos (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    imagePath TEXT NOT NULL,
+                    capturedDateEpochMs INTEGER NOT NULL,
+                    bodyweightKg REAL DEFAULT NULL,
+                    waistCm REAL DEFAULT NULL,
+                    chestCm REAL DEFAULT NULL,
+                    armsCm REAL DEFAULT NULL,
+                    note TEXT NOT NULL DEFAULT '',
+                    isPrivate INTEGER NOT NULL DEFAULT 1,
+                    createdAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+        } catch (_: Exception) {}
+        try {
+            driver.execute(
+                null,
+                "CREATE INDEX IF NOT EXISTS idx_progress_photos_date ON progress_photos(capturedDateEpochMs DESC);",
+                0
+            )
+        } catch (_: Exception) {}
+        try {
+            driver.execute(
+                null,
+                """
+                CREATE TABLE IF NOT EXISTS exercise_notes (
+                    exerciseId TEXT NOT NULL PRIMARY KEY,
+                    pinnedNote TEXT NOT NULL,
+                    updatedAtEpochMs INTEGER NOT NULL
+                );
+                """.trimIndent(),
+                0
+            )
+        } catch (_: Exception) {}
     }
 }

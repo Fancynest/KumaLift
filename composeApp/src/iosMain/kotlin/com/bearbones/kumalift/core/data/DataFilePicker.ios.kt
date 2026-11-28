@@ -55,10 +55,11 @@ actual fun rememberDataImportBytesLauncher(
 
 @Composable
 actual fun rememberAudioPickerLauncher(
+    strings: AppStrings,
     onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
 ): () -> Unit {
     return {
-        onAudioPicked(null, null, "Custom sound upload is only supported on Android")
+        onAudioPicked(null, null, strings.customSoundInvalidFormat)
     }
 }
 

@@ -38,6 +38,16 @@ object PlateCalculator {
         Triple(0.5,  0xFFBDBDBD, 0.30f)  // Micro
     )
 
+    val STANDARD_IMPERIAL_PLATES = listOf(
+        Triple(45.0, 0xFF1E88E5, 1.00f), // Blue
+        Triple(35.0, 0xFFFDD835, 0.90f), // Yellow
+        Triple(25.0, 0xFF43A047, 0.78f), // Green
+        Triple(10.0, 0xFFFAFAFA, 0.60f), // White
+        Triple(5.0,  0xFF424242, 0.48f), // Charcoal/Black
+        Triple(2.5,  0xFF9E9E9E, 0.38f), // Silver
+        Triple(1.25, 0xFFBDBDBD, 0.30f)  // Micro
+    )
+
     val PRESET_BARS = listOf(
         BarEquipment("olympic", "Olympic Bar (20 kg)", 20.0),
         BarEquipment("womens", "Women's Bar (15 kg)", 15.0),
@@ -52,7 +62,8 @@ object PlateCalculator {
     fun calculate(
         targetWeightKg: Double,
         barWeightKg: Double = 20.0,
-        availablePlatesKg: List<Double> = listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25)
+        availablePlatesKg: List<Double> = listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25),
+        useImperialPalette: Boolean = false
     ): PlateCalculationResult {
         val safeTarget = (if (targetWeightKg.isFinite()) targetWeightKg else 0.0).coerceIn(0.0, 2000.0)
         val safeBar = (if (barWeightKg.isFinite()) barWeightKg else 0.0).coerceIn(0.0, 500.0)
@@ -61,12 +72,13 @@ object PlateCalculator {
         var remainingPerSide = weightToLoad / 2.0
 
         val sortedPlates = availablePlatesKg.filter { it.isFinite() && it > 0.0 }.distinct().sortedDescending()
+        val palette = if (useImperialPalette) STANDARD_IMPERIAL_PLATES else STANDARD_METRIC_PLATES
         val resultPlates = mutableListOf<PlateCount>()
 
         for (plateWeight in sortedPlates) {
             val count = ((remainingPerSide + 1e-4) / plateWeight).toInt()
             if (count > 0) {
-                val spec = STANDARD_METRIC_PLATES.firstOrNull { it.first == plateWeight }
+                val spec = palette.firstOrNull { it.first == plateWeight }
                 val color = spec?.second ?: 0xFF90A4AE
                 val heightFrac = spec?.third ?: 0.5f
 

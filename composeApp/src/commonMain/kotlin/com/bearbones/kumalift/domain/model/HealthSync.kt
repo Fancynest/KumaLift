@@ -47,3 +47,21 @@ data class HealthSyncResult(
     val isSuccess: Boolean,
     val syncDetails: String = ""
 )
+
+@Serializable
+data class HealthBodyMeasurementSample(
+    val recordId: String,
+    val value: Double,
+    val recordedAtEpochMs: Long,
+    val sourceApp: String = ""
+)
+
+@Serializable
+data class HealthBodyMetricsSyncPayload(
+    val status: HealthSyncStatus,
+    val weightSample: HealthBodyMeasurementSample? = null,
+    val heightSample: HealthBodyMeasurementSample? = null,
+    val hasWeightReadPermission: Boolean = false,
+    val hasHeightReadPermission: Boolean = false,
+    val errorMessage: String? = null
+)

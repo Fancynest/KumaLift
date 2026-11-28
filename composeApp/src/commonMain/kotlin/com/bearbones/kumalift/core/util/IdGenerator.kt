@@ -40,4 +40,8 @@ object IdGenerator {
     fun prId(exerciseId: String): String {
         return nextId("pr_$exerciseId")
     }
+
+    fun progressPhotoId(): String {
+        return nextId("photo")
+    }
 }

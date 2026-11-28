@@ -1122,6 +1122,243 @@ interface AppStrings {
     val aiClearChatConfirmTitle: String
     val aiClearChatConfirmMessage: String
     val aiClearChatConfirmAction: String
+    val aiDisclaimerText: String
+    val aiCopyMessageDesc: String
+    val aiCopiedFeedback: String
+    val aiEditMessageDesc: String
+    val aiEditSaveAction: String
+    val aiRegenerateDesc: String
+    val aiPreviewInspectHint: String
+    val aiPreviewModalTitle: String
+    val aiPreviewBeforeLabel: String
+    val aiPreviewAfterLabel: String
+    val aiPreviewChangesSection: String
+    val aiPreviewCompleteListSection: String
+    val aiPreviewDiffAdded: String
+    val aiPreviewDiffModified: String
+    val aiPreviewDiffReplaced: String
+    val aiPreviewDiffRemoved: String
+    fun aiPreviewSetsRepsFormat(sets: Int, reps: Int): String
+    fun aiPreviewRestSeconds(seconds: Int): String
+    fun aiPreviewDurationMinutes(minutes: Int): String
+    fun aiPreviewSetLine(setNumber: Int, reps: Int, weightText: String?): String
+    val aiPreviewFieldRoutineName: String
+    val aiPreviewFieldSplit: String
+    val aiPreviewFieldDuration: String
+    val aiPreviewFieldScheduleDays: String
+    val aiPreviewFieldBodyweight: String
+    val aiPreviewFieldGoal: String
+    val aiPreviewFieldScheduleDate: String
+    val aiPreviewFieldEventStatus: String
+    val aiPreviewFieldWeeks: String
+    val aiPreviewFieldDeloadWeek: String
+    val aiPreviewFieldExercise: String
+    val aiPreviewFieldCategory: String
+    val aiPreviewFieldEquipment: String
+    val aiPreviewFieldNotes: String
+    val aiPreviewNoChangesDetail: String
+    val aiStatusRestDay: String
+    val aiStatusScheduled: String
+    val aiCommitErrorGeneric: String
+    val aiCommitErrorRoutineMissing: String
+    val aiCommitErrorNoActiveWorkout: String
+    val aiCommitErrorNoValidExercises: String
     val duplicateBackupDialogTitle: String
     fun duplicateBackupDialogBody(backupInfo: String): String
+
+    // Personal Records Grouping
+    fun prRecordsCountBadge(count: Int): String
+    fun prBestOneRmSummary(oneRmText: String): String
+    fun prWeightGroupHeader(weightText: String, count: Int): String
+    fun prRepAchievementBadge(reps: Int): String
+    val prExpandDetailsDesc: String
+    val prCollapseDetailsDesc: String
+
+    // Home Recent Workouts 1-Month Filter
+    val recentWorkoutsMonthWindowTag: String
+    val noRecentWorkoutsLastMonth: String
+
+    // Profile Monthly Workout History
+    val workoutHistoryFullTitle: String
+    fun monthlyWorkoutCountSummary(sessions: Int, totalDurationMinutes: Int, volumeText: String): String
+    val historyMonthCollapsedHint: String
+    val expandMonthActionDesc: String
+    val collapseMonthActionDesc: String
+
+    // Health Connect Weight & Height Sync
+    val healthSyncBodyMetricsTitle: String
+    val healthSyncBodyMetricsDesc: String
+    val healthSyncBodyMetricsNowButton: String
+    val healthSyncFromHealthConnectAction: String
+    val healthBodyPermissionsPartialTitle: String
+    val healthPermWorkoutsLabel: String
+    val healthPermWeightLabel: String
+    val healthPermHeightLabel: String
+    val healthPermGrantedBadge: String
+    val healthPermMissingBadge: String
+    val healthSyncNoNewBodyRecords: String
+    val healthSyncAlreadyUpToDate: String
+    fun healthSyncAutoFilledSummary(weightText: String?, heightText: String?): String
+    val healthSyncConflictTitle: String
+    val healthSyncConflictSubtitle: String
+    val healthConflictKeepKumaAction: String
+    val healthConflictUseHealthAction: String
+    val healthConflictApplyAllHealth: String
+    val healthConflictKeepAllKuma: String
+    val healthSyncLimitationNote: String
+    fun healthConflictWeightLine(currentText: String, hcText: String, dateText: String): String
+    fun healthConflictHeightLine(currentText: String, hcText: String, dateText: String): String
+
+    // Workout Plan Sharing & Import
+    val sharePlanAction: String
+    val sharePlanDesc: String
+    val importPlanAction: String
+    val sharePlanModalTitle: String
+    val copyShareCodeAction: String
+    val copyShareMessageAction: String
+    val shareViaAppAction: String
+    val exportPlanFileAction: String
+    val planCodeCopiedToast: String
+    val planSummaryCopiedToast: String
+    val importPlanModalTitle: String
+    val importPlanPasteHint: String
+    val importPlanFromFileAction: String
+    val importPlanInvalidPayload: String
+    val importPreviewHeaderTitle: String
+    fun importPreviewMetaSummary(routinesCount: Int, exercisesCount: Int, daysPerWeek: Int): String
+    val importSavePersonalCopyButton: String
+    val importPlanSuccessToast: String
+    val sharedPlanCopyNote: String
+    fun sharedByCreatorBadge(creator: String): String
+    fun setsRepsPreviewChip(sets: Int, reps: Int): String
+    val kumasSharedBrandingTag: String
+
+    // Progress Photos
+    val progressPhotosTitle: String
+    fun progressPhotosDashboardSubtitle(count: Int): String
+    val progressPhotosPrivacyBanner: String
+    val takePhotoAction: String
+    val chooseFromGalleryAction: String
+    val comparePhotosTab: String
+    val timelinePhotosTab: String
+    val progressPhotosEmptyTitle: String
+    val progressPhotosEmptyBody: String
+    val addProgressPhotoDetailsTitle: String
+    val progressPhotoDateOffsetLabel: String
+    val progressPhotoDateTodayOption: String
+    val progressPhotoDatePickDaysAgoHint: String
+    val progressPhotoNotesHint: String
+    val progressPhotoSaveAction: String
+    val progressPhotoDeleteTitle: String
+    val progressPhotoDeleteMessage: String
+    val progressPhotoShareAction: String
+    val progressPhotoBeforeLabel: String
+    val progressPhotoAfterLabel: String
+    val progressPhotoSelectOlderLabel: String
+    val progressPhotoSelectNewerLabel: String
+    val progressPhotoNeedTwoCompare: String
+    val cameraPermissionDeniedTitle: String
+    val cameraPermissionDeniedMessage: String
+    val openSettingsAction: String
+    val waistMeasurementLabel: String
+    val chestMeasurementLabel: String
+    val armsMeasurementLabel: String
+    fun daysElapsedLabel(days: Int): String
+    val weightDeltaLabel: String
+    val privateOnlyBadge: String
+
+    // Workout & Program Image Sharing
+    val shareWorkoutCardAction: String
+    val shareWorkoutCardTitle: String
+    val shareProgramImageAction: String
+    val shareProgramImageTitle: String
+    val shareAsImageSubtitle: String
+    val sharePhotoSourceSection: String
+    val shareNoPhotoOption: String
+    val sharePanZoomHint: String
+    val shareResetPhotoPosition: String
+    val shareAspectRatioSection: String
+    val shareAspectSquare: String
+    val shareAspectPortrait: String
+    val shareAspectStory: String
+    val shareAspectTallList: String
+    val shareTemplateStyleSection: String
+    val shareTemplateHevyClassic: String
+    val shareTemplateBoldCenter: String
+    val shareTemplateMinimalCorner: String
+    val shareTemplateDarkKuma: String
+    val shareTemplateCleanLight: String
+    val shareBackgroundSection: String
+    val shareBackgroundSolid: String
+    val shareBackgroundGradient: String
+    val shareAccentColorSection: String
+    val shareStatsSectionTitle: String
+    fun shareStatsSelectedCount(selected: Int, max: Int): String
+    val shareStatDurationLabel: String
+    val shareStatVolumeLabel: String
+    val shareStatSetsLabel: String
+    val shareStatExercisesLabel: String
+    val shareStatPrCountLabel: String
+    val shareStatAvgRestLabel: String
+    val shareStatCaloriesLabel: String
+    val shareStatSessionRpeLabel: String
+    val shareStatWorkoutTypeLabel: String
+    val shareStatDateLabel: String
+    val shareStatMusclesLabel: String
+    val shareStatWeeklyStreakLabel: String
+    val shareStatTopSetLabel: String
+    val shareStatPrHighlightsLabel: String
+    fun shareStreakWeeksValue(weeks: Int): String
+    val shareExportToAppsButton: String
+    val shareSaveToGalleryButton: String
+    val shareDownloadBlankTemplateButton: String
+    val shareDownloadPngButton: String
+    val shareSavedToGalleryToast: String
+    val shareFailedToast: String
+    val shareUnsupportedOsToast: String
+    val shareTemplateSavedToast: String
+    val shareScopeSection: String
+    val shareScopeWholeProgram: String
+    val shareScopeSingleRoutine: String
+    val shareScopeCustomSelection: String
+    val shareSelectRoutineLabel: String
+    val shareSelectExercisesHint: String
+    val shareSelectedExercisesEmpty: String
+    val shareShowWeightRpeToggle: String
+    val shareShowMuscleEquipmentToggle: String
+    val shareTallBudgetWarning: String
+    fun shareRoutineSetsRepsLine(sets: Int, reps: Int): String
+    fun shareExerciseCountSummary(count: Int): String
+    val sharePreviewTitle: String
+    val shareStudioCardTitle: String
+    val shareStudioCardSubtitle: String
+    val shareTabData: String
+    val shareTabBackground: String
+    val shareTabStyle: String
+    val shareDragLayoutHint: String
+    val shareResetLayoutAction: String
+    val shareBrandWatermarkToggle: String
+    fun shareMaxStatsReachedNotice(max: Int): String
+    val shareSelectSessionLabel: String
+    val scanBarcodeAction: String
+    val scanBarcodeTitle: String
+    val scanBarcodeHint: String
+    val scanFromGalleryAction: String
+    val scanBarcodeInvalidError: String
+    val generateBarcodeAction: String
+    val shareBarcodeProgramTitle: String
+    val shareBarcodeProgramDesc: String
+    val saveBarcodePngAction: String
+    val barcodeSavedToast: String
+    val aiStepLoadingVisuals: String
+    val aiStepGeneratingImage: String
+    val aiStepReadingProgressPhotos: String
+    val aiOpenLinkDesc: String
+    val qrPayloadTooLargeError: String
+    val shareItemSizeLabel: String
+    val shareItemTitleLabel: String
+    val shareItemWatermarkLabel: String
+    val shareItemTapHint: String
+    val aiStepSearchingWeb: String
+    val aiStepReadingWebPage: String
 }

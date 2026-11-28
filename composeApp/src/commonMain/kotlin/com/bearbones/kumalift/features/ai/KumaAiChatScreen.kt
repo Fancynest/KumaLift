@@ -14,6 +14,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,20 +41,27 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
@@ -69,6 +78,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -88,25 +98,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.bearbones.kumalift.core.ai.AiChatFullscreenImageViewer
 import com.bearbones.kumalift.core.ai.AiChatImageThumbnail
 import com.bearbones.kumalift.core.ai.AiSecretStore
 import com.bearbones.kumalift.core.ai.MAX_AI_CHAT_IMAGES
 import com.bearbones.kumalift.core.ai.rememberAiMediaLaunchers
+import com.bearbones.kumalift.core.designsystem.DarkColors
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -119,16 +145,33 @@ import com.bearbones.kumalift.core.designsystem.rememberKumaPressScale
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.localization.LocalStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
+import com.bearbones.kumalift.core.util.NumberFormatUtils
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.ai.AiActionProposal
 import com.bearbones.kumalift.domain.ai.AiChatMessage
 import com.bearbones.kumalift.domain.ai.AiChatRole
 import com.bearbones.kumalift.domain.ai.AiChatThread
+import com.bearbones.kumalift.domain.ai.AiExerciseDiffEntry
+import com.bearbones.kumalift.domain.ai.AiExerciseDiffStatus
+import com.bearbones.kumalift.domain.ai.AiExercisePreviewItem
+import com.bearbones.kumalift.domain.ai.AiFieldChangePreview
 import com.bearbones.kumalift.domain.ai.AiNutritionCardData
 import com.bearbones.kumalift.domain.ai.AiOperationKind
+import com.bearbones.kumalift.domain.ai.AiOperationPreviewDetail
 import com.bearbones.kumalift.domain.ai.AiProposalStatus
+import com.bearbones.kumalift.domain.ai.AiProposedOperation
+import com.bearbones.kumalift.domain.ai.AiWebSource
 import com.bearbones.kumalift.domain.ai.KumaAiAgentService
+import com.bearbones.kumalift.domain.ai.copyableContent
+import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.Equipment
+import com.bearbones.kumalift.domain.model.MuscleGroup
+import com.bearbones.kumalift.domain.model.TrainingGoal
+import com.bearbones.kumalift.domain.model.WeightUnit
+import com.bearbones.kumalift.domain.model.localizeSplitCategory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -156,6 +199,8 @@ fun KumaAiChatScreen(
     val s = LocalStrings.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     val athleteGreetingName = remember(settings.profile.username, settings.profile.name, s.athleteDefault) {
         settings.profile.username.ifBlank { settings.profile.name.ifBlank { s.athleteDefault } }
@@ -168,11 +213,20 @@ fun KumaAiChatScreen(
     var fullscreenPreviewState by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     var pendingDeleteThread by remember { mutableStateOf<AiChatThread?>(null) }
     var showAttachMenu by remember { mutableStateOf(false) }
+    var editingMessageId by rememberSaveable { mutableStateOf<String?>(null) }
+    var inspectedProposalMsgId by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
 
-    KumaBackHandler(enabled = fullscreenPreviewState != null || drawerState.isOpen) {
+    KumaBackHandler(
+        enabled = fullscreenPreviewState != null ||
+            inspectedProposalMsgId != null ||
+            editingMessageId != null ||
+            drawerState.isOpen
+    ) {
         when {
             fullscreenPreviewState != null -> fullscreenPreviewState = null
+            inspectedProposalMsgId != null -> inspectedProposalMsgId = null
+            editingMessageId != null -> editingMessageId = null
             drawerState.isOpen -> scope.launch { drawerState.close() }
         }
     }
@@ -183,9 +237,17 @@ fun KumaAiChatScreen(
             .take(MAX_AI_CHAT_IMAGES)
     }
 
+    LaunchedEffect(editingMessageId) {
+        val targetId = editingMessageId ?: return@LaunchedEffect
+        val idx = messages.indexOfFirst { it.id == targetId }
+        if (idx >= 0) {
+            listState.animateScrollToItem(idx)
+        }
+    }
+
     LaunchedEffect(messages.size, isWorking) {
         val lastIdx = (messages.size + (if (isWorking) 1 else 0) - 1).coerceAtLeast(0)
-        if (lastIdx > 0) {
+        if (lastIdx > 0 && editingMessageId == null) {
             listState.animateScrollToItem(lastIdx)
         }
     }
@@ -200,6 +262,26 @@ fun KumaAiChatScreen(
         )
     }
 
+    inspectedProposalMsgId?.let { targetMsgId ->
+        val inspectedMsg = messages.firstOrNull { it.id == targetMsgId }
+        val inspectedProposal = inspectedMsg?.proposal
+        if (inspectedMsg == null || inspectedProposal == null) {
+            inspectedProposalMsgId = null
+        } else {
+            ProposalDetailDialog(
+                proposal = inspectedProposal,
+                weightUnit = settings.units.weightUnit,
+                language = settings.appearance.language,
+                resolvePreview = { op ->
+                    agentService.resolveOperationPreview(op, inspectedProposal.status, s)
+                },
+                onApprove = { agentService.approveProposal(inspectedMsg.id, s) },
+                onCancel = { agentService.cancelProposal(inspectedMsg.id) },
+                onDismiss = { inspectedProposalMsgId = null }
+            )
+        }
+    }
+
     pendingDeleteThread?.let { targetThread ->
         KumaDeleteConfirmationDialog(
             title = s.aiDeleteThreadTitle,
@@ -208,6 +290,9 @@ fun KumaAiChatScreen(
             cancelText = s.cancel,
             onConfirm = {
                 pendingDeleteThread = null
+                if (editingMessageId != null && currentThreadId == targetThread.id) {
+                    editingMessageId = null
+                }
                 agentService.deleteThread(targetThread.id)
             },
             onDismiss = { pendingDeleteThread = null }
@@ -227,16 +312,23 @@ fun KumaAiChatScreen(
                     currentThreadId = currentThreadId,
                     isTemporaryChat = isTemporaryChat,
                     onNewChat = {
+                        editingMessageId = null
+                        composerText = ""
+                        attachedImagePaths = emptyList()
                         greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
                         agentService.startNewChat(temporary = false)
                         scope.launch { drawerState.close() }
                     },
                     onToggleTemporary = { enabled ->
+                        editingMessageId = null
+                        composerText = ""
+                        attachedImagePaths = emptyList()
                         greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
                         agentService.setTemporaryChat(enabled)
                         scope.launch { drawerState.close() }
                     },
                     onSelectThread = { tid ->
+                        editingMessageId = null
                         agentService.selectThread(tid)
                         scope.launch { drawerState.close() }
                     },
@@ -329,6 +421,9 @@ fun KumaAiChatScreen(
                             tempHaptic.performHapticFeedback(
                                 androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
                             )
+                            editingMessageId = null
+                            composerText = ""
+                            attachedImagePaths = emptyList()
                             greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
                             agentService.toggleTemporaryChat()
                         },
@@ -346,6 +441,9 @@ fun KumaAiChatScreen(
                 if (messages.isNotEmpty() || currentThreadId != null) {
                     IconButton(
                         onClick = {
+                            editingMessageId = null
+                            composerText = ""
+                            attachedImagePaths = emptyList()
                             greetingIndex = (greetingIndex + Random.nextInt(1, 5)) % 5
                             agentService.startNewChat(temporary = false)
                         },
@@ -503,43 +601,117 @@ fun KumaAiChatScreen(
                     }
                 }
 
-                items(messages, key = { it.id }) { msg ->
-                    Box(modifier = Modifier.animateItem()) {
-                        if (msg.role == AiChatRole.USER) {
-                            UserChatBubble(
-                                message = msg,
-                                onImageClick = { paths, idx ->
-                                    fullscreenPreviewState = paths to idx
-                                }
-                            )
-                        } else {
-                            AssistantChatMessageBlock(
-                                message = msg,
-                                onApproveProposal = { agentService.approveProposal(msg.id, s) },
-                                onCancelProposal = { agentService.cancelProposal(msg.id) }
-                            )
+                itemsIndexed(messages, key = { _, msg -> msg.id }) { idx, msg ->
+                    val hasPrecedingUserMessage = remember(messages, idx) {
+                        messages.take(idx).any { it.role == AiChatRole.USER }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateItem(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(modifier = Modifier.widthIn(max = 820.dp).fillMaxWidth()) {
+                            if (msg.role == AiChatRole.USER) {
+                                UserChatBubble(
+                                    message = msg,
+                                    isEditing = editingMessageId == msg.id,
+                                    canEdit = !isWorking,
+                                    onStartEdit = { editingMessageId = msg.id },
+                                    onCancelEdit = { editingMessageId = null },
+                                    onSaveEdit = { newText ->
+                                        focusManager.clearFocus(force = true)
+                                        keyboardController?.hide()
+                                        val started = agentService.editUserMessage(
+                                            messageId = msg.id,
+                                            newText = newText,
+                                            strings = s,
+                                            language = settings.appearance.language
+                                        )
+                                        if (started) {
+                                            editingMessageId = null
+                                        }
+                                    },
+                                    onImageClick = { paths, imgIdx ->
+                                        fullscreenPreviewState = paths to imgIdx
+                                    }
+                                )
+                            } else {
+                                AssistantChatMessageBlock(
+                                    message = msg,
+                                    showRegenerate = hasPrecedingUserMessage,
+                                    regenerateEnabled = !isWorking,
+                                    onRegenerate = {
+                                        editingMessageId = null
+                                        agentService.regenerateResponse(
+                                            assistantMessageId = msg.id,
+                                            strings = s,
+                                            language = settings.appearance.language
+                                        )
+                                    },
+                                    onImageClick = { paths, imgIdx ->
+                                        fullscreenPreviewState = paths to imgIdx
+                                    },
+                                    onInspectProposal = { inspectedProposalMsgId = msg.id },
+                                    onApproveProposal = { agentService.approveProposal(msg.id, s) },
+                                    onCancelProposal = { agentService.cancelProposal(msg.id) }
+                                )
+                            }
                         }
                     }
                 }
 
                 if (isWorking) {
                     item(key = "live_working_indicator") {
-                        AssistantThinkingBubble(
-                            statusLabel = liveSteps.lastOrNull() ?: s.aiThinkingStatus
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(modifier = Modifier.widthIn(max = 820.dp).fillMaxWidth()) {
+                                AssistantThinkingBubble(
+                                    statusLabel = liveSteps.lastOrNull() ?: s.aiThinkingStatus
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
+        // Persistent AI Disclaimer Footer (subtle, non-scrolling, right above composer dock)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(KumaColors.CanvasLowest)
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = s.aiDisclaimerText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(max = 760.dp),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = colors.textSubtle,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp
+                )
+            )
+        }
+
         // Bottom Composer Dock
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(KumaColors.SurfaceDim)
                 .border(1.dp, colors.border)
                 .imePadding()
-                .navigationBarsPadding()
+                .navigationBarsPadding(),
+            contentAlignment = Alignment.Center
+        ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 820.dp)
+                .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -808,6 +980,8 @@ fun KumaAiChatScreen(
                                 val imgsToSend = attachedImagePaths
                                 composerText = ""
                                 attachedImagePaths = emptyList()
+                                focusManager.clearFocus(force = true)
+                                keyboardController?.hide()
                                 agentService.sendMessage(
                                     promptText = textToSend,
                                     imagePaths = imgsToSend,
@@ -828,6 +1002,7 @@ fun KumaAiChatScreen(
                     )
                 }
             }
+        }
         }
         }
     }
@@ -1038,59 +1213,264 @@ private fun AiHistorySidebarContent(
 }
 
 @Composable
+private fun AiMessageActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    tint: Color? = null,
+    label: String? = null
+) {
+    val colors = LocalKumaColors.current
+    val haptic = LocalHapticFeedback.current
+    val (interactionSource, pressScale) = rememberKumaPressScale(enabled = enabled, targetScale = 0.90f)
+    val resolvedTint = tint ?: if (enabled) colors.textSubtle else colors.textSubtle.copy(alpha = 0.4f)
+
+    Row(
+        modifier = modifier
+            .heightIn(min = 28.dp)
+            .kumaScale(pressScale)
+            .clip(PillShape)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = androidx.compose.foundation.LocalIndication.current
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        KumaAnimatedIcon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = resolvedTint,
+            modifier = Modifier.size(14.dp)
+        )
+        AnimatedVisibility(visible = !label.isNullOrBlank()) {
+            Text(
+                text = label.orEmpty(),
+                maxLines = 1,
+                softWrap = false,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = resolvedTint,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun CopyMessageActionButton(
+    textToCopy: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = textToCopy.isNotBlank()
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    @Suppress("DEPRECATION")
+    val clipboardManager = LocalClipboardManager.current
+    var isCopied by remember(textToCopy) { mutableStateOf(false) }
+
+    LaunchedEffect(isCopied) {
+        if (isCopied) {
+            delay(1600L)
+            isCopied = false
+        }
+    }
+
+    AiMessageActionButton(
+        icon = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+        contentDescription = s.aiCopyMessageDesc,
+        enabled = enabled,
+        tint = if (isCopied) colors.accentText else if (enabled) colors.textSubtle else colors.textSubtle.copy(alpha = 0.4f),
+        label = if (isCopied) s.aiCopiedFeedback else null,
+        modifier = modifier,
+        onClick = {
+            if (textToCopy.isNotBlank()) {
+                clipboardManager.setText(AnnotatedString(textToCopy))
+                isCopied = true
+            }
+        }
+    )
+}
+
+@Composable
 private fun UserChatBubble(
     message: AiChatMessage,
+    isEditing: Boolean,
+    canEdit: Boolean,
+    onStartEdit: () -> Unit,
+    onCancelEdit: () -> Unit,
+    onSaveEdit: (String) -> Unit,
     onImageClick: (List<String>, Int) -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
     val imgs = message.effectiveImagePaths
-    Row(
+
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = 290.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(KumaColors.SurfaceContainerHigh)
-                .border(1.dp, colors.border, RoundedCornerShape(16.dp))
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (imgs.size == 1) {
-                AiChatImageThumbnail(
-                    imagePath = imgs.first(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(170.dp)
-                        .clickable { onImageClick(imgs, 0) }
+        if (isEditing) {
+            var draftField by remember(message.id, message.text) {
+                mutableStateOf(
+                    TextFieldValue(
+                        text = message.text,
+                        selection = TextRange(message.text.length)
+                    )
                 )
-            } else if (imgs.size > 1) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    imgs.chunked(3).forEachIndexed { rowIdx, rowItems ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            rowItems.forEachIndexed { colIdx, path ->
-                                val globalIdx = rowIdx * 3 + colIdx
-                                AiChatImageThumbnail(
-                                    imagePath = path,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(82.dp)
-                                        .clickable { onImageClick(imgs, globalIdx) }
-                                )
-                            }
+            }
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(message.id) {
+                focusRequester.requestFocus()
+            }
+            val canSave = canEdit && (draftField.text.isNotBlank() || imgs.isNotEmpty())
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .widthIn(max = 560.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(KumaColors.SurfaceContainerHigh)
+                    .border(1.5.dp, colors.accentFillBorder, RoundedCornerShape(16.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (imgs.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        imgs.forEachIndexed { idx, path ->
+                            AiChatImageThumbnail(
+                                imagePath = path,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clickable { onImageClick(imgs, idx) }
+                            )
                         }
                     }
                 }
-            }
-            if (message.text.isNotBlank()) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = colors.textPrimary,
-                        lineHeight = 20.sp
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(KumaColors.SurfaceContainer)
+                        .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    if (draftField.text.isEmpty()) {
+                        Text(
+                            text = s.aiComposerPlaceholder,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = colors.textSubtle
+                            )
+                        )
+                    }
+                    BasicTextField(
+                        value = draftField,
+                        onValueChange = { draftField = it },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = colors.textPrimary,
+                            lineHeight = 20.sp
+                        ),
+                        cursorBrush = SolidColor(colors.accentFill),
+                        maxLines = 8,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
                     )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onCancelEdit,
+                        shape = PillShape,
+                        modifier = Modifier.heightIn(min = 36.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = s.cancel,
+                            maxLines = 1,
+                            softWrap = false,
+                            color = colors.textPrimary,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                    }
+
+                    Button(
+                        onClick = { onSaveEdit(draftField.text) },
+                        enabled = canSave,
+                        shape = PillShape,
+                        modifier = Modifier.heightIn(min = 36.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.accentFill,
+                            contentColor = colors.onAccentFill
+                        )
+                    ) {
+                        Text(
+                            text = s.aiEditSaveAction,
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 360.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(KumaColors.SurfaceContainerHigh)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ChatMessageMediaGallery(
+                    images = imgs,
+                    singleImageHeight = 170.dp,
+                    onImageClick = onImageClick
+                )
+                if (message.text.isNotBlank()) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = colors.textPrimary,
+                            lineHeight = 20.sp
+                        )
+                    )
+                }
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CopyMessageActionButton(
+                    textToCopy = message.text,
+                    enabled = message.text.isNotBlank()
+                )
+                AiMessageActionButton(
+                    icon = Icons.Default.Edit,
+                    contentDescription = s.aiEditMessageDesc,
+                    enabled = canEdit,
+                    onClick = onStartEdit
                 )
             }
         }
@@ -1098,12 +1478,62 @@ private fun UserChatBubble(
 }
 
 @Composable
+private fun ChatMessageMediaGallery(
+    images: List<String>,
+    singleImageHeight: androidx.compose.ui.unit.Dp,
+    onImageClick: (List<String>, Int) -> Unit
+) {
+    if (images.size == 1) {
+        AiChatImageThumbnail(
+            imagePath = images.first(),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(singleImageHeight)
+                .clickable { onImageClick(images, 0) }
+        )
+    } else if (images.size > 1) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            images.chunked(3).forEachIndexed { rowIdx, rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    rowItems.forEachIndexed { colIdx, path ->
+                        val globalIdx = rowIdx * 3 + colIdx
+                        AiChatImageThumbnail(
+                            imagePath = path,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(92.dp)
+                                .clickable { onImageClick(images, globalIdx) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
 private fun AssistantChatMessageBlock(
     message: AiChatMessage,
+    showRegenerate: Boolean,
+    regenerateEnabled: Boolean,
+    onRegenerate: () -> Unit,
+    onImageClick: (List<String>, Int) -> Unit,
+    onInspectProposal: () -> Unit,
     onApproveProposal: () -> Unit,
     onCancelProposal: () -> Unit
 ) {
     val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val uriHandler = LocalUriHandler.current
+    val copyText = remember(message.id, message.text, message.nutritionCard, message.proposal) {
+        message.copyableContent()
+    }
+    val richContent = remember(message.id, message.text, message.effectiveImagePaths) {
+        extractAssistantRichContent(message.text, message.effectiveImagePaths)
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1112,18 +1542,36 @@ private fun AssistantChatMessageBlock(
             NutritionAnalysisCard(data = nutrition)
         }
 
-        if (message.text.isNotBlank()) {
+        if (richContent.images.isNotEmpty() && !message.isError) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 360.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(KumaColors.SurfaceContainer)
+                    .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+                    .padding(10.dp)
+            ) {
+                ChatMessageMediaGallery(
+                    images = richContent.images,
+                    singleImageHeight = 200.dp,
+                    onImageClick = onImageClick
+                )
+            }
+        }
+
+        if (richContent.cleanText.isNotBlank()) {
             val codeBg = KumaColors.SurfaceContainerHigh
-            val formattedText = remember(message.id, message.text, message.isError, codeBg) {
+            val linkColor = colors.accentText
+            val markdownBlocks = remember(message.id, richContent.cleanText, message.isError) {
                 if (message.isError) {
-                    AnnotatedString(message.text)
+                    listOf(ChatMarkdownBlock.TextBlock(richContent.cleanText))
                 } else {
-                    parseChatMarkdown(message.text, codeBg)
+                    splitChatMarkdownBlocks(richContent.cleanText)
                 }
             }
             Box(
                 modifier = Modifier
-                    .widthIn(max = 320.dp)
+                    .widthIn(max = 520.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(if (message.isError) colors.errorTint else KumaColors.SurfaceContainer)
                     .border(
@@ -1133,22 +1581,120 @@ private fun AssistantChatMessageBlock(
                     )
                     .padding(14.dp)
             ) {
-                Text(
-                    text = formattedText,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = if (message.isError) colors.error else colors.textPrimary,
-                        lineHeight = 20.sp
-                    )
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    markdownBlocks.forEach { block ->
+                        when (block) {
+                            is ChatMarkdownBlock.TextBlock -> {
+                                val formattedText = remember(
+                                    message.id,
+                                    block.text,
+                                    message.isError,
+                                    codeBg,
+                                    linkColor,
+                                    uriHandler
+                                ) {
+                                    if (message.isError) {
+                                        AnnotatedString(block.text)
+                                    } else {
+                                        parseChatMarkdown(
+                                            raw = block.text,
+                                            codeBg = codeBg,
+                                            linkColor = linkColor,
+                                            onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } }
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = formattedText,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = if (message.isError) colors.error else colors.textPrimary,
+                                        lineHeight = 20.sp
+                                    )
+                                )
+                            }
+                            is ChatMarkdownBlock.TableBlock -> {
+                                MarkdownTableBlock(
+                                    table = block,
+                                    codeBg = codeBg,
+                                    linkColor = linkColor,
+                                    onOpenUrl = { url -> runCatching { uriHandler.openUri(url) } }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (richContent.webLinks.isNotEmpty() && !message.isError) {
+            FlowRow(
+                modifier = Modifier.widthIn(max = 520.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                richContent.webLinks.forEach { link ->
+                    Row(
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(KumaColors.SurfaceContainerHigh)
+                            .border(1.dp, colors.border, PillShape)
+                            .clickable { runCatching { uriHandler.openUri(link.url) } }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Public,
+                            contentDescription = null,
+                            tint = colors.accentText,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = link.title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            modifier = Modifier.widthIn(max = 180.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = s.aiOpenLinkDesc,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
             }
         }
 
         message.proposal?.let { prop ->
             ProposalReviewCard(
                 proposal = prop,
+                onInspect = onInspectProposal,
                 onApprove = onApproveProposal,
                 onCancel = onCancelProposal
             )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CopyMessageActionButton(
+                textToCopy = copyText,
+                enabled = copyText.isNotBlank()
+            )
+            if (showRegenerate) {
+                AiMessageActionButton(
+                    icon = Icons.Default.Refresh,
+                    contentDescription = s.aiRegenerateDesc,
+                    enabled = regenerateEnabled,
+                    onClick = onRegenerate
+                )
+            }
         }
     }
 }
@@ -1325,6 +1871,7 @@ private fun MacroTile(
 @Composable
 private fun ProposalReviewCard(
     proposal: AiActionProposal,
+    onInspect: () -> Unit,
     onApprove: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -1344,20 +1891,61 @@ private fun ProposalReviewCard(
             .clip(RoundedCornerShape(16.dp))
             .background(KumaColors.SurfaceContainer)
             .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+            .clickable(onClick = onInspect)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        KumaBadge(
-            text = badgeText,
-            backgroundColor = badgeBg,
-            contentColor = badgeFg
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            KumaBadge(
+                text = badgeText,
+                backgroundColor = badgeBg,
+                contentColor = badgeFg
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = s.aiPreviewInspectHint,
+                    maxLines = 1,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = colors.textSubtle,
+                        fontSize = 11.sp
+                    )
+                )
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = colors.textSubtle,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
 
         proposal.operations.forEach { op ->
             val (opBg, opFg, opIcon) = when (op.operationKind) {
                 AiOperationKind.ADD -> Triple(colors.recoveryFresh.copy(alpha = 0.2f), colors.recoveryFresh, Icons.Default.Add)
                 AiOperationKind.UPDATE -> Triple(colors.warningTint, colors.warning, Icons.Default.EditNote)
                 AiOperationKind.DELETE -> Triple(colors.errorTint, colors.error, Icons.Default.Remove)
+            }
+            val diffHighlight = remember(op.id, op.previewDetail) {
+                val diffs = op.previewDetail?.exerciseDiffs.orEmpty().filter { it.status != AiExerciseDiffStatus.UNCHANGED }
+                val firstDiff = diffs.firstOrNull()
+                when {
+                    firstDiff?.status == AiExerciseDiffStatus.REPLACED && firstDiff.before != null && firstDiff.after != null ->
+                        "${firstDiff.before.name} -> ${firstDiff.after.name}"
+                    firstDiff?.status == AiExerciseDiffStatus.MODIFIED && firstDiff.after != null ->
+                        firstDiff.after.name
+                    firstDiff?.status == AiExerciseDiffStatus.ADDED && firstDiff.after != null ->
+                        "+ ${firstDiff.after.name}"
+                    firstDiff?.status == AiExerciseDiffStatus.REMOVED && firstDiff.before != null ->
+                        "- ${firstDiff.before.name}"
+                    else -> null
+                }
             }
             Row(
                 modifier = Modifier
@@ -1383,7 +1971,7 @@ private fun ProposalReviewCard(
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = op.title,
                         maxLines = 2,
@@ -1400,6 +1988,17 @@ private fun ProposalReviewCard(
                             overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = colors.textSecondary
+                            )
+                        )
+                    }
+                    if (!diffHighlight.isNullOrBlank()) {
+                        Text(
+                            text = diffHighlight,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.accentText,
+                                fontWeight = FontWeight.Medium
                             )
                         )
                     }
@@ -1470,14 +2069,847 @@ private fun ProposalReviewCard(
     }
 }
 
+@Composable
+private fun ProposalDetailDialog(
+    proposal: AiActionProposal,
+    weightUnit: WeightUnit,
+    language: AppLanguage,
+    resolvePreview: (AiProposedOperation) -> AiOperationPreviewDetail,
+    onApprove: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+
+    val (badgeText, badgeBg, badgeFg) = when (proposal.status) {
+        AiProposalStatus.PENDING -> Triple(s.aiReviewProposalBadge, colors.warningTint, colors.warning)
+        AiProposalStatus.APPLIED -> Triple(s.aiAppliedBadge, colors.accentTint, colors.accentTextOnTint)
+        AiProposalStatus.CANCELLED -> Triple(s.aiCancelledBadge, colors.surfaceBright, colors.textSecondary)
+        AiProposalStatus.FAILED -> Triple(s.aiFailedBadge, colors.errorTint, colors.error)
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .widthIn(max = 560.dp)
+                .heightIn(max = 680.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = KumaColors.SurfaceDim,
+            tonalElevation = 8.dp,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    KumaBadge(
+                        text = badgeText,
+                        backgroundColor = badgeBg,
+                        contentColor = badgeFg
+                    )
+                    Text(
+                        text = s.aiPreviewModalTitle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = s.close,
+                            tint = colors.textSecondary
+                        )
+                    }
+                }
+
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    proposal.operations.forEach { op ->
+                        val preview = remember(op.id, proposal.status) { resolvePreview(op) }
+                        ProposalOperationDetailSection(
+                            op = op,
+                            preview = preview,
+                            weightUnit = weightUnit,
+                            language = language
+                        )
+                    }
+
+                    proposal.resultNote?.takeIf { it.isNotBlank() }?.let { note ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (proposal.status == AiProposalStatus.FAILED) colors.errorTint
+                                    else colors.accentTint
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = note,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (proposal.status == AiProposalStatus.FAILED) colors.error else colors.accentTextOnTint
+                                )
+                            )
+                        }
+                    }
+                }
+
+                if (proposal.status == AiProposalStatus.PENDING) {
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.border))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                onCancel()
+                                onDismiss()
+                            },
+                            modifier = Modifier
+                                .weight(0.85f)
+                                .heightIn(min = 44.dp),
+                            shape = PillShape
+                        ) {
+                            Text(
+                                text = s.aiProposalCancelAction,
+                                maxLines = 1,
+                                softWrap = false,
+                                color = colors.textPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Button(
+                            onClick = onApprove,
+                            modifier = Modifier
+                                .weight(1.15f)
+                                .heightIn(min = 44.dp),
+                            shape = PillShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.accentFill,
+                                contentColor = colors.onAccentFill
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = s.aiProposalApproveAction,
+                                maxLines = 1,
+                                softWrap = false,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProposalOperationDetailSection(
+    op: AiProposedOperation,
+    preview: AiOperationPreviewDetail,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val changedDiffs = preview.exerciseDiffs.filter { it.status != AiExerciseDiffStatus.UNCHANGED }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = op.title,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                color = colors.textPrimary
+            )
+        )
+
+        // Routine Metadata & Field Changes
+        val routineHeaderName = preview.routineName ?: preview.beforeRoutineName
+        val effectiveMetaMeta = buildList {
+            preview.splitCategory?.takeIf { it.isNotBlank() }?.let { add(localizeSplitCategory(it, s)) }
+            preview.durationMinutes?.let { add(s.aiPreviewDurationMinutes(it)) }
+            if (preview.scheduledDays.isNotEmpty()) {
+                val daysStr = preview.scheduledDays.mapNotNull { d -> s.dayNamesShort.getOrNull(d - 1) }.joinToString(", ")
+                if (daysStr.isNotBlank()) add(daysStr)
+            }
+        }
+        if (!routineHeaderName.isNullOrBlank() && effectiveMetaMeta.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(KumaColors.SurfaceContainer)
+                    .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = routineHeaderName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                )
+                Text(
+                    text = effectiveMetaMeta.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+                )
+            }
+        }
+
+        if (preview.fieldChanges.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                preview.fieldChanges.forEach { fc ->
+                    FieldChangePreviewRow(fc = fc, weightUnit = weightUnit, language = language)
+                }
+            }
+        }
+
+        // Before vs After Exercise Diffs
+        if (changedDiffs.isNotEmpty()) {
+            Text(
+                text = s.aiPreviewChangesSection,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary
+                )
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                changedDiffs.forEach { diff ->
+                    ExerciseDiffCard(diff = diff, weightUnit = weightUnit, language = language)
+                }
+            }
+        }
+
+        // Complete Updated Exercise List
+        if (preview.updatedExercises.isNotEmpty()) {
+            val statusByExerciseId = changedDiffs.mapNotNull { d ->
+                d.after?.exerciseId?.takeIf { it.isNotBlank() }?.let { it to d.status }
+            }.toMap()
+            Text(
+                text = s.aiPreviewCompleteListSection,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary
+                )
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                preview.updatedExercises.forEachIndexed { idx, ex ->
+                    ExercisePreviewSummaryRow(
+                        index = idx + 1,
+                        item = ex,
+                        diffStatus = statusByExerciseId[ex.exerciseId],
+                        weightUnit = weightUnit,
+                        language = language
+                    )
+                }
+            }
+        }
+
+        if (preview.fieldChanges.isEmpty() && changedDiffs.isEmpty() && preview.updatedExercises.isEmpty()) {
+            Text(
+                text = s.aiPreviewNoChangesDetail,
+                style = MaterialTheme.typography.bodySmall.copy(color = colors.textSubtle)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FieldChangePreviewRow(
+    fc: AiFieldChangePreview,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val label = when (fc.fieldKey) {
+        "routine_name" -> s.aiPreviewFieldRoutineName
+        "split" -> s.aiPreviewFieldSplit
+        "duration" -> s.aiPreviewFieldDuration
+        "scheduled_days" -> s.aiPreviewFieldScheduleDays
+        "bodyweight" -> s.aiPreviewFieldBodyweight
+        "goal" -> s.aiPreviewFieldGoal
+        "schedule_date" -> s.aiPreviewFieldScheduleDate
+        "event_status" -> s.aiPreviewFieldEventStatus
+        "weeks" -> s.aiPreviewFieldWeeks
+        "deload_week" -> s.aiPreviewFieldDeloadWeek
+        "exercise" -> s.aiPreviewFieldExercise
+        "category" -> s.aiPreviewFieldCategory
+        "equipment" -> s.aiPreviewFieldEquipment
+        "notes" -> s.aiPreviewFieldNotes
+        else -> fc.fieldKey
+    }
+    fun formatFieldVal(raw: String?, weightKg: Double?): String? {
+        if (weightKg != null) return NumberFormatUtils.formatWeight(weightKg, weightUnit, language)
+        if (raw.isNullOrBlank()) return null
+        return when (fc.fieldKey) {
+            "split" -> localizeSplitCategory(raw, s)
+            "duration" -> raw.toIntOrNull()?.let { s.aiPreviewDurationMinutes(it) } ?: raw
+            "scheduled_days" -> raw.split(",").mapNotNull { it.trim().toIntOrNull() }
+                .mapNotNull { d -> s.dayNamesShort.getOrNull(d - 1) }
+                .joinToString(", ")
+                .ifBlank { s.aiStatusRestDay }
+            "goal" -> TrainingGoal.entries.firstOrNull { it.name == raw }?.label(s) ?: raw
+            "category" -> MuscleGroup.entries.firstOrNull { it.name == raw }?.label(s) ?: raw
+            "equipment" -> Equipment.entries.firstOrNull { it.name == raw }?.label(s) ?: raw
+            "event_status" -> when (raw) {
+                "CANCELLED" -> s.aiCancelledBadge
+                "DELETED" -> s.delete
+                "PLANNED" -> s.aiStatusScheduled
+                else -> raw
+            }
+            "weeks", "deload_week" -> raw.toIntOrNull()?.let { s.mesocycleWeekShort(it) } ?: raw
+            else -> raw
+        }
+    }
+
+    val beforeDisplay = formatFieldVal(fc.beforeValue, fc.beforeWeightKg)
+    val afterDisplay = formatFieldVal(fc.afterValue, fc.afterWeightKg).orEmpty()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(KumaColors.SurfaceContainer)
+            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = colors.textSubtle,
+                fontWeight = FontWeight.Medium
+            )
+        )
+        if (!beforeDisplay.isNullOrBlank() && beforeDisplay != afterDisplay) {
+            Text(
+                text = "${s.aiPreviewBeforeLabel}: $beforeDisplay",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.textSecondary,
+                    textDecoration = TextDecoration.LineThrough
+                )
+            )
+            Text(
+                text = "${s.aiPreviewAfterLabel}: $afterDisplay",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.accentText,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        } else {
+            Text(
+                text = afterDisplay,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseDiffCard(
+    diff: AiExerciseDiffEntry,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val (statusLabel, badgeBg, badgeFg) = diffBadgeColors(diff.status, colors, s)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(KumaColors.SurfaceContainer)
+            .border(1.dp, badgeFg.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        KumaBadge(text = statusLabel, backgroundColor = badgeBg, contentColor = badgeFg)
+
+        diff.before?.let { beforeItem ->
+            ExerciseComparisonBlock(
+                prefixLabel = if (diff.after != null) s.aiPreviewBeforeLabel else null,
+                item = beforeItem,
+                isMuted = diff.status == AiExerciseDiffStatus.REMOVED || diff.after != null,
+                weightUnit = weightUnit,
+                language = language
+            )
+        }
+        diff.after?.let { afterItem ->
+            ExerciseComparisonBlock(
+                prefixLabel = if (diff.before != null) s.aiPreviewAfterLabel else null,
+                item = afterItem,
+                isMuted = false,
+                weightUnit = weightUnit,
+                language = language
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseComparisonBlock(
+    prefixLabel: String?,
+    item: AiExercisePreviewItem,
+    isMuted: Boolean,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val configSummary = formatExerciseConfigLine(item, weightUnit, language, s)
+    val categorySummary = formatExerciseCategoryLine(item, s)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(KumaColors.SurfaceContainerHigh)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        if (!prefixLabel.isNullOrBlank()) {
+            Text(
+                text = prefixLabel,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = if (isMuted) colors.textSubtle else colors.accentText,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+        }
+        Text(
+            text = item.name,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = if (isMuted) colors.textSecondary else colors.textPrimary,
+                textDecoration = if (isMuted) TextDecoration.LineThrough else TextDecoration.None
+            )
+        )
+        if (categorySummary.isNotBlank()) {
+            Text(
+                text = categorySummary,
+                style = MaterialTheme.typography.labelSmall.copy(color = colors.textSubtle)
+            )
+        }
+        Text(
+            text = configSummary,
+            style = MaterialTheme.typography.bodySmall.copy(
+                color = if (isMuted) colors.textSubtle else colors.textSecondary
+            )
+        )
+        if (item.setDetails.isNotEmpty() && !isMuted) {
+            item.setDetails.forEach { setCfg ->
+                val setW = setCfg.weightKg?.takeIf { it > 0.0 }?.let {
+                    NumberFormatUtils.formatWeight(it, weightUnit, language)
+                }
+                Text(
+                    text = s.aiPreviewSetLine(setCfg.setNumber, setCfg.reps, setW),
+                    style = MaterialTheme.typography.labelSmall.copy(color = colors.textSubtle)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExercisePreviewSummaryRow(
+    index: Int,
+    item: AiExercisePreviewItem,
+    diffStatus: AiExerciseDiffStatus?,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val colors = LocalKumaColors.current
+    val s = LocalStrings.current
+    val categorySummary = formatExerciseCategoryLine(item, s)
+    val configSummary = formatExerciseConfigLine(item, weightUnit, language, s)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(KumaColors.SurfaceContainer)
+            .border(1.dp, colors.border, RoundedCornerShape(12.dp))
+            .padding(11.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(KumaColors.SurfaceContainerHigh),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "$index",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textSecondary
+                )
+            )
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                )
+                if (diffStatus != null && diffStatus != AiExerciseDiffStatus.UNCHANGED) {
+                    val (label, bg, fg) = diffBadgeColors(diffStatus, colors, s)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    KumaBadge(text = label, backgroundColor = bg, contentColor = fg)
+                }
+            }
+            if (categorySummary.isNotBlank()) {
+                Text(
+                    text = categorySummary,
+                    style = MaterialTheme.typography.labelSmall.copy(color = colors.textSubtle)
+                )
+            }
+            Text(
+                text = configSummary,
+                style = MaterialTheme.typography.bodySmall.copy(color = colors.textSecondary)
+            )
+            if (item.setDetails.isNotEmpty()) {
+                item.setDetails.forEach { setCfg ->
+                    val setW = setCfg.weightKg?.takeIf { it > 0.0 }?.let {
+                        NumberFormatUtils.formatWeight(it, weightUnit, language)
+                    }
+                    Text(
+                        text = s.aiPreviewSetLine(setCfg.setNumber, setCfg.reps, setW),
+                        style = MaterialTheme.typography.labelSmall.copy(color = colors.textSubtle)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun diffBadgeColors(
+    status: AiExerciseDiffStatus,
+    colors: KumaColors,
+    s: com.bearbones.kumalift.core.localization.AppStrings
+): Triple<String, Color, Color> = when (status) {
+    AiExerciseDiffStatus.ADDED -> Triple(s.aiPreviewDiffAdded, colors.recoveryFresh.copy(alpha = 0.2f), colors.recoveryFresh)
+    AiExerciseDiffStatus.MODIFIED -> Triple(s.aiPreviewDiffModified, colors.warningTint, colors.warning)
+    AiExerciseDiffStatus.REPLACED -> Triple(s.aiPreviewDiffReplaced, colors.accentTint, colors.accentTextOnTint)
+    AiExerciseDiffStatus.REMOVED -> Triple(s.aiPreviewDiffRemoved, colors.errorTint, colors.error)
+    AiExerciseDiffStatus.UNCHANGED -> Triple("", Color.Transparent, colors.textSubtle)
+}
+
+private fun formatExerciseCategoryLine(
+    item: AiExercisePreviewItem,
+    s: com.bearbones.kumalift.core.localization.AppStrings
+): String {
+    val muscle = MuscleGroup.entries.firstOrNull { it.name == item.primaryMuscleCode }?.label(s)
+    val equip = Equipment.entries.firstOrNull { it.name == item.equipmentCode }?.label(s)
+    return listOfNotNull(muscle, equip).joinToString(" · ")
+}
+
+private fun formatExerciseConfigLine(
+    item: AiExercisePreviewItem,
+    weightUnit: WeightUnit,
+    language: AppLanguage,
+    s: com.bearbones.kumalift.core.localization.AppStrings
+): String {
+    val setsReps = s.aiPreviewSetsRepsFormat(item.sets, item.reps)
+    val loadText = item.weightKg?.takeIf { it > 0.0 }?.let {
+        NumberFormatUtils.formatWeight(it, weightUnit, language)
+    }
+    val restText = s.aiPreviewRestSeconds(item.restSeconds)
+    return listOfNotNull(setsReps, loadText, restText).joinToString(" · ")
+}
+
 private val HEADING_REGEX = Regex("""^\s{0,3}(#{1,6})\s+(.+)$""")
 private val BULLET_REGEX = Regex("""^(\s*)[*-]\s+(.+)$""")
+private val ORDERED_LIST_REGEX = Regex("""^(\s*)(\d+\.)\s+(.+)$""")
+private val MARKDOWN_IMAGE_REGEX = Regex("""!\[([^\]]*)\]\((https?://[^\s()]*(?:\([^\s()]*\)[^\s()]*)*|file:///android_asset/[^\s)]+)\)""")
+private val MARKDOWN_LINK_REGEX = Regex("""\[([^\]]+)\]\((https?://[^\s()]*(?:\([^\s()]*\)[^\s()]*)*)\)""")
+private val BARE_URL_REGEX = Regex("""https?://[^\s<>\]"']+""")
+private val EXCESS_BLANK_LINES_REGEX = Regex("""\n{3,}""")
+
+internal data class AssistantRichContent(
+    val cleanText: String,
+    val images: List<String>,
+    val webLinks: List<AiWebSource>
+)
+
+private fun isSupportedWebUrl(url: String): Boolean =
+    url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
+
+private fun isSupportedDisplayImageUrl(url: String): Boolean =
+    isSupportedWebUrl(url) || url.startsWith("file:///android_asset/", ignoreCase = true)
+
+private fun trimTrailingUrlPunctuation(raw: String): String {
+    var end = raw.length
+    while (end > 0 && raw[end - 1] in charArrayOf('.', ',', ';', ':', '!', '?')) {
+        end--
+    }
+    while (end > 0 && raw[end - 1] == ')') {
+        val candidate = raw.substring(0, end)
+        val opens = candidate.count { it == '(' }
+        val closes = candidate.count { it == ')' }
+        if (closes > opens) end-- else break
+    }
+    return raw.substring(0, end)
+}
+
+internal fun extractAssistantRichContent(
+    rawText: String,
+    attachedImages: List<String> = emptyList()
+): AssistantRichContent {
+    val inlineImages = mutableListOf<String>()
+    val cleanText = rawText.replace(MARKDOWN_IMAGE_REGEX) { match ->
+        val candidateUrl = match.groupValues[2].trim()
+        if (isSupportedDisplayImageUrl(candidateUrl)) {
+            inlineImages.add(candidateUrl)
+            ""
+        } else {
+            match.value
+        }
+    }.replace(EXCESS_BLANK_LINES_REGEX, "\n\n").trim()
+
+    val links = linkedMapOf<String, AiWebSource>()
+    MARKDOWN_LINK_REGEX.findAll(cleanText).forEach { match ->
+        val label = match.groupValues[1].trim()
+        val url = trimTrailingUrlPunctuation(match.groupValues[2].trim())
+        if (label.isNotBlank() && isSupportedWebUrl(url)) {
+            links.putIfAbsent(url, AiWebSource(title = label, url = url))
+        }
+    }
+    BARE_URL_REGEX.findAll(cleanText).forEach { match ->
+        val url = trimTrailingUrlPunctuation(match.value.trim())
+        if (isSupportedWebUrl(url) && !links.containsKey(url)) {
+            val host = url.removePrefix("https://").removePrefix("http://").substringBefore("/").ifBlank { url }
+            links[url] = AiWebSource(title = host, url = url)
+        }
+    }
+
+    val allImages = (attachedImages + inlineImages)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+
+    return AssistantRichContent(
+        cleanText = cleanText,
+        images = allImages,
+        webLinks = links.values.take(8)
+    )
+}
+
+internal sealed interface ChatMarkdownBlock {
+    data class TextBlock(val text: String) : ChatMarkdownBlock
+    data class TableBlock(
+        val headers: List<String>,
+        val rows: List<List<String>>
+    ) : ChatMarkdownBlock
+}
+
+private val TABLE_SEPARATOR_CELL_REGEX = Regex("""^:?-{2,}:?$""")
+
+private fun parsePipeCells(line: String): List<String>? {
+    val trimmed = line.trim()
+    if (!trimmed.contains('|')) return null
+    val unwrapped = trimmed.removePrefix("|").removeSuffix("|")
+    val cells = unwrapped.split('|').map { it.trim() }
+    return cells.takeIf { it.size >= 2 }
+}
+
+private fun isMarkdownTableSeparatorLine(line: String, expectedCols: Int): Boolean {
+    val cells = parsePipeCells(line) ?: return false
+    if (cells.size != expectedCols) return false
+    return cells.all { cell -> cell.isNotEmpty() && TABLE_SEPARATOR_CELL_REGEX.matches(cell) }
+}
+
+internal fun splitChatMarkdownBlocks(raw: String): List<ChatMarkdownBlock> {
+    val lines = raw.replace("\r\n", "\n").split("\n")
+    val blocks = mutableListOf<ChatMarkdownBlock>()
+    val textBuf = mutableListOf<String>()
+    var inCodeBlock = false
+    var i = 0
+
+    fun flushText() {
+        val joined = textBuf.joinToString("\n").trim()
+        if (joined.isNotEmpty()) {
+            blocks.add(ChatMarkdownBlock.TextBlock(joined))
+        }
+        textBuf.clear()
+    }
+
+    while (i < lines.size) {
+        val line = lines[i]
+        if (line.trimStart().startsWith("```")) {
+            inCodeBlock = !inCodeBlock
+            textBuf.add(line)
+            i++
+            continue
+        }
+        if (!inCodeBlock && i + 1 < lines.size) {
+            val headers = parsePipeCells(line)
+            if (headers != null && isMarkdownTableSeparatorLine(lines[i + 1], headers.size)) {
+                flushText()
+                val rows = mutableListOf<List<String>>()
+                var j = i + 2
+                while (j < lines.size) {
+                    val rowCells = parsePipeCells(lines[j]) ?: break
+                    val normalizedRow = List(headers.size) { col -> rowCells.getOrNull(col).orEmpty() }
+                    rows.add(normalizedRow)
+                    j++
+                }
+                blocks.add(ChatMarkdownBlock.TableBlock(headers = headers, rows = rows))
+                i = j
+                continue
+            }
+        }
+        textBuf.add(line)
+        i++
+    }
+    flushText()
+    return blocks
+}
+
+@Composable
+private fun MarkdownTableBlock(
+    table: ChatMarkdownBlock.TableBlock,
+    codeBg: Color,
+    linkColor: Color,
+    onOpenUrl: ((String) -> Unit)?
+) {
+    val colors = LocalKumaColors.current
+    val hScroll = rememberScrollState()
+    val colCount = table.headers.size.coerceAtLeast(1)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, colors.border, RoundedCornerShape(10.dp))
+            .background(KumaColors.SurfaceContainerLowest)
+            .horizontalScroll(hScroll)
+    ) {
+        Column(modifier = Modifier.width(IntrinsicSize.Max)) {
+            Row(
+                modifier = Modifier
+                    .background(KumaColors.SurfaceContainerHigh)
+                    .padding(vertical = 8.dp, horizontal = 8.dp)
+            ) {
+                table.headers.forEachIndexed { colIdx, header ->
+                    val formattedHeader = remember(header, codeBg, linkColor) {
+                        parseChatMarkdown(header, codeBg, linkColor, onOpenUrl)
+                    }
+                    Text(
+                        text = formattedHeader,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = colors.accentText,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier
+                            .widthIn(min = 84.dp, max = 190.dp)
+                            .padding(horizontal = 6.dp)
+                    )
+                    if (colIdx < colCount - 1) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                }
+            }
+            table.rows.forEachIndexed { rowIdx, row ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(colors.border.copy(alpha = 0.65f))
+                )
+                Row(
+                    modifier = Modifier
+                        .background(
+                            if (rowIdx % 2 == 1) KumaColors.SurfaceContainer.copy(alpha = 0.55f)
+                            else Color.Transparent
+                        )
+                        .padding(vertical = 7.dp, horizontal = 8.dp)
+                ) {
+                    for (colIdx in 0 until colCount) {
+                        val cell = row.getOrNull(colIdx).orEmpty()
+                        val formattedCell = remember(rowIdx, colIdx, cell, codeBg, linkColor) {
+                            parseChatMarkdown(cell, codeBg, linkColor, onOpenUrl)
+                        }
+                        Text(
+                            text = formattedCell,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = colors.textPrimary,
+                                lineHeight = 18.sp
+                            ),
+                            modifier = Modifier
+                                .widthIn(min = 84.dp, max = 190.dp)
+                                .padding(horizontal = 6.dp)
+                        )
+                        if (colIdx < colCount - 1) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Lightweight chat Markdown parser rendering bold, italic, underline, strikethrough,
- * inline/fenced code, headings, quotes, and bullet lists via native Compose AnnotatedString.
+ * clickable web links, inline/fenced code, headings, quotes, ordered/bullet lists via native Compose AnnotatedString.
  */
-internal fun parseChatMarkdown(raw: String, codeBg: Color): AnnotatedString {
+internal fun parseChatMarkdown(
+    raw: String,
+    codeBg: Color,
+    linkColor: Color = DarkColors.accentText,
+    onOpenUrl: ((String) -> Unit)? = null
+): AnnotatedString {
     val lines = raw.replace("\r\n", "\n").split("\n")
     return buildAnnotatedString {
         var inCodeBlock = false
@@ -1508,7 +2940,7 @@ internal fun parseChatMarkdown(raw: String, codeBg: Color): AnnotatedString {
                     SpanStyle(fontWeight = FontWeight.Bold)
                 }
                 withStyle(style) {
-                    appendInlineMarkdown(heading.groupValues[2].trim(), codeBg)
+                    appendInlineMarkdown(heading.groupValues[2].trim(), codeBg, linkColor, onOpenUrl)
                 }
                 return@forEach
             }
@@ -1518,27 +2950,63 @@ internal fun parseChatMarkdown(raw: String, codeBg: Color): AnnotatedString {
                 val indent = " ".repeat((bullet.groupValues[1].length / 2) * 2)
                 append(indent)
                 append("• ")
-                appendInlineMarkdown(bullet.groupValues[2], codeBg)
+                appendInlineMarkdown(bullet.groupValues[2], codeBg, linkColor, onOpenUrl)
+                return@forEach
+            }
+
+            val ordered = ORDERED_LIST_REGEX.matchEntire(line)
+            if (ordered != null) {
+                val indent = " ".repeat((ordered.groupValues[1].length / 2) * 2)
+                append(indent)
+                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                    append("${ordered.groupValues[2]} ")
+                }
+                appendInlineMarkdown(ordered.groupValues[3], codeBg, linkColor, onOpenUrl)
                 return@forEach
             }
 
             if (trimmedStart.startsWith("> ")) {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("▎ ") }
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    appendInlineMarkdown(trimmedStart.drop(2), codeBg)
+                    appendInlineMarkdown(trimmedStart.drop(2), codeBg, linkColor, onOpenUrl)
                 }
                 return@forEach
             }
 
-            appendInlineMarkdown(line, codeBg)
+            appendInlineMarkdown(line, codeBg, linkColor, onOpenUrl)
         }
     }
 }
 
-private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: Color) {
+private fun AnnotatedString.Builder.appendInlineMarkdown(
+    text: String,
+    codeBg: Color,
+    linkColor: Color,
+    onOpenUrl: ((String) -> Unit)?
+) {
+    val linkStyles = TextLinkStyles(
+        style = SpanStyle(
+            color = linkColor,
+            fontWeight = FontWeight.Medium,
+            textDecoration = TextDecoration.Underline
+        )
+    )
+    fun buildSafeUrlAnnotation(url: String): LinkAnnotation.Url =
+        if (onOpenUrl != null) {
+            LinkAnnotation.Url(
+                url = url,
+                styles = linkStyles,
+                linkInteractionListener = { link ->
+                    val targetUrl = (link as? LinkAnnotation.Url)?.url
+                    if (targetUrl != null) runCatching { onOpenUrl(targetUrl) }
+                }
+            )
+        } else {
+            LinkAnnotation.Url(url = url, styles = linkStyles)
+        }
     var i = 0
     while (i < text.length) {
-        if (text[i] == '\\' && i + 1 < text.length && text[i + 1] in charArrayOf('*', '_', '~', '`')) {
+        if (text[i] == '\\' && i + 1 < text.length && text[i + 1] in charArrayOf('*', '_', '~', '`', '[', ']')) {
             append(text[i + 1])
             i += 2
             continue
@@ -1555,11 +3023,45 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             }
         }
 
+        if (text[i] == '[') {
+            val closeBracket = text.indexOf(']', i + 1)
+            if (closeBracket > i + 1 && closeBracket + 1 < text.length && text[closeBracket + 1] == '(') {
+                val closeParen = findMatchingParen(text, closeBracket + 1)
+                if (closeParen > closeBracket + 2) {
+                    val label = text.substring(i + 1, closeBracket)
+                    val rawUrl = text.substring(closeBracket + 2, closeParen).trim()
+                    if (isSupportedWebUrl(rawUrl)) {
+                        pushLink(buildSafeUrlAnnotation(rawUrl))
+                        appendInlineMarkdown(label, codeBg, linkColor, onOpenUrl)
+                        pop()
+                        i = closeParen + 1
+                        continue
+                    }
+                }
+            }
+        }
+
+        if (text.regionMatches(i, "https://", 0, 8, ignoreCase = true) ||
+            text.regionMatches(i, "http://", 0, 7, ignoreCase = true)
+        ) {
+            val match = BARE_URL_REGEX.find(text, i)
+            if (match != null && match.range.first == i) {
+                val cleanUrl = trimTrailingUrlPunctuation(match.value)
+                if (isSupportedWebUrl(cleanUrl)) {
+                    pushLink(buildSafeUrlAnnotation(cleanUrl))
+                    append(cleanUrl)
+                    pop()
+                    i += cleanUrl.length
+                    continue
+                }
+            }
+        }
+
         if (text.startsWith("***", i)) {
             val end = findClosingDelimiter(text, "***", i + 3)
             if (end > i + 3) {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontStyle = FontStyle.Italic)) {
-                    appendInlineMarkdown(text.substring(i + 3, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 3, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 3
                 continue
@@ -1570,7 +3072,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = findClosingDelimiter(text, "**", i + 2)
             if (end > i + 2) {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                    appendInlineMarkdown(text.substring(i + 2, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 2, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 2
                 continue
@@ -1581,7 +3083,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = findClosingDelimiter(text, "__", i + 2)
             if (end > i + 2) {
                 withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
-                    appendInlineMarkdown(text.substring(i + 2, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 2, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 2
                 continue
@@ -1592,7 +3094,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = text.indexOf("</u>", i + 3, ignoreCase = true)
             if (end > i + 3) {
                 withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) {
-                    appendInlineMarkdown(text.substring(i + 3, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 3, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 4
                 continue
@@ -1603,7 +3105,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = findClosingDelimiter(text, "~~", i + 2)
             if (end > i + 2) {
                 withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
-                    appendInlineMarkdown(text.substring(i + 2, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 2, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 2
                 continue
@@ -1614,7 +3116,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = findSingleEmphasisEnd(text, '*', i + 1)
             if (end > i + 1) {
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    appendInlineMarkdown(text.substring(i + 1, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 1, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 1
                 continue
@@ -1627,7 +3129,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
             val end = findSingleEmphasisEnd(text, '_', i + 1, requireWordBoundaryAfter = true)
             if (end > i + 1) {
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    appendInlineMarkdown(text.substring(i + 1, end), codeBg)
+                    appendInlineMarkdown(text.substring(i + 1, end), codeBg, linkColor, onOpenUrl)
                 }
                 i = end + 1
                 continue
@@ -1637,6 +3139,21 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, codeBg: C
         append(text[i])
         i++
     }
+}
+
+private fun findMatchingParen(text: String, openParenIdx: Int): Int {
+    var depth = 0
+    for (idx in openParenIdx until text.length) {
+        when (text[idx]) {
+            '(' -> depth++
+            ')' -> {
+                depth--
+                if (depth == 0) return idx
+            }
+            '\n', ' ' -> return -1
+        }
+    }
+    return -1
 }
 
 private fun findClosingDelimiter(text: String, delim: String, startIndex: Int): Int {

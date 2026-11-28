@@ -33,6 +33,7 @@ expect fun rememberDataImportBytesLauncher(
 
 @Composable
 expect fun rememberAudioPickerLauncher(
+    strings: AppStrings = LocalStrings.current,
     onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
 ): () -> Unit
 

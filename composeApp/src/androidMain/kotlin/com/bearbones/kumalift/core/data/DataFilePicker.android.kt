@@ -11,11 +11,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.documentfile.provider.DocumentFile
 import com.bearbones.kumalift.core.localization.AppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+
+private const val MAX_IMPORT_FILE_BYTES = 50L * 1024L * 1024L
+private const val MAX_CUSTOM_AUDIO_BYTES = 20L * 1024L * 1024L
+
+private fun readBoundedBytes(stream: java.io.InputStream, maxBytes: Long): ByteArray {
+    val out = ByteArrayOutputStream()
+    val buf = ByteArray(16 * 1024)
+    var total = 0L
+    while (true) {
+        val n = stream.read(buf)
+        if (n < 0) break
+        total += n
+        if (total > maxBytes) {
+            throw IllegalStateException("File exceeds maximum allowed size")
+        }
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
+}
 
 @Composable
 actual fun rememberDataExportLauncher(
@@ -23,40 +48,37 @@ actual fun rememberDataExportLauncher(
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, content: String) -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnExportResult by rememberUpdatedState(onExportResult)
+    val latestStrings by rememberUpdatedState(strings)
     var pendingContent by remember { mutableStateOf<String?>(null) }
 
     val createDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         val content = pendingContent
+        pendingContent = null
         if (uri != null && content != null) {
-            try {
-                val stream = context.contentResolver.openOutputStream(uri)
-                    ?: throw java.io.IOException("Cannot open output stream")
-                stream.use { it.write(content.encodeToByteArray()) }
-                onExportResult(
-                    true,
-                    strings.backupFileSavedSuccess
-                )
-            } catch (e: Exception) {
-                KumaLogger.e("DataExportLauncher", "Failed to write backup file: ${e.message}", e)
-                onExportResult(
-                    false,
-                    strings.backupErrorWriteFailed
-                )
-            } finally {
-                pendingContent = null
+            scope.launch {
+                val (ok, msg) = withContext(Dispatchers.IO) {
+                    try {
+                        val stream = context.contentResolver.openOutputStream(uri)
+                            ?: throw java.io.IOException("Cannot open output stream")
+                        stream.use { it.write(content.encodeToByteArray()) }
+                        true to latestStrings.backupFileSavedSuccess
+                    } catch (e: Exception) {
+                        KumaLogger.e("DataExportLauncher", "Failed to write backup file: ${e.message}", e)
+                        false to latestStrings.backupErrorWriteFailed
+                    }
+                }
+                latestOnExportResult(ok, msg)
             }
         } else {
-            pendingContent = null
-            onExportResult(
-                false,
-                strings.backupFileSavingCancelled
-            )
+            latestOnExportResult(false, latestStrings.backupFileSavingCancelled)
         }
     }
 
-    return remember(context, strings) {
+    return remember(context) {
         { fileName: String, content: String ->
             pendingContent = content
             try {
@@ -64,10 +86,7 @@ actual fun rememberDataExportLauncher(
             } catch (e: Exception) {
                 KumaLogger.e("DataExportLauncher", "Failed to launch document picker: ${e.message}", e)
                 pendingContent = null
-                onExportResult(
-                    false,
-                    strings.backupErrorFolderInaccessible
-                )
+                latestOnExportResult(false, latestStrings.backupErrorFolderInaccessible)
             }
         }
     }
@@ -78,19 +97,28 @@ actual fun rememberDataImportLauncher(
     onContentRead: (String?) -> Unit
 ): () -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnContentRead by rememberUpdatedState(onContentRead)
 
     val openDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                onContentRead(text)
-            } catch (e: Exception) {
-                onContentRead(null)
+            scope.launch {
+                val text = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            readBoundedBytes(stream, MAX_IMPORT_FILE_BYTES).decodeToString()
+                        }
+                    } catch (e: Exception) {
+                        KumaLogger.w("DataImportLauncher", "Failed to read import file: ${e.message}")
+                        null
+                    }
+                }
+                latestOnContentRead(text)
             }
         } else {
-            onContentRead(null)
+            latestOnContentRead(null)
         }
     }
 
@@ -98,8 +126,8 @@ actual fun rememberDataImportLauncher(
         {
             try {
                 openDocLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*"))
-            } catch (e: Exception) {
-                onContentRead(null)
+            } catch (_: Exception) {
+                latestOnContentRead(null)
             }
         }
     }
@@ -145,31 +173,37 @@ actual fun rememberDataExportBytesLauncher(
     onExportResult: (Boolean, String) -> Unit
 ): (fileName: String, mimeType: String, bytes: ByteArray) -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnExportResult by rememberUpdatedState(onExportResult)
+    val latestStrings by rememberUpdatedState(strings)
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val createDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("*/*")
     ) { uri: Uri? ->
         val bytes = pendingBytes
+        pendingBytes = null
         if (uri != null && bytes != null) {
-            try {
-                val stream = context.contentResolver.openOutputStream(uri)
-                    ?: throw java.io.IOException("Cannot open output stream")
-                stream.use { it.write(bytes) }
-                onExportResult(true, strings.backupFileSavedSuccess)
-            } catch (e: Exception) {
-                KumaLogger.e("DataExportBytesLauncher", "Failed to write backup file: ${e.message}", e)
-                onExportResult(false, strings.backupErrorWriteFailed)
-            } finally {
-                pendingBytes = null
+            scope.launch {
+                val (ok, msg) = withContext(Dispatchers.IO) {
+                    try {
+                        val stream = context.contentResolver.openOutputStream(uri)
+                            ?: throw java.io.IOException("Cannot open output stream")
+                        stream.use { it.write(bytes) }
+                        true to latestStrings.backupFileSavedSuccess
+                    } catch (e: Exception) {
+                        KumaLogger.e("DataExportBytesLauncher", "Failed to write backup file: ${e.message}", e)
+                        false to latestStrings.backupErrorWriteFailed
+                    }
+                }
+                latestOnExportResult(ok, msg)
             }
         } else {
-            pendingBytes = null
-            onExportResult(false, strings.backupFileSavingCancelled)
+            latestOnExportResult(false, latestStrings.backupFileSavingCancelled)
         }
     }
 
-    return remember(context, strings) {
+    return remember(context) {
         { fileName: String, mimeType: String, bytes: ByteArray ->
             pendingBytes = bytes
             try {
@@ -177,7 +211,7 @@ actual fun rememberDataExportBytesLauncher(
             } catch (e: Exception) {
                 KumaLogger.e("DataExportBytesLauncher", "Failed to launch document picker: ${e.message}", e)
                 pendingBytes = null
-                onExportResult(false, strings.backupErrorFolderInaccessible)
+                latestOnExportResult(false, latestStrings.backupErrorFolderInaccessible)
             }
         }
     }
@@ -188,18 +222,28 @@ actual fun rememberDataImportBytesLauncher(
     onBytesRead: (ByteArray?) -> Unit
 ): () -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnBytesRead by rememberUpdatedState(onBytesRead)
+
     val openDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                onBytesRead(bytes)
-            } catch (e: Exception) {
-                onBytesRead(null)
+            scope.launch {
+                val bytes = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            readBoundedBytes(stream, MAX_IMPORT_FILE_BYTES)
+                        }
+                    } catch (e: Exception) {
+                        KumaLogger.w("DataImportBytesLauncher", "Failed reading bytes: ${e.message}")
+                        null
+                    }
+                }
+                latestOnBytesRead(bytes)
             }
         } else {
-            onBytesRead(null)
+            latestOnBytesRead(null)
         }
     }
 
@@ -207,8 +251,8 @@ actual fun rememberDataImportBytesLauncher(
         {
             try {
                 openDocLauncher.launch(arrayOf("*/*", "application/octet-stream", "application/json"))
-            } catch (e: Exception) {
-                onBytesRead(null)
+            } catch (_: Exception) {
+                latestOnBytesRead(null)
             }
         }
     }
@@ -216,9 +260,13 @@ actual fun rememberDataImportBytesLauncher(
 
 @Composable
 actual fun rememberAudioPickerLauncher(
+    strings: AppStrings,
     onAudioPicked: (fileName: String?, localFilePath: String?, errorMessage: String?) -> Unit
 ): () -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnAudioPicked by rememberUpdatedState(onAudioPicked)
+    val latestStrings by rememberUpdatedState(strings)
 
     val openDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -227,65 +275,90 @@ actual fun rememberAudioPickerLauncher(
             return@rememberLauncherForActivityResult
         }
 
-        try {
-            val docFile = DocumentFile.fromSingleUri(context, uri)
-            val displayName = docFile?.name ?: "custom_sound.mp3"
-            val extension = displayName.substringAfterLast('.', "").lowercase()
+        scope.launch {
+            val (fileName, localPath, errorMsg) = withContext(Dispatchers.IO) {
+                var tempFile: File? = null
+                try {
+                    val docFile = DocumentFile.fromSingleUri(context, uri)
+                    val displayName = docFile?.name ?: "custom_sound.mp3"
+                    val extension = displayName.substringAfterLast('.', "").lowercase()
 
-            val allowedExtensions = setOf("mp3", "wav", "ogg", "opus", "m4a", "aac", "flac")
-            if (extension.isNotEmpty() && !allowedExtensions.contains(extension)) {
-                onAudioPicked(null, null, "Format file .$extension tidak didukung. Harap gunakan MP3, WAV, atau OGG.")
-                return@rememberLauncherForActivityResult
-            }
+                    val allowedExtensions = setOf("mp3", "wav", "ogg", "opus", "m4a", "aac", "flac")
+                    if (extension.isNotEmpty() && !allowedExtensions.contains(extension)) {
+                        return@withContext Triple(null, null, latestStrings.customSoundInvalidFormat)
+                    }
 
-            val targetExt = if (extension.isNotEmpty()) extension else "mp3"
-            val destDir = File(context.filesDir, "custom_sounds")
-            destDir.mkdirs()
-            val destFile = File(destDir, "custom_rest_timer_sound.$targetExt")
-            val tempFile = File(destDir, "custom_rest_timer_sound_tmp.$targetExt")
+                    val targetExt = if (extension.isNotEmpty()) extension else "mp3"
+                    val destDir = File(context.filesDir, "custom_sounds")
+                    destDir.mkdirs()
+                    val destFile = File(destDir, "custom_rest_timer_sound.$targetExt")
+                    val stagedTemp = File(destDir, "custom_rest_timer_sound_tmp.$targetExt")
+                    tempFile = stagedTemp
 
-            // Stage upload into temp file first so corrupt uploads never destroy existing audio
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output)
+                    // Stage upload into temp file first with a size cap so oversized/corrupt uploads stay safe
+                    var copiedBytes = 0L
+                    val opened = context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(stagedTemp).use { output ->
+                            val buf = ByteArray(16 * 1024)
+                            while (true) {
+                                val n = input.read(buf)
+                                if (n < 0) break
+                                copiedBytes += n
+                                if (copiedBytes > MAX_CUSTOM_AUDIO_BYTES) {
+                                    throw IllegalStateException("Audio file exceeds max size")
+                                }
+                                output.write(buf, 0, n)
+                            }
+                            output.flush()
+                        }
+                        true
+                    } ?: false
+                    if (!opened || copiedBytes <= 0L) {
+                        try { stagedTemp.delete() } catch (_: Throwable) {}
+                        return@withContext Triple(null, null, latestStrings.backupErrorInvalidFile)
+                    }
+
+                    // Validate audio can be prepared with MediaPlayer
+                    val testPlayer = MediaPlayer()
+                    var isValid = false
+                    try {
+                        testPlayer.setDataSource(stagedTemp.absolutePath)
+                        testPlayer.prepare()
+                        isValid = testPlayer.duration > 0
+                    } catch (t: Throwable) {
+                        KumaLogger.e("AudioPicker", "Audio file validation failed: ${t.message}", t)
+                        isValid = false
+                    } finally {
+                        try { testPlayer.release() } catch (_: Throwable) {}
+                    }
+
+                    if (!isValid) {
+                        try { stagedTemp.delete() } catch (_: Throwable) {}
+                        return@withContext Triple(null, null, latestStrings.customSoundInvalidFormat)
+                    }
+
+                    if (destFile.exists()) {
+                        try { destFile.delete() } catch (_: Throwable) {}
+                    }
+                    if (!stagedTemp.renameTo(destFile)) {
+                        stagedTemp.copyTo(destFile, overwrite = true)
+                        try { stagedTemp.delete() } catch (_: Throwable) {}
+                    }
+                    tempFile = null
+
+                    Triple(displayName, destFile.absolutePath, null)
+                } catch (e: Exception) {
+                    try { tempFile?.delete() } catch (_: Throwable) {}
+                    KumaLogger.e("AudioPicker", "Exception copying audio file: ${e.message}", e)
+                    val err = if (e is IllegalStateException) {
+                        latestStrings.customSoundInvalidFormat
+                    } else {
+                        latestStrings.backupErrorWriteFailed
+                    }
+                    Triple(null, null, err)
                 }
-            } ?: run {
-                onAudioPicked(null, null, "Gagal membaca file dari penyimpanan.")
-                return@rememberLauncherForActivityResult
             }
-
-            // Validate audio can be prepared with MediaPlayer
-            val testPlayer = MediaPlayer()
-            var isValid = false
-            try {
-                testPlayer.setDataSource(tempFile.absolutePath)
-                testPlayer.prepare()
-                isValid = testPlayer.duration > 0
-            } catch (t: Throwable) {
-                KumaLogger.e("AudioPicker", "Audio file validation failed: ${t.message}", t)
-                isValid = false
-            } finally {
-                try { testPlayer.release() } catch (_: Throwable) {}
-            }
-
-            if (!isValid) {
-                try { tempFile.delete() } catch (_: Throwable) {}
-                onAudioPicked(null, null, "File audio rusak atau tidak dapat diputar.")
-                return@rememberLauncherForActivityResult
-            }
-
-            if (destFile.exists()) {
-                try { destFile.delete() } catch (_: Throwable) {}
-            }
-            if (!tempFile.renameTo(destFile)) {
-                tempFile.copyTo(destFile, overwrite = true)
-                try { tempFile.delete() } catch (_: Throwable) {}
-            }
-
-            onAudioPicked(displayName, destFile.absolutePath, null)
-        } catch (e: Exception) {
-            KumaLogger.e("AudioPicker", "Exception copying audio file: ${e.message}", e)
-            onAudioPicked(null, null, "Gagal mengunggah file audio: ${e.message}")
+            latestOnAudioPicked(fileName, localPath, errorMsg)
         }
     }
 
@@ -306,7 +379,8 @@ actual fun rememberAudioPickerLauncher(
                     )
                 )
             } catch (e: Exception) {
-                onAudioPicked(null, null, "Gagal membuka pengelola file: ${e.message}")
+                KumaLogger.w("AudioPicker", "Failed launching audio picker: ${e.message}")
+                latestOnAudioPicked(null, null, latestStrings.backupErrorFolderInaccessible)
             }
         }
     }

@@ -27,6 +27,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Share
 import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
@@ -55,22 +58,36 @@ import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.designsystem.isolateHorizontalScroll
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
+import com.bearbones.kumalift.core.media.QrPlanScannerDialog
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.TrainingProgramRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
+import com.bearbones.kumalift.domain.model.ProfileSettings
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.SharedWorkoutPlanPackage
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingProgram
+import com.bearbones.kumalift.domain.model.WorkoutPlanShareCodec
 import com.bearbones.kumalift.domain.model.localizedTitle
 import com.bearbones.kumalift.domain.model.localizedMuscleFocus
 import com.bearbones.kumalift.domain.model.localizedRpeTier
+import com.bearbones.kumalift.domain.share.ProgramShareScope
+import com.bearbones.kumalift.features.share.ProgramShareEditorDialog
 import com.bearbones.kumalift.domain.model.localizedSplitCategory
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+private data class ProgramImageShareRequest(
+    val programTitle: String,
+    val routines: List<RoutineBlueprint>,
+    val initialScope: ProgramShareScope,
+    val initialRoutineId: String? = null
+)
 
 @Composable
 fun RoutinesScreen(
@@ -80,6 +97,8 @@ fun RoutinesScreen(
     exerciseRepository: ExerciseRepository = remember { ExerciseRepository() },
     settingsRepository: SettingsRepository? = null,
     listState: LazyListState = rememberLazyListState(),
+    initialSharedPlanInput: String? = null,
+    onConsumeSharedPlanInput: () -> Unit = {},
     onStartRoutine: () -> Unit
 ) {
     val s = LocalStrings.current
@@ -89,6 +108,30 @@ fun RoutinesScreen(
     val completedWorkouts by workoutRepository.completedWorkouts.collectAsState()
     val programs by trainingProgramRepository.programs.collectAsState()
     val activeProgramId by trainingProgramRepository.activeProgramId.collectAsState()
+    val currentSettings = settingsRepository?.settings?.collectAsState()?.value
+    val currentProfile = currentSettings?.profile ?: ProfileSettings()
+
+    var planToShare by remember { mutableStateOf<SharedWorkoutPlanPackage?>(null) }
+    var programImageToShare by remember { mutableStateOf<ProgramImageShareRequest?>(null) }
+    var showQrScannerModal by remember { mutableStateOf(false) }
+    var showImportPlanModal by remember { mutableStateOf(false) }
+    var importPlanInitialText by remember { mutableStateOf<String?>(null) }
+    var shareFeedbackBanner by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(initialSharedPlanInput) {
+        if (!initialSharedPlanInput.isNullOrBlank()) {
+            importPlanInitialText = initialSharedPlanInput
+            showImportPlanModal = true
+            onConsumeSharedPlanInput()
+        }
+    }
+
+    LaunchedEffect(shareFeedbackBanner) {
+        if (shareFeedbackBanner != null) {
+            delay(2800)
+            shareFeedbackBanner = null
+        }
+    }
 
     val activeProgram = remember(programs, activeProgramId) {
         programs.find { it.id == activeProgramId } ?: programs.firstOrNull() ?: TrainingProgram.DEFAULT_HYPERTROPHY
@@ -146,9 +189,17 @@ fun RoutinesScreen(
             showCreateProgramModal ||
             programBeingEdited != null ||
             programToDelete != null ||
-            routineToDelete != null
+            routineToDelete != null ||
+            planToShare != null ||
+            programImageToShare != null ||
+            showQrScannerModal ||
+            showImportPlanModal
     ) {
         when {
+            programImageToShare != null -> programImageToShare = null
+            planToShare != null -> planToShare = null
+            showQrScannerModal -> showQrScannerModal = false
+            showImportPlanModal -> showImportPlanModal = false
             routineToDelete != null -> routineToDelete = null
             programToDelete != null -> programToDelete = null
             programBeingEdited != null -> programBeingEdited = null
@@ -200,6 +251,38 @@ fun RoutinesScreen(
                         color = KumaColors.TextWhite
                     )
                 )
+
+                // Scan Barcode pill (replaces Import Plan button in top bar)
+                Box(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(KumaColors.SurfaceContainer)
+                        .border(1.dp, KumaColors.BorderDefault, PillShape)
+                        .clickable { showQrScannerModal = true }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = s.scanBarcodeAction,
+                            tint = colors.accentText,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = s.scanBarcodeAction,
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colors.accentText
+                            )
+                        )
+                    }
+                }
 
                 // Button "Buat Routine"
                 Box(
@@ -307,7 +390,32 @@ fun RoutinesScreen(
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(PillShape)
+                                        .background(KumaColors.SurfaceContainer)
+                                        .border(1.dp, KumaColors.BorderDefault, PillShape)
+                                        .clickable {
+                                            programImageToShare = ProgramImageShareRequest(
+                                                programTitle = activeProgram.localizedTitle(s),
+                                                routines = programRoutines,
+                                                initialScope = ProgramShareScope.WHOLE_PROGRAM
+                                            )
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = s.shareProgramImageAction,
+                                        tint = colors.accentText,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(6.dp))
 
                                 Box(
                                     modifier = Modifier
@@ -477,6 +585,9 @@ fun RoutinesScreen(
                                     onStartRoutine()
                                 }
                             },
+                            onShare = {
+                                planToShare = WorkoutPlanShareCodec.fromRoutine(routine, s, currentProfile)
+                            },
                             onDelete = { routineToDelete = routine }
                         )
                     }
@@ -527,6 +638,9 @@ fun RoutinesScreen(
                 onDeleteRoutine = { r ->
                     routineToDelete = r
                     selectedRoutineForDetail = null
+                },
+                onShareRoutine = { r ->
+                    planToShare = WorkoutPlanShareCodec.fromRoutine(r, s, currentProfile)
                 }
             )
         }
@@ -580,6 +694,11 @@ fun RoutinesScreen(
                 },
                 onDeleteProgram = { prog ->
                     programToDelete = prog
+                },
+                onShareProgram = { prog ->
+                    val progRoutines = routines.filter { it.programId == prog.id }
+                    planToShare = WorkoutPlanShareCodec.fromProgram(prog, progRoutines, s, currentProfile)
+                    showProgramSelectorModal = false
                 },
                 onCreateNewProgram = {
                     showCreateProgramModal = true
@@ -668,6 +787,111 @@ fun RoutinesScreen(
                 onDismiss = { routineToDelete = null }
             )
         }
+
+        // Modal 6: Share Plan Card & Actions
+        planToShare?.let { pkg ->
+            val currentUnit = currentSettings?.units?.weightUnit ?: com.bearbones.kumalift.domain.model.WeightUnit.KG
+            val currentLang = currentSettings?.appearance?.language ?: com.bearbones.kumalift.domain.model.AppLanguage.SYSTEM
+            ShareWorkoutPlanModal(
+                pkg = pkg,
+                weightUnit = currentUnit,
+                language = currentLang,
+                onShareAsImage = {
+                    val isSingle = pkg.planType == com.bearbones.kumalift.domain.model.SharedPlanType.ROUTINE && pkg.routines.size == 1
+                    val targetRoutineId = pkg.routines.firstOrNull()?.sourceRoutineId?.takeIf { it.isNotBlank() }
+                    val sourceProgram = programs.firstOrNull { it.localizedTitle(s) == pkg.title || it.name == pkg.title }
+                    val scopedRoutines = if (sourceProgram != null) {
+                        routines.filter { it.programId == sourceProgram.id }.ifEmpty { programRoutines }
+                    } else if (isSingle && targetRoutineId != null) {
+                        routines.filter { it.id == targetRoutineId }.ifEmpty { programRoutines }
+                    } else {
+                        programRoutines
+                    }
+                    programImageToShare = ProgramImageShareRequest(
+                        programTitle = pkg.title,
+                        routines = scopedRoutines,
+                        initialScope = if (isSingle) ProgramShareScope.SINGLE_ROUTINE else ProgramShareScope.WHOLE_PROGRAM,
+                        initialRoutineId = targetRoutineId
+                    )
+                    planToShare = null
+                },
+                onDismiss = { planToShare = null },
+                onStatusMessage = { msg -> shareFeedbackBanner = msg }
+            )
+        }
+
+        programImageToShare?.let { req ->
+            val currentUnit = currentSettings?.units?.weightUnit ?: com.bearbones.kumalift.domain.model.WeightUnit.KG
+            val currentLang = currentSettings?.appearance?.language ?: com.bearbones.kumalift.domain.model.AppLanguage.SYSTEM
+            val rawHandle = currentProfile.username.trim().trimStart('@')
+            val athleteTag = when {
+                rawHandle.isNotBlank() -> "@$rawHandle"
+                currentProfile.name.isNotBlank() -> currentProfile.name.trim()
+                else -> ""
+            }
+            ProgramShareEditorDialog(
+                programTitle = req.programTitle,
+                routines = req.routines,
+                initialScope = req.initialScope,
+                initialRoutineId = req.initialRoutineId,
+                weightUnit = currentUnit,
+                language = currentLang,
+                athleteTag = athleteTag,
+                onDismiss = { programImageToShare = null }
+            )
+        }
+
+        // Modal 7: QR Barcode Scanner
+        if (showQrScannerModal) {
+            QrPlanScannerDialog(
+                onCodeScanned = { scanned ->
+                    showQrScannerModal = false
+                    importPlanInitialText = scanned
+                    showImportPlanModal = true
+                },
+                onDismiss = { showQrScannerModal = false }
+            )
+        }
+
+        // Modal 8: Import Plan with Mandatory Pre-Import Preview
+        if (showImportPlanModal) {
+            ImportWorkoutPlanModal(
+                initialRawInput = importPlanInitialText,
+                exerciseRepository = exerciseRepository,
+                routineRepository = routineRepository,
+                trainingProgramRepository = trainingProgramRepository,
+                settingsRepository = settingsRepository,
+                onImported = {
+                    showImportPlanModal = false
+                    importPlanInitialText = null
+                    shareFeedbackBanner = s.importPlanSuccessToast
+                },
+                onDismiss = {
+                    showImportPlanModal = false
+                    importPlanInitialText = null
+                }
+            )
+        }
+
+        shareFeedbackBanner?.let { bannerMsg ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 24.dp, vertical = 100.dp)
+                    .clip(PillShape)
+                    .background(KumaColors.SurfaceContainerHigh)
+                    .border(1.dp, colors.accentFill.copy(alpha = 0.5f), PillShape)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = bannerMsg,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = colors.accentText,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -676,6 +900,7 @@ fun RoutineCardItem(
     routine: RoutineBlueprint,
     onClick: (() -> Unit)? = null,
     onStart: () -> Unit,
+    onShare: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null
 ) {
     val s = LocalStrings.current
@@ -698,6 +923,9 @@ fun RoutineCardItem(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     KumaBadge(text = routine.localizedSplitCategory(s))
+                    routine.sharedByCreator?.takeIf { it.isNotBlank() }?.let { creator ->
+                        KumaBadge(text = s.sharedByCreatorBadge(creator), isPr = false)
+                    }
                     if (routine.scheduledDays.isNotEmpty()) {
                         val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
                         Box(
@@ -723,13 +951,25 @@ fun RoutineCardItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
-                        maxLines = 1,
-                        softWrap = false,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = KumaColors.TextMuted
-                    )
+                    routine.lastPerformedDaysAgo?.let { days ->
+                        Text(
+                            text = s.lastPerformedDaysAgo(days),
+                            maxLines = 1,
+                            softWrap = false,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KumaColors.TextMuted
+                        )
+                    }
+                    if (onShare != null) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = s.sharePlanDesc,
+                            tint = LocalKumaColors.current.accentText,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable(onClick = onShare)
+                        )
+                    }
                     if (onDelete != null) {
                         Icon(
                             imageVector = Icons.Default.Delete,

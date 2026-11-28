@@ -201,4 +201,23 @@ class WorkoutScheduleRepositoryTests {
         assertTrue(evAfter.isPlanned)
         assertEquals(null, evAfter.linkedWorkoutId)
     }
+
+    @Test
+    fun testUpdateEventNotesUpdatesAndClearsNotes() {
+        val repo = WorkoutScheduleRepository(databaseRepo = null)
+        val date = LocalDate(2026, 11, 28)
+        val event = repo.scheduleRoutine(
+            routineId = "rt_notes",
+            routineTitle = "Upper Day",
+            scheduledDate = date,
+            notes = "Initial note"
+        )
+        assertEquals("Initial note", repo.getEventsForDate(date).first().notes)
+
+        repo.updateEventNotes(event.id, "  Focus on pause reps  ")
+        assertEquals("Focus on pause reps", repo.getEventsForDate(date).first().notes)
+
+        repo.updateEventNotes(event.id, "   ")
+        assertEquals(null, repo.getEventsForDate(date).first().notes)
+    }
 }

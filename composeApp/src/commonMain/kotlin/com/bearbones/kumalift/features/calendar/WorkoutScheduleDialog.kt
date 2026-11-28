@@ -74,6 +74,7 @@ fun WorkoutScheduleDialog(
     onDismiss: () -> Unit,
     onSaveSchedule: (routine: RoutineBlueprint, targetDate: LocalDate, notes: String?) -> Unit,
     onReschedule: ((eventId: String, newDate: LocalDate) -> Unit)? = null,
+    onUpdateNotes: ((eventId: String, notes: String?) -> Unit)? = null,
     onCancelSchedule: ((eventId: String) -> Unit)? = null,
     onRestoreSchedule: ((eventId: String) -> Unit)? = null,
     onDeleteSchedule: ((eventId: String) -> Unit)? = null
@@ -327,11 +328,20 @@ fun WorkoutScheduleDialog(
                     )
                 }
             } else {
-                // Existing Event controls: Reschedule / Cancel / Delete
-                if (existingEvent.isPlanned && onReschedule != null && targetDate != initialDate) {
+                // Existing Event controls: Reschedule / Notes / Cancel / Delete
+                val initialNotesNorm = existingEvent.notes?.trim().orEmpty()
+                val currentNotesNorm = notes.trim()
+                val hasDateChange = existingEvent.isPlanned && onReschedule != null && targetDate != initialDate
+                val hasNotesChange = onUpdateNotes != null && currentNotesNorm != initialNotesNorm
+                if (hasDateChange || hasNotesChange) {
                     Button(
                         onClick = {
-                            onReschedule(existingEvent.id, targetDate)
+                            if (hasDateChange) {
+                                onReschedule?.invoke(existingEvent.id, targetDate)
+                            }
+                            if (hasNotesChange) {
+                                onUpdateNotes?.invoke(existingEvent.id, currentNotesNorm.ifBlank { null })
+                            }
                             onDismiss()
                         },
                         modifier = Modifier

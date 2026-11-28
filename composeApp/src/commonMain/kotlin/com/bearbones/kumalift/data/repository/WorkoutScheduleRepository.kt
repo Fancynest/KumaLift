@@ -66,6 +66,17 @@ class WorkoutScheduleRepository(
         }
     }
 
+    fun updateEventNotes(eventId: String, notes: String?) {
+        val normalized = notes?.trim()?.ifBlank { null }
+        val now = currentEpochMillis()
+        databaseRepo?.updateScheduleEventNotes(eventId, normalized, now)
+        _events.update { list ->
+            list.map { ev ->
+                if (ev.id == eventId) ev.copy(notes = normalized, updatedAtEpochMs = now) else ev
+            }
+        }
+    }
+
     fun cancelEvent(eventId: String) {
         val now = currentEpochMillis()
         databaseRepo?.updateScheduleEventStatus(eventId, ScheduleStatus.CANCELLED, null, now)

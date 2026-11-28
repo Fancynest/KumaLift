@@ -43,6 +43,7 @@ CREATE TABLE sets (
     previousReps INTEGER,
     heartRateBpm INTEGER,
     completedAtEpochMs INTEGER,
+    isPr INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (workoutExerciseId) REFERENCES workout_exercises(id) ON DELETE CASCADE
 );
 
@@ -104,7 +105,9 @@ CREATE TABLE routines (
     createdAtEpochMs INTEGER NOT NULL,
     scheduledDays TEXT NOT NULL DEFAULT '',
     presetKey TEXT DEFAULT NULL,
-    isUserRenamed INTEGER NOT NULL DEFAULT 0
+    isUserRenamed INTEGER NOT NULL DEFAULT 0,
+    sharedByCreator TEXT DEFAULT NULL,
+    sharedSourceTitle TEXT DEFAULT NULL
 );
 
 CREATE TABLE routine_exercises (
@@ -182,6 +185,12 @@ CREATE TABLE daily_readiness (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE exercise_notes (
+    exerciseId TEXT NOT NULL PRIMARY KEY,
+    pinnedNote TEXT NOT NULL,
+    updatedAtEpochMs INTEGER NOT NULL
+);
+
 CREATE TABLE ai_chat_threads (
     id TEXT NOT NULL PRIMARY KEY,
     title TEXT NOT NULL,
@@ -205,6 +214,19 @@ CREATE TABLE ai_chat_messages (
     createdAtEpochMs INTEGER NOT NULL
 );
 
+CREATE TABLE progress_photos (
+    id TEXT NOT NULL PRIMARY KEY,
+    imagePath TEXT NOT NULL,
+    capturedDateEpochMs INTEGER NOT NULL,
+    bodyweightKg REAL DEFAULT NULL,
+    waistCm REAL DEFAULT NULL,
+    chestCm REAL DEFAULT NULL,
+    armsCm REAL DEFAULT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    isPrivate INTEGER NOT NULL DEFAULT 1,
+    createdAtEpochMs INTEGER NOT NULL
+);
+
 -- Indices for performance
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workoutId);
 CREATE INDEX idx_sets_we ON sets(workoutExerciseId);
@@ -215,6 +237,7 @@ CREATE INDEX idx_workout_schedule_events_date ON workout_schedule_events(schedul
 CREATE INDEX idx_mesocycles_status ON mesocycles(status);
 CREATE UNIQUE INDEX idx_daily_readiness_date ON daily_readiness(dateString);
 CREATE INDEX idx_ai_chat_messages_thread ON ai_chat_messages(threadId, createdAtEpochMs);
+CREATE INDEX idx_progress_photos_date ON progress_photos(capturedDateEpochMs DESC);
 
 -- Queries for Workouts
 selectAllCompletedWorkouts:
@@ -256,8 +279,8 @@ insertSet:
 INSERT OR REPLACE INTO sets (
     id, workoutExerciseId, workoutId, setNumber, setType,
     weightKg, reps, isCompleted, rpe, rir, targetWeightKg, targetReps,
-    previousWeightKg, previousReps, heartRateBpm, completedAtEpochMs
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    previousWeightKg, previousReps, heartRateBpm, completedAtEpochMs, isPr
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteSetsByWorkoutId:
 DELETE FROM sets WHERE workoutId = ?;
@@ -339,8 +362,8 @@ SELECT * FROM routines WHERE id = ?;
 
 insertRoutine:
 INSERT OR REPLACE INTO routines (
-    id, programId, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs, scheduledDays, presetKey, isUserRenamed
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, programId, title, splitCategory, muscleFocus, estimatedDurationMinutes, targetRpeTier, plannedSetsPerExercise, isCustom, createdAtEpochMs, scheduledDays, presetKey, isUserRenamed, sharedByCreator, sharedSourceTitle
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteRoutine:
 DELETE FROM routines WHERE id = ?;
@@ -412,6 +435,9 @@ DELETE FROM custom_exercises;
 clearAllBodyweightLog:
 DELETE FROM bodyweight_log;
 
+clearAllSafetySnapshots:
+DELETE FROM safety_snapshots;
+
 -- Queries for Workout Schedule Events
 selectAllScheduleEvents:
 SELECT * FROM workout_schedule_events ORDER BY scheduledDate ASC, createdAtEpochMs ASC;
@@ -437,10 +463,30 @@ UPDATE workout_schedule_events
 SET scheduledDate = ?, updatedAtEpochMs = ?
 WHERE id = ?;
 
+updateScheduleEventNotes:
+UPDATE workout_schedule_events
+SET notes = ?, updatedAtEpochMs = ?
+WHERE id = ?;
+
 updateScheduleEventStatus:
 UPDATE workout_schedule_events
 SET status = ?, linkedWorkoutId = ?, updatedAtEpochMs = ?
 WHERE id = ?;
+
+clearScheduleRoutineRef:
+UPDATE workout_schedule_events
+SET routineId = NULL, updatedAtEpochMs = ?
+WHERE routineId = ?;
+
+clearScheduleLinkedWorkoutRef:
+UPDATE workout_schedule_events
+SET linkedWorkoutId = NULL, updatedAtEpochMs = ?
+WHERE linkedWorkoutId = ?;
+
+clearAllScheduleLinkedWorkoutRefs:
+UPDATE workout_schedule_events
+SET linkedWorkoutId = NULL, updatedAtEpochMs = ?
+WHERE linkedWorkoutId IS NOT NULL;
 
 deleteScheduleEvent:
 DELETE FROM workout_schedule_events WHERE id = ?;
@@ -500,10 +546,13 @@ DELETE FROM daily_readiness;
 
 -- Queries for Kuma AI Chat Threads & Messages
 selectAllAiChatThreads:
-SELECT * FROM ai_chat_threads ORDER BY updatedAtEpochMs DESC;
+SELECT * FROM ai_chat_threads WHERE id != '__kuma_ai_active_state__' ORDER BY updatedAtEpochMs DESC;
 
 selectAiChatThreadById:
-SELECT * FROM ai_chat_threads WHERE id = ?;
+SELECT * FROM ai_chat_threads WHERE id = ? AND id != '__kuma_ai_active_state__';
+
+selectAiActiveThreadState:
+SELECT contextSummary FROM ai_chat_threads WHERE id = '__kuma_ai_active_state__' LIMIT 1;
 
 insertOrReplaceAiChatThread:
 INSERT OR REPLACE INTO ai_chat_threads (
@@ -538,3 +587,32 @@ DELETE FROM ai_chat_messages WHERE id = ?;
 
 clearAllAiChatMessages:
 DELETE FROM ai_chat_messages;
+
+-- Queries for Progress Photos
+selectAllProgressPhotos:
+SELECT * FROM progress_photos ORDER BY capturedDateEpochMs DESC, createdAtEpochMs DESC;
+
+insertOrReplaceProgressPhoto:
+INSERT OR REPLACE INTO progress_photos (
+    id, imagePath, capturedDateEpochMs, bodyweightKg, waistCm, chestCm, armsCm, note, isPrivate, createdAtEpochMs
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteProgressPhoto:
+DELETE FROM progress_photos WHERE id = ?;
+
+clearAllProgressPhotos:
+DELETE FROM progress_photos;
+
+-- Queries for Exercise Pinned Notes
+selectAllExerciseNotes:
+SELECT * FROM exercise_notes;
+
+insertOrReplaceExerciseNote:
+INSERT OR REPLACE INTO exercise_notes (exerciseId, pinnedNote, updatedAtEpochMs)
+VALUES (?, ?, ?);
+
+deleteExerciseNote:
+DELETE FROM exercise_notes WHERE exerciseId = ?;
+
+clearAllExerciseNotes:
+DELETE FROM exercise_notes;

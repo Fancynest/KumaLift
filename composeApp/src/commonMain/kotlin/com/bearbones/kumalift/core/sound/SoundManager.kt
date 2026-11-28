@@ -57,7 +57,11 @@ object SoundManager {
         if (decision.vibrate) {
             PlatformSoundPlayer.playHaptic()
         }
-        if (decision.postNotification && decision.notificationChannelVariant != null) {
+        if (decision.postNotification &&
+            decision.notificationChannelVariant != null &&
+            event != SoundEvent.ERROR &&
+            event != SoundEvent.REMINDER
+        ) {
             PlatformSoundPlayer.postRestFinishedNotification(decision.notificationChannelVariant)
         }
     }

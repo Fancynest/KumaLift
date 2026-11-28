@@ -1,5 +1,7 @@
 package com.bearbones.kumalift.data.local
 
+import com.bearbones.kumalift.core.ai.deleteAiChatImageFile
+import com.bearbones.kumalift.core.media.deleteProgressPhotoFile
 import com.bearbones.kumalift.core.util.IdGenerator
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.database.KumaDatabase
@@ -13,6 +15,7 @@ import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
+import com.bearbones.kumalift.domain.model.ProgressPhotoEntry
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.RoutineExerciseConfig
 import com.bearbones.kumalift.domain.model.RoutineSetConfig
@@ -59,6 +62,7 @@ class KumaDatabaseRepository(
 
     fun getCompletedWorkouts(): List<Workout> {
         val workoutRows = queries.selectAllCompletedWorkouts().executeAsList()
+        val prSourceSetIds = queries.selectAllPrs().executeAsList().mapNotNull { it.sourceSetId }.toSet()
         return workoutRows.map { wRow ->
             val weRows = queries.selectWorkoutExercises(wRow.id).executeAsList()
             val exercises = weRows.map { weRow ->
@@ -72,6 +76,7 @@ class KumaDatabaseRepository(
                         reps = sRow.reps.toInt(),
                         rpe = sRow.rpe,
                         isCompleted = sRow.isCompleted == 1L,
+                        isPr = sRow.isPr == 1L || prSourceSetIds.contains(sRow.id),
                         targetWeightKg = sRow.targetWeightKg,
                         targetReps = sRow.targetReps?.toInt(),
                         previousWeightKg = sRow.previousWeightKg,
@@ -172,7 +177,8 @@ class KumaDatabaseRepository(
                         previousWeightKg = set.previousWeightKg,
                         previousReps = set.previousReps?.toLong(),
                         heartRateBpm = set.heartRateBpm?.toLong(),
-                        completedAtEpochMs = if (set.isCompleted) currentEpochMillis() else null
+                        completedAtEpochMs = if (set.isCompleted) currentEpochMillis() else null,
+                        isPr = if (set.isPr) 1L else 0L
                     )
                 }
             }
@@ -180,7 +186,9 @@ class KumaDatabaseRepository(
     }
 
     fun deleteWorkout(workoutId: String) {
+        val now = currentEpochMillis()
         database.transaction {
+            queries.clearScheduleLinkedWorkoutRef(now, workoutId)
             queries.deleteSetsByWorkoutId(workoutId)
             queries.deleteWorkoutExercisesByWorkoutId(workoutId)
             queries.deleteWorkout(workoutId)
@@ -324,6 +332,18 @@ class KumaDatabaseRepository(
         queries.deleteCustomExercise(id)
     }
 
+    fun getAllExerciseNotes(): Map<String, String> {
+        return queries.selectAllExerciseNotes().executeAsList().associate { it.exerciseId to it.pinnedNote }
+    }
+
+    fun saveExercisePinnedNote(exerciseId: String, note: String) {
+        if (note.isBlank()) {
+            queries.deleteExerciseNote(exerciseId)
+        } else {
+            queries.insertOrReplaceExerciseNote(exerciseId, note, currentEpochMillis())
+        }
+    }
+
     // ==========================================
     // ROUTINES
     // ==========================================
@@ -368,7 +388,9 @@ class KumaDatabaseRepository(
                 plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
                 scheduledDays = scheduledDays,
                 presetKey = rRow.presetKey,
-                isUserRenamed = rRow.isUserRenamed == 1L
+                isUserRenamed = rRow.isUserRenamed == 1L,
+                sharedByCreator = rRow.sharedByCreator,
+                sharedSourceTitle = rRow.sharedSourceTitle
             )
         }
     }
@@ -413,7 +435,9 @@ class KumaDatabaseRepository(
                 plannedSetsPerExercise = rRow.plannedSetsPerExercise.toInt(),
                 scheduledDays = scheduledDays,
                 presetKey = rRow.presetKey,
-                isUserRenamed = rRow.isUserRenamed == 1L
+                isUserRenamed = rRow.isUserRenamed == 1L,
+                sharedByCreator = rRow.sharedByCreator,
+                sharedSourceTitle = rRow.sharedSourceTitle
             )
         }
     }
@@ -433,7 +457,9 @@ class KumaDatabaseRepository(
                 createdAtEpochMs = currentEpochMillis(),
                 scheduledDays = routine.scheduledDays.joinToString(","),
                 presetKey = routine.presetKey,
-                isUserRenamed = if (routine.isUserRenamed) 1L else 0L
+                isUserRenamed = if (routine.isUserRenamed) 1L else 0L,
+                sharedByCreator = routine.sharedByCreator,
+                sharedSourceTitle = routine.sharedSourceTitle
             )
 
             val configs = routine.effectiveConfigs
@@ -481,16 +507,20 @@ class KumaDatabaseRepository(
     }
 
     fun deleteCustomRoutine(id: String) {
+        val now = currentEpochMillis()
         database.transaction {
+            queries.clearScheduleRoutineRef(now, id)
             queries.deleteRoutineExercises(id)
             queries.deleteRoutine(id)
         }
     }
 
     fun deleteCustomRoutinesForProgram(programId: String) {
+        val now = currentEpochMillis()
         database.transaction {
             val routinesInProgram = queries.selectRoutinesByProgram(programId).executeAsList()
             routinesInProgram.forEach { r ->
+                queries.clearScheduleRoutineRef(now, r.id)
                 queries.deleteRoutineExercises(r.id)
             }
             queries.deleteRoutinesByProgram(programId)
@@ -612,7 +642,11 @@ class KumaDatabaseRepository(
         return queries.selectLatestSafetySnapshot().executeAsOneOrNull()
     }
 
-    fun wipeAllUserData() {
+    /**
+     * Clears only the workout/routine/settings data managed by JSON backups so ImportMode.REPLACE
+     * never destroys local-only AI chat transcripts or private progress photos.
+     */
+    fun wipeBackupManagedData() {
         database.transaction {
             queries.clearAllSets()
             queries.clearAllWorkoutExercises()
@@ -621,6 +655,35 @@ class KumaDatabaseRepository(
             queries.clearAllRoutineExercises()
             queries.clearAllRoutines()
             queries.clearAllCustomExercises()
+            queries.clearAllExerciseNotes()
+            queries.clearAllBodyweightLog()
+            queries.clearActiveWorkout()
+            queries.clearAllTrainingPrograms()
+            queries.clearAllWorkoutScheduleEvents()
+            queries.clearAllMesocycles()
+            queries.clearAllDailyReadiness()
+            saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
+        }
+    }
+
+    fun wipeAllUserData() {
+        val aiImagePaths = queries.selectAllAiChatMessages()
+            .executeAsList()
+            .flatMap { it.toDomain().effectiveImagePaths }
+            .distinct()
+        val progressPhotoPaths = queries.selectAllProgressPhotos()
+            .executeAsList()
+            .map { it.imagePath }
+            .distinct()
+        database.transaction {
+            queries.clearAllSets()
+            queries.clearAllWorkoutExercises()
+            queries.clearAllWorkouts()
+            queries.clearAllPersonalRecords()
+            queries.clearAllRoutineExercises()
+            queries.clearAllRoutines()
+            queries.clearAllCustomExercises()
+            queries.clearAllExerciseNotes()
             queries.clearAllBodyweightLog()
             queries.clearActiveWorkout()
             queries.clearAllTrainingPrograms()
@@ -629,12 +692,18 @@ class KumaDatabaseRepository(
             queries.clearAllDailyReadiness()
             queries.clearAllAiChatMessages()
             queries.clearAllAiChatThreads()
+            queries.clearAllProgressPhotos()
+            queries.clearAllSafetySnapshots()
             saveTrainingProgram(TrainingProgram.DEFAULT_HYPERTROPHY)
         }
+        aiImagePaths.forEach { deleteAiChatImageFile(it) }
+        progressPhotoPaths.forEach { deleteProgressPhotoFile(it) }
     }
 
     fun clearWorkoutHistoryOnly() {
+        val now = currentEpochMillis()
         database.transaction {
+            queries.clearAllScheduleLinkedWorkoutRefs(now)
             queries.clearAllSets()
             queries.clearAllWorkoutExercises()
             queries.clearAllWorkouts()
@@ -681,6 +750,14 @@ class KumaDatabaseRepository(
     fun updateScheduleEventDate(id: String, newDate: String, updatedAtEpochMs: Long = currentEpochMillis()) {
         queries.updateScheduleEventDate(
             scheduledDate = newDate,
+            updatedAtEpochMs = updatedAtEpochMs,
+            id = id
+        )
+    }
+
+    fun updateScheduleEventNotes(id: String, notes: String?, updatedAtEpochMs: Long = currentEpochMillis()) {
+        queries.updateScheduleEventNotes(
+            notes = notes,
             updatedAtEpochMs = updatedAtEpochMs,
             id = id
         )
@@ -897,7 +974,7 @@ class KumaDatabaseRepository(
         // Backfill legacy pre-thread messages automatically on upgrade so existing chat history isn't lost
         val knownIds = threads.mapTo(mutableSetOf()) { it.id }
         val orphansByThread = getAllAiChatMessages()
-            .filter { it.threadId !in knownIds }
+            .filter { it.threadId !in knownIds && it.threadId != ACTIVE_AI_THREAD_STATE_ID }
             .groupBy { it.threadId }
         if (orphansByThread.isNotEmpty()) {
             orphansByThread.forEach { (tid, msgs) ->
@@ -922,6 +999,7 @@ class KumaDatabaseRepository(
     }
 
     fun saveAiChatThread(thread: AiChatThread) {
+        if (thread.id == ACTIVE_AI_THREAD_STATE_ID) return
         val now = currentEpochMillis()
         queries.insertOrReplaceAiChatThread(
             id = thread.id,
@@ -933,10 +1011,52 @@ class KumaDatabaseRepository(
         )
     }
 
+    fun getSavedActiveAiThreadId(): String? {
+        return queries.selectAiActiveThreadState().executeAsOneOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    fun setSavedActiveAiThreadId(threadId: String?) {
+        queries.insertOrReplaceAiChatThread(
+            id = ACTIVE_AI_THREAD_STATE_ID,
+            title = ACTIVE_AI_THREAD_STATE_ID,
+            contextSummary = threadId?.takeIf { it.isNotBlank() && it != ACTIVE_AI_THREAD_STATE_ID }.orEmpty(),
+            messageCount = 0L,
+            createdAtEpochMs = 0L,
+            updatedAtEpochMs = 0L
+        )
+    }
+
+    fun deleteAiChatMessagesByIds(messageIds: List<String>) {
+        if (messageIds.isEmpty()) return
+        database.transaction {
+            messageIds.forEach { id ->
+                queries.deleteAiChatMessage(id)
+            }
+        }
+    }
+
     fun deleteAiChatThread(threadId: String) {
+        val candidatePaths = queries.selectAiChatMessagesByThread(threadId)
+            .executeAsList()
+            .flatMap { it.toDomain().effectiveImagePaths }
+            .distinct()
         database.transaction {
             queries.deleteAiChatMessagesByThread(threadId)
             queries.deleteAiChatThread(threadId)
+        }
+        deleteUnreferencedAiImages(candidatePaths)
+    }
+
+    private fun deleteUnreferencedAiImages(candidatePaths: List<String>) {
+        if (candidatePaths.isEmpty()) return
+        val activePaths = queries.selectAllAiChatMessages()
+            .executeAsList()
+            .flatMap { it.toDomain().effectiveImagePaths }
+            .toSet()
+        candidatePaths.forEach { path ->
+            if (path !in activePaths) {
+                deleteAiChatImageFile(path)
+            }
         }
     }
 
@@ -978,23 +1098,76 @@ class KumaDatabaseRepository(
                 deleteAiChatThread(stale.id)
             }
         }
+        val prunedImages = mutableListOf<String>()
         threads.take(maxThreads).forEach { t ->
             val msgs = queries.selectAiChatMessagesByThread(t.id).executeAsList()
             if (msgs.size > maxMessagesPerThread) {
                 val excess = msgs.size - maxMessagesPerThread
+                val trimmed = msgs.take(excess)
+                prunedImages.addAll(trimmed.flatMap { it.toDomain().effectiveImagePaths })
                 database.transaction {
-                    msgs.take(excess).forEach { old ->
+                    trimmed.forEach { old ->
                         queries.deleteAiChatMessage(old.id)
                     }
                 }
             }
         }
+        deleteUnreferencedAiImages(prunedImages.distinct())
     }
 
     fun clearAllAiChatMessages() {
+        val imagePaths = queries.selectAllAiChatMessages()
+            .executeAsList()
+            .flatMap { it.toDomain().effectiveImagePaths }
+            .distinct()
         database.transaction {
             queries.clearAllAiChatMessages()
             queries.clearAllAiChatThreads()
         }
+        imagePaths.forEach { deleteAiChatImageFile(it) }
+    }
+
+    // ==========================================
+    // PROGRESS PHOTOS (Private Local Timeline)
+    // ==========================================
+
+    fun getAllProgressPhotos(): List<ProgressPhotoEntry> {
+        return queries.selectAllProgressPhotos().executeAsList().map { row ->
+            ProgressPhotoEntry(
+                id = row.id,
+                imagePath = row.imagePath,
+                capturedDateEpochMs = row.capturedDateEpochMs,
+                bodyweightKg = row.bodyweightKg,
+                waistCm = row.waistCm,
+                chestCm = row.chestCm,
+                armsCm = row.armsCm,
+                note = row.note,
+                isPrivate = row.isPrivate == 1L,
+                createdAtEpochMs = row.createdAtEpochMs
+            )
+        }
+    }
+
+    fun saveProgressPhoto(entry: ProgressPhotoEntry) {
+        queries.insertOrReplaceProgressPhoto(
+            id = entry.id,
+            imagePath = entry.imagePath,
+            capturedDateEpochMs = entry.capturedDateEpochMs,
+            bodyweightKg = entry.bodyweightKg,
+            waistCm = entry.waistCm,
+            chestCm = entry.chestCm,
+            armsCm = entry.armsCm,
+            note = entry.note,
+            isPrivate = if (entry.isPrivate) 1L else 0L,
+            createdAtEpochMs = entry.createdAtEpochMs
+        )
+    }
+
+    fun deleteProgressPhoto(id: String) {
+        queries.deleteProgressPhoto(id)
+    }
+
+    companion object {
+        private const val ACTIVE_AI_THREAD_STATE_ID = "__kuma_ai_active_state__"
     }
 }

@@ -60,9 +60,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -692,57 +694,61 @@ fun CreateRoutineScreen(
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             selectedConfigs.forEachIndexed { index, config ->
-                                val isThisDragging = draggingIndex == index
-                                SelectedExerciseRow(
-                                    index = index + 1,
-                                    config = config,
-                                    isDragging = isThisDragging,
-                                    dragOffsetY = if (isThisDragging) dragOffsetY else 0f,
-                                    onDragStart = {
-                                        draggingIndex = index
-                                        dragOffsetY = 0f
-                                    },
-                                    onDrag = { delta ->
-                                        dragOffsetY += delta
-                                        val currentIdx = draggingIndex ?: return@SelectedExerciseRow
-                                        val threshold = itemHeightPx * 0.7f
-                                        if (dragOffsetY > threshold && currentIdx < selectedConfigs.size - 1) {
-                                            val targetIdx = currentIdx + 1
-                                            val item = selectedConfigs.removeAt(currentIdx)
-                                            selectedConfigs.add(targetIdx, item)
-                                            draggingIndex = targetIdx
-                                            dragOffsetY -= itemHeightPx
-                                        } else if (dragOffsetY < -threshold && currentIdx > 0) {
-                                            val targetIdx = currentIdx - 1
-                                            val item = selectedConfigs.removeAt(currentIdx)
-                                            selectedConfigs.add(targetIdx, item)
-                                            draggingIndex = targetIdx
-                                            dragOffsetY += itemHeightPx
-                                        }
-                                    },
-                                    onDragEnd = {
-                                        draggingIndex = null
-                                        dragOffsetY = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggingIndex = null
-                                        dragOffsetY = 0f
-                                    },
-                                    unit = weightUnit,
-                                    onConfigChange = { updatedConfig ->
-                                        selectedConfigs[index] = updatedConfig
-                                    },
-                                    onSupersetChange = { newSs ->
-                                        selectedConfigs[index] = config.copy(supersetGroupId = newSs)
-                                    },
-                                    onRemove = {
-                                        if (draggingIndex == index) {
+                                val occurrence = selectedConfigs.take(index).count { it.exercise.id == config.exercise.id }
+                                val rowKey = "${config.exercise.id}_#$occurrence"
+                                key(rowKey) {
+                                    val isThisDragging = draggingIndex == index
+                                    SelectedExerciseRow(
+                                        index = index + 1,
+                                        config = config,
+                                        isDragging = isThisDragging,
+                                        dragOffsetY = if (isThisDragging) dragOffsetY else 0f,
+                                        onDragStart = {
+                                            draggingIndex = index
+                                            dragOffsetY = 0f
+                                        },
+                                        onDrag = { delta ->
+                                            dragOffsetY += delta
+                                            val currentIdx = draggingIndex ?: return@SelectedExerciseRow
+                                            val threshold = itemHeightPx * 0.7f
+                                            if (dragOffsetY > threshold && currentIdx < selectedConfigs.size - 1) {
+                                                val targetIdx = currentIdx + 1
+                                                val item = selectedConfigs.removeAt(currentIdx)
+                                                selectedConfigs.add(targetIdx, item)
+                                                draggingIndex = targetIdx
+                                                dragOffsetY -= itemHeightPx
+                                            } else if (dragOffsetY < -threshold && currentIdx > 0) {
+                                                val targetIdx = currentIdx - 1
+                                                val item = selectedConfigs.removeAt(currentIdx)
+                                                selectedConfigs.add(targetIdx, item)
+                                                draggingIndex = targetIdx
+                                                dragOffsetY += itemHeightPx
+                                            }
+                                        },
+                                        onDragEnd = {
                                             draggingIndex = null
                                             dragOffsetY = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggingIndex = null
+                                            dragOffsetY = 0f
+                                        },
+                                        unit = weightUnit,
+                                        onConfigChange = { updatedConfig ->
+                                            selectedConfigs[index] = updatedConfig
+                                        },
+                                        onSupersetChange = { newSs ->
+                                            selectedConfigs[index] = config.copy(supersetGroupId = newSs)
+                                        },
+                                        onRemove = {
+                                            if (draggingIndex == index) {
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                            }
+                                            selectedConfigs.removeAt(index)
                                         }
-                                        selectedConfigs.removeAt(index)
-                                    }
-                                )
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(4.dp))
@@ -996,6 +1002,11 @@ private fun SelectedExerciseRow(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val latestOnDragStart by rememberUpdatedState(onDragStart)
+                    val latestOnDrag by rememberUpdatedState(onDrag)
+                    val latestOnDragEnd by rememberUpdatedState(onDragEnd)
+                    val latestOnDragCancel by rememberUpdatedState(onDragCancel)
+
                     // Drag handle for smooth touch drag reordering
                     Box(
                         modifier = Modifier
@@ -1004,13 +1015,13 @@ private fun SelectedExerciseRow(
                             .background(if (isDragging) colors.accentFill.copy(alpha = 0.2f) else Color.Transparent)
                             .pointerInput(Unit) {
                                 detectVerticalDragGestures(
-                                    onDragStart = { onDragStart() },
+                                    onDragStart = { latestOnDragStart() },
                                     onVerticalDrag = { change, amount ->
                                         change.consume()
-                                        onDrag(amount)
+                                        latestOnDrag(amount)
                                     },
-                                    onDragEnd = { onDragEnd() },
-                                    onDragCancel = { onDragCancel() }
+                                    onDragEnd = { latestOnDragEnd() },
+                                    onDragCancel = { latestOnDragCancel() }
                                 )
                             },
                         contentAlignment = Alignment.Center

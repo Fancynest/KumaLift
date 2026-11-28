@@ -41,6 +41,11 @@ kotlin {
             implementation("androidx.documentfile:documentfile:1.0.1")
             implementation("androidx.health.connect:connect-client:1.1.0-alpha11")
             implementation("com.google.android.gms:play-services-wearable:18.2.0")
+            implementation("com.google.zxing:core:3.5.3")
+            implementation("androidx.camera:camera-camera2:1.4.1")
+            implementation("androidx.camera:camera-lifecycle:1.4.1")
+            implementation("androidx.camera:camera-view:1.4.1")
+            implementation("com.google.guava:guava:32.1.3-android")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

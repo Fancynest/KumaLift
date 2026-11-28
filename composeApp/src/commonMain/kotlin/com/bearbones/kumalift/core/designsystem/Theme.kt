@@ -7,6 +7,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import com.bearbones.kumalift.domain.model.AppTheme
 
 object KumaTheme {
@@ -35,7 +36,14 @@ private fun KumaColors.toMaterialColorScheme() = if (isDark) {
         onSurface = textPrimary,
         surfaceVariant = surfaceVariant,
         onSurfaceVariant = textSecondary,
+        surfaceTint = Color.Transparent,
+        surfaceContainerLowest = canvas,
+        surfaceContainerLow = surface,
+        surfaceContainer = surfaceVariant,
+        surfaceContainerHigh = surfaceVariant,
+        surfaceContainerHighest = surfaceBright,
         outline = border,
+        outlineVariant = border,
         error = error,
         onError = onError
     )
@@ -55,7 +63,14 @@ private fun KumaColors.toMaterialColorScheme() = if (isDark) {
         onSurface = textPrimary,
         surfaceVariant = surfaceVariant,
         onSurfaceVariant = textSecondary,
+        surfaceTint = Color.Transparent,
+        surfaceContainerLowest = canvas,
+        surfaceContainerLow = surface,
+        surfaceContainer = surfaceVariant,
+        surfaceContainerHigh = surfaceVariant,
+        surfaceContainerHighest = surfaceBright,
         outline = border,
+        outlineVariant = border,
         error = error,
         onError = onError
     )

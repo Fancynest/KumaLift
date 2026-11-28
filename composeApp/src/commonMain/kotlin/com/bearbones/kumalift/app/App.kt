@@ -79,12 +79,14 @@ import com.bearbones.kumalift.core.ai.rememberAiSecretStore
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.resolveAppStrings
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.core.media.deleteProgressPhotoFile
 import com.bearbones.kumalift.core.navigation.KumaBackHandler
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.LocalKumaColors
 import com.bearbones.kumalift.core.designsystem.KumaLiftTheme
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.ProgressPhotoRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
@@ -100,12 +102,14 @@ import com.bearbones.kumalift.domain.ai.GeminiApiClient
 import com.bearbones.kumalift.domain.ai.KumaAiAgentService
 import com.bearbones.kumalift.domain.ai.KumaAiToolExecutor
 import com.bearbones.kumalift.domain.model.AppLanguage
+import com.bearbones.kumalift.domain.model.WorkoutPlanDeepLinkBus
 import com.bearbones.kumalift.features.ai.KumaAiChatScreen
 import com.bearbones.kumalift.features.home.HomeScreen
 import com.bearbones.kumalift.features.library.ExerciseLibraryScreen
 import com.bearbones.kumalift.features.library.rememberLibraryFilterState
 import com.bearbones.kumalift.features.logger.ActiveWorkoutLoggerScreen
 import com.bearbones.kumalift.features.profile.MeScreen
+import com.bearbones.kumalift.features.profile.ProgressPhotosScreen
 import com.bearbones.kumalift.features.progress.ProgressAnalyticsScreen
 import com.bearbones.kumalift.features.routines.RoutinesScreen
 import com.bearbones.kumalift.features.settings.SettingsDestination
@@ -125,6 +129,13 @@ fun App() {
             databaseRepo = databaseRepo,
             calculationSettingsProvider = { settingsRepository.settings.value.calculations },
             dateFormatProvider = { settingsRepository.settings.value.units.dateFormat }
+        )
+    }
+    val progressPhotoRepository = remember(databaseRepo) {
+        ProgressPhotoRepository(
+            initialPhotos = databaseRepo.getAllProgressPhotos(),
+            databaseRepo = databaseRepo,
+            deleteLocalFile = { path -> deleteProgressPhotoFile(path) }
         )
     }
     val workoutScheduleRepository = remember(databaseRepo) {
@@ -161,6 +172,7 @@ fun App() {
             personalRecordRepository = personalRecordRepository,
             workoutRepository = workoutRepository,
             settingsRepository = settingsRepository,
+            progressPhotoRepository = progressPhotoRepository,
             databaseRepo = databaseRepo
         )
         KumaAiAgentService(
@@ -183,6 +195,7 @@ fun App() {
         routineRepository,
         trainingProgramRepository,
         personalRecordRepository,
+        progressPhotoRepository,
         workoutScheduleRepository,
         mesocycleRepository,
         dailyReadinessRepository,
@@ -197,11 +210,12 @@ fun App() {
             routineRepository.reloadFromDatabase { id -> exerciseRepository.getExerciseById(id) }
             trainingProgramRepository.reloadFromDatabase(reloadedSettings.profile.activeProgramId)
             personalRecordRepository.reloadFromDatabase()
+            progressPhotoRepository.reloadFromDatabase()
             workoutScheduleRepository.reloadFromDatabase()
             mesocycleRepository.reloadFromDatabase()
             dailyReadinessRepository.reloadFromDatabase()
             workoutRepository.reloadFromDatabase()
-            aiAgentService.reloadFromDatabase(selectLatest = true)
+            aiAgentService.reloadFromDatabase()
             if (resetToOnboarding) {
                 navigator.clearOverlays()
                 navigator.selectTab(Tab.HOME)
@@ -218,6 +232,14 @@ fun App() {
     val activeWorkout by workoutRepository.activeWorkout.collectAsState()
     val settings by settingsRepository.settings.collectAsState()
     val appStrings = resolveAppStrings(settings.appearance.language)
+
+    val pendingDeepLinkPlan by WorkoutPlanDeepLinkBus.pendingPlanInput.collectAsState()
+    LaunchedEffect(pendingDeepLinkPlan, settings.profile.hasCompletedOnboarding) {
+        if (!pendingDeepLinkPlan.isNullOrBlank() && settings.profile.hasCompletedOnboarding) {
+            navigator.clearOverlays()
+            navigator.selectTab(Tab.ROUTINES)
+        }
+    }
 
     LaunchedEffect(settings) {
         com.bearbones.kumalift.core.timer.RestTimerCoordinator.userSettingsProvider = { settings }
@@ -301,7 +323,7 @@ fun App() {
                             mesocycleRepository = mesocycleRepository,
                             dailyReadinessRepository = dailyReadinessRepository,
                             onStartWorkout = {
-                                if (activeWorkout == null) {
+                                if (workoutRepository.activeWorkout.value == null) {
                                     val nowDt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                                     val todayDayOfWeek = nowDt.dayOfWeek.ordinal + 1
                                     val todayRoutine = routineRepository.routines.value.firstOrNull {
@@ -316,7 +338,7 @@ fun App() {
                                 navigator.push(Overlay.ActiveLogger)
                             },
                             onStartFreestyle = {
-                                if (activeWorkout == null) {
+                                if (workoutRepository.activeWorkout.value == null) {
                                     workoutRepository.startEmptyWorkout(appStrings.freestyleWorkoutName)
                                 }
                                 navigator.push(Overlay.ActiveLogger)
@@ -334,6 +356,8 @@ fun App() {
                             exerciseRepository = exerciseRepository,
                             settingsRepository = settingsRepository,
                             listState = routinesListState,
+                            initialSharedPlanInput = pendingDeepLinkPlan,
+                            onConsumeSharedPlanInput = { WorkoutPlanDeepLinkBus.consume() },
                             onStartRoutine = { navigator.push(Overlay.ActiveLogger) }
                         )
                         Tab.LIBRARY -> ExerciseLibraryScreen(
@@ -358,10 +382,12 @@ fun App() {
                             workoutRepository = workoutRepository,
                             settingsRepository = settingsRepository,
                             personalRecordRepository = personalRecordRepository,
+                            progressPhotoRepository = progressPhotoRepository,
                             onNavigateToSettings = { navigator.push(Overlay.Settings) },
                             onNavigateToProgress = { navigator.selectTab(Tab.PROGRESS) },
                             onNavigateToLibrary = { navigator.selectTab(Tab.LIBRARY) },
                             onNavigateToRoutines = { navigator.selectTab(Tab.ROUTINES) },
+                            onOpenProgressPhotos = { navigator.push(Overlay.ProgressPhotos) },
                             onStartWorkout = {
                                 if (activeWorkout == null) {
                                     val nowDt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -489,6 +515,13 @@ fun App() {
                                         navigator.pendingSettingsDestinationName = SettingsDestination.AI_ASSISTANT.name
                                         navigator.push(Overlay.Settings)
                                     }
+                                )
+                            }
+                            is Overlay.ProgressPhotos -> {
+                                ProgressPhotosScreen(
+                                    progressPhotoRepository = progressPhotoRepository,
+                                    settingsRepository = settingsRepository,
+                                    onNavigateBack = { navigator.back() }
                                 )
                             }
                             null -> Unit

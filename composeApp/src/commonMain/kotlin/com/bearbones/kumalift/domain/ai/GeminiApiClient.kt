@@ -78,7 +78,8 @@ data class GeminiTurnResult(
     val text: String,
     val functionCalls: List<GeminiFunctionCall>,
     val rawModelParts: JsonArray,
-    val webSources: List<String> = emptyList()
+    val webSources: List<String> = emptyList(),
+    val webSourceLinks: List<AiWebSource> = emptyList()
 )
 
 data class GeminiVerificationResult(
@@ -161,7 +162,7 @@ class GeminiApiClient(
             }
             put("generationConfig", buildJsonObject {
                 if (!isThinkingGeneration) {
-                    put("temperature", 0.35)
+                    put("temperature", 0.55)
                 }
                 if (includeExtras) {
                     applyThinkingConfig(cleanModel, reasoningDepth)
@@ -285,24 +286,151 @@ class GeminiApiClient(
             throw GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "Empty model parts")
         }
 
-        val webSources = (firstCandidate["groundingMetadata"] as? JsonObject)
+        val webSourceLinks = (firstCandidate["groundingMetadata"] as? JsonObject)
             ?.get("groundingChunks")?.let { it as? JsonArray }
             ?.mapNotNull { chunk ->
                 val webObj = (chunk as? JsonObject)?.get("web") as? JsonObject ?: return@mapNotNull null
-                val title = (webObj["title"] as? JsonPrimitive)?.contentOrNull?.trim()
-                val uri = (webObj["uri"] as? JsonPrimitive)?.contentOrNull?.trim()
-                title?.takeIf { it.isNotBlank() } ?: uri?.takeIf { it.isNotBlank() }
+                val rawTitle = (webObj["title"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+                val rawUri = (webObj["uri"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+                val validUrl = rawUri.takeIf {
+                    it.startsWith("https://", ignoreCase = true) || it.startsWith("http://", ignoreCase = true)
+                }
+                val label = rawTitle.ifBlank {
+                    validUrl?.removePrefix("https://")?.removePrefix("http://")?.substringBefore("/")?.trim().orEmpty()
+                }
+                if (label.isNotBlank() && validUrl != null) {
+                    AiWebSource(title = label, url = validUrl)
+                } else {
+                    null
+                }
             }
-            ?.distinct()
-            ?.take(4)
+            ?.distinctBy { it.url }
+            ?.take(8)
             .orEmpty()
+
+        val webSources = webSourceLinks.map { it.title }.distinct().take(6)
 
         return GeminiTurnResult(
             text = combinedText,
             functionCalls = calls,
             rawModelParts = rawParts,
-            webSources = webSources
+            webSources = webSources,
+            webSourceLinks = webSourceLinks
         )
+    }
+
+    suspend fun generateImage(
+        apiKey: String,
+        prompt: String
+    ): Pair<String, String> {
+        val cleanKey = apiKey.trim()
+        if (cleanKey.isBlank()) {
+            throw GeminiApiException(GeminiErrorType.INVALID_KEY, "Missing Gemini API key")
+        }
+        val cleanPrompt = prompt.trim()
+        if (cleanPrompt.isBlank()) {
+            throw GeminiApiException(GeminiErrorType.BAD_REQUEST, "Image prompt cannot be blank")
+        }
+        if (!transport.isNetworkOnline()) {
+            throw GeminiApiException(GeminiErrorType.OFFLINE, "Device is offline")
+        }
+
+        val liveImageModels = listImageCapableModels(cleanKey)
+        val candidates = (liveImageModels.take(2) + IMAGE_GENERATION_MODELS).distinct().take(4)
+        val bodyJson = buildJsonObject {
+            put("contents", buildJsonArray {
+                add(buildJsonObject {
+                    put("role", "user")
+                    put("parts", buildJsonArray {
+                        add(buildJsonObject { put("text", cleanPrompt) })
+                    })
+                })
+            })
+            put("generationConfig", buildJsonObject {
+                put("responseModalities", buildJsonArray {
+                    add(JsonPrimitive("TEXT"))
+                    add(JsonPrimitive("IMAGE"))
+                })
+            })
+        }.toString()
+
+        var lastError: GeminiApiException? = null
+        for (model in candidates) {
+            val res = try {
+                transport.postJson(
+                    url = "$BASE_URL/$model:generateContent",
+                    headers = mapOf("x-goog-api-key" to cleanKey),
+                    body = bodyJson,
+                    timeoutMs = 75_000
+                )
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                lastError = mapTransportFailure(e)
+                continue
+            }
+            if (res.statusCode !in 200..299) {
+                lastError = mapHttpError(res.statusCode, res.body)
+                if (lastError.errorType == GeminiErrorType.INVALID_KEY ||
+                    lastError.errorType == GeminiErrorType.LOCATION_UNSUPPORTED
+                ) {
+                    throw lastError
+                }
+                continue
+            }
+            val parsedRoot = try {
+                json.parseToJsonElement(res.body) as? JsonObject
+            } catch (_: Exception) {
+                null
+            }
+            val parts = (parsedRoot?.get("candidates") as? JsonArray)
+                ?.firstOrNull()?.let { it as? JsonObject }
+                ?.get("content")?.let { it as? JsonObject }
+                ?.get("parts")?.let { it as? JsonArray }
+                .orEmpty()
+
+            parts.forEach { elem ->
+                val obj = elem as? JsonObject ?: return@forEach
+                val inlineData = (obj["inlineData"] ?: obj["inline_data"]) as? JsonObject ?: return@forEach
+                val mime = (inlineData["mimeType"] ?: inlineData["mime_type"])?.let { it as? JsonPrimitive }
+                    ?.contentOrNull?.takeIf { it.isNotBlank() } ?: "image/png"
+                val data = (inlineData["data"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+                if (data != null) {
+                    return mime to data
+                }
+            }
+            lastError = GeminiApiException(GeminiErrorType.EMPTY_RESPONSE, "No image returned by $model")
+        }
+        throw lastError ?: GeminiApiException(GeminiErrorType.MODEL_UNAVAILABLE, "No image generation model available")
+    }
+
+    private suspend fun listImageCapableModels(cleanKey: String): List<String> {
+        val response = try {
+            transport.get(
+                url = "$BASE_URL?pageSize=200",
+                headers = mapOf("x-goog-api-key" to cleanKey),
+                timeoutMs = 15_000
+            )
+        } catch (_: Exception) {
+            return emptyList()
+        }
+        if (response.statusCode !in 200..299) return emptyList()
+        val root = try {
+            json.parseToJsonElement(response.body) as? JsonObject
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
+        return (root["models"] as? JsonArray).orEmpty().mapNotNull { elem ->
+            val obj = elem as? JsonObject ?: return@mapNotNull null
+            val id = (obj["name"] as? JsonPrimitive)?.contentOrNull?.trim()?.removePrefix("models/") ?: return@mapNotNull null
+            val lower = id.lowercase()
+            if (!lower.contains("gemini") || (!lower.contains("-image") && !lower.contains("image-generation"))) {
+                return@mapNotNull null
+            }
+            val methods = (obj["supportedGenerationMethods"] as? JsonArray)
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+                .orEmpty()
+            if (methods.contains("generateContent")) id else null
+        }.distinct()
     }
 
     suspend fun listAvailableModels(apiKey: String): Result<List<String>> {
@@ -418,8 +546,9 @@ class GeminiApiClient(
             }
 
             if (response.statusCode in 200..299) {
-                val modelObj = try {
-                    json.parseToJsonElement(response.body).jsonObject
+                val modelName = try {
+                    val modelObj = json.parseToJsonElement(response.body).jsonObject
+                    (modelObj["name"] as? JsonPrimitive)?.contentOrNull
                 } catch (_: Exception) {
                     return Result.failure(
                         GeminiApiException(
@@ -429,7 +558,7 @@ class GeminiApiClient(
                         )
                     )
                 }
-                if (modelObj["name"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()) {
+                if (modelName.isNullOrBlank()) {
                     return Result.failure(
                         GeminiApiException(
                             GeminiErrorType.EMPTY_RESPONSE,
@@ -518,6 +647,11 @@ class GeminiApiClient(
             "gemini-4-hydrogen",
             "gemini-4-neon",
             "gemini-4-carbon"
+        )
+        private val IMAGE_GENERATION_MODELS = listOf(
+            "gemini-2.5-flash-image",
+            "gemini-2.0-flash-preview-image-generation",
+            "gemini-2.0-flash-exp-image-generation"
         )
         private const val BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 

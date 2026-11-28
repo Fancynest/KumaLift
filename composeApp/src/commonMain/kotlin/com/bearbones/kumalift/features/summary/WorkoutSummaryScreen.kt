@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.features.summary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,15 +24,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +58,7 @@ import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Workout
+import com.bearbones.kumalift.features.share.WorkoutShareEditorDialog
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -85,6 +92,17 @@ fun WorkoutSummaryScreen(
     val restFormatted = s.secondsShort(restSec)
 
     val prSets = workout?.exercises?.flatMap { ex -> ex.sets.filter { it.isPr }.map { ex to it } } ?: emptyList()
+    var showShareWorkoutDialog by remember { mutableStateOf(false) }
+
+    if (showShareWorkoutDialog && workout != null) {
+        WorkoutShareEditorDialog(
+            workout = workout,
+            workoutRepository = workoutRepository,
+            settingsRepository = settingsRepository,
+            onDismiss = { showShareWorkoutDialog = false }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -98,7 +116,8 @@ fun WorkoutSummaryScreen(
                     .background(KumaColors.SurfaceDim)
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = s.workoutSummaryHeader,
@@ -107,6 +126,19 @@ fun WorkoutSummaryScreen(
                         color = KumaColors.TextWhite
                     )
                 )
+                if (workout != null) {
+                    IconButton(
+                        onClick = { showShareWorkoutDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = s.shareWorkoutCardAction,
+                            tint = colors.accentText,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
 
             LazyColumn(
@@ -230,7 +262,7 @@ fun WorkoutSummaryScreen(
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             prSets.forEach { (ex, set) ->
                                 val prWeightVal = set.weightKg * mult
-                                val prWeightDisplay = if (prWeightVal % 1.0 == 0.0) "${prWeightVal.toInt()} $unitStr" else "$prWeightVal $unitStr"
+                                val prWeightDisplay = "${NumberFormatUtils.formatDecimal(prWeightVal, settings?.appearance?.language ?: AppLanguage.EN, 1, trimTrailingZeros = true)} $unitStr"
                                 KumaCard(
                                     modifier = Modifier.fillMaxWidth(),
                                     backgroundColor = KumaColors.SurfaceContainer,
@@ -371,6 +403,30 @@ fun WorkoutSummaryScreen(
                 // Save Action
                 item {
                     Spacer(modifier = Modifier.height(10.dp))
+                    if (workout != null) {
+                        OutlinedButton(
+                            onClick = { showShareWorkoutDialog = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = PillShape,
+                            border = BorderStroke(1.dp, colors.accentText.copy(alpha = 0.65f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = null,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = s.shareWorkoutCardAction,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    color = colors.accentText,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
                     KumaPrimaryButton(
                         text = s.saveAndFinishSessionButton,
                         onClick = onSaveAndClose

@@ -366,7 +366,12 @@ data class HealthSettings(
     val healthEnabled: Boolean = false,
     val writeWorkouts: Boolean = true,
     val writeBodyWeight: Boolean = false,
-    val readBodyWeight: Boolean = false
+    val readBodyWeight: Boolean = false,
+    val syncBodyMetrics: Boolean = false,
+    val lastWeightSyncRecordId: String? = null,
+    val lastWeightSyncEpochMs: Long? = null,
+    val lastHeightSyncRecordId: String? = null,
+    val lastHeightSyncEpochMs: Long? = null
 )
 
 @Serializable
@@ -384,6 +389,24 @@ data class AiSettings(
 )
 
 @Serializable
+data class ShareItemOffset(
+    val x: Float,
+    val y: Float
+)
+
+@Serializable
+data class ShareSettings(
+    val selectedWorkoutStatIds: List<String> = DEFAULT_WORKOUT_SHARE_STAT_IDS,
+    val customItemPositions: Map<String, ShareItemOffset> = emptyMap(),
+    val customItemScales: Map<String, Float> = emptyMap(),
+    val showBrandWatermark: Boolean = true
+) {
+    companion object {
+        val DEFAULT_WORKOUT_SHARE_STAT_IDS = listOf("DURATION", "VOLUME", "PR_COUNT")
+    }
+}
+
+@Serializable
 data class UserSettings(
     val settingsVersion: Int = 1,
     val profile: ProfileSettings = ProfileSettings(),
@@ -397,5 +420,6 @@ data class UserSettings(
     val security: SecuritySettings = SecuritySettings(),
     val health: HealthSettings = HealthSettings(),
     val smartwatch: SmartwatchSettings = SmartwatchSettings(),
-    val ai: AiSettings = AiSettings()
+    val ai: AiSettings = AiSettings(),
+    val share: ShareSettings = ShareSettings()
 )

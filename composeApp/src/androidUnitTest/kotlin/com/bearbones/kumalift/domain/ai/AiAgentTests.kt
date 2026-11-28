@@ -29,11 +29,15 @@ import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
+import com.bearbones.kumalift.features.ai.ChatMarkdownBlock
+import com.bearbones.kumalift.features.ai.extractAssistantRichContent
 import com.bearbones.kumalift.features.ai.parseChatMarkdown
+import com.bearbones.kumalift.features.ai.splitChatMarkdownBlocks
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -50,6 +54,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AiAgentTests {
@@ -725,7 +730,7 @@ class AiAgentTests {
         assertTrue(postedBodies[0].contains("functionDeclarations"))
         val webAnswer = service.messages.value.last()
         assertFalse(webAnswer.isError)
-        assertTrue(webAnswer.text.contains("Sumber: examine.com · jissn.biomedcentral.com"))
+        assertTrue(webAnswer.text.contains("Sumber: [examine.com](https://examine.com/supplements/creatine) · [jissn.biomedcentral.com](https://jissn.biomedcentral.com)"))
 
         service.sendMessage("cek rutin dumbbell di https://example.com/push-pull", null, IdStrings, AppLanguage.ID)
         repeat(40) {
@@ -1429,5 +1434,875 @@ class AiAgentTests {
             )
         )
         assertFalse(ok)
+    }
+
+    @Test
+    fun testNewChatPersistsActiveStateAndDoesNotRedirectToOlderHistoryOnReload() = runBlocking {
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Ready for push day."}]}}]}"""
+                )
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        fun createService() = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        val service1 = createService()
+        service1.sendMessage("push day workout", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service1.isWorking.value && service1.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        val thread1Id = service1.currentThreadId.value
+        assertNotNull(thread1Id)
+        assertEquals(2, service1.messages.value.size)
+
+        // Click New Chat -> navigates away / recreates service -> must stay on empty New Chat
+        service1.startNewChat(temporary = false)
+        assertNull(service1.currentThreadId.value)
+        assertTrue(service1.messages.value.isEmpty())
+
+        val serviceAfterNavAway = createService()
+        assertNull(
+            serviceAfterNavAway.currentThreadId.value,
+            "Returning after New Chat must stay in new chat without redirecting to older history"
+        )
+        assertTrue(serviceAfterNavAway.messages.value.isEmpty())
+        assertEquals(1, serviceAfterNavAway.threads.value.size)
+        assertEquals(thread1Id, serviceAfterNavAway.threads.value.first().id)
+
+        // Selecting an existing thread restores & persists it until explicitly changed
+        serviceAfterNavAway.selectThread(thread1Id)
+        val serviceWithSelectedThread = createService()
+        assertEquals(thread1Id, serviceWithSelectedThread.currentThreadId.value)
+        assertEquals(2, serviceWithSelectedThread.messages.value.size)
+
+        // Deleting active thread resets cleanly to empty New Chat
+        serviceWithSelectedThread.deleteThread(thread1Id)
+        assertNull(serviceWithSelectedThread.currentThreadId.value)
+        assertTrue(serviceWithSelectedThread.messages.value.isEmpty())
+    }
+
+    @Test
+    fun testEditUserMessageTruncatesOutdatedContextAndGeneratesRevisedReply() = runBlocking {
+        val capturedRequestBodies = mutableListOf<String>()
+        val queuedReplies = ArrayDeque(
+            listOf(
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Old reply one"}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Old reply two"}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Fresh pull day reply"}]}}]}"""
+            )
+        )
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                capturedRequestBodies.add(body)
+                return AiHttpResponse(200, queuedReplies.removeFirst())
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        service.sendMessage("leg day plan", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        service.sendMessage("add calf raises", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 4) return@repeat
+            delay(25)
+        }
+        assertEquals(4, service.messages.value.size)
+        val firstPromptId = service.messages.value.first().id
+        val threadId = service.currentThreadId.value!!
+
+        // Edit opening prompt -> drops outdated response & subsequent turn, updates title, regenerates reply
+        val started = service.editUserMessage(firstPromptId, "revised pull day plan", EnStrings, AppLanguage.EN)
+        assertTrue(started)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+
+        assertEquals(2, service.messages.value.size)
+        assertEquals("revised pull day plan", service.messages.value[0].text)
+        assertEquals("Fresh pull day reply", service.messages.value[1].text)
+
+        val lastBody = capturedRequestBodies.last()
+        assertTrue(lastBody.contains("revised pull day plan"))
+        assertFalse(lastBody.contains("Old reply one"))
+        assertFalse(lastBody.contains("add calf raises"))
+        assertFalse(lastBody.contains("Old reply two"))
+
+        val reloadedMsgs = dbRepo.getAiChatMessages(threadId)
+        assertEquals(2, reloadedMsgs.size)
+        assertEquals("revised pull day plan", reloadedMsgs[0].text)
+        assertEquals("Fresh pull day reply", reloadedMsgs[1].text)
+        assertEquals("revised pull day plan", service.threads.value.first { it.id == threadId }.title)
+    }
+
+    @Test
+    fun testRegenerateResponseReplacesPreviousReplyWithoutDuplication() = runBlocking {
+        val capturedRequestBodies = mutableListOf<String>()
+        val queuedReplies = ArrayDeque(
+            listOf(
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"First answer"}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Second answer"}]}}]}""",
+                """{"candidates":[{"content":{"role":"model","parts":[{"text":"Regenerated second answer"}]}}]}"""
+            )
+        )
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                capturedRequestBodies.add(body)
+                return AiHttpResponse(200, queuedReplies.removeFirst())
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        // Blank assistant error cannot be regenerated without a preceding prompt
+        assertFalse(service.regenerateResponse("nonexistent", EnStrings, AppLanguage.EN))
+
+        service.sendMessage("first question", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        service.sendMessage("follow up question", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 4) return@repeat
+            delay(25)
+        }
+        val secondAssistantId = service.messages.value[3].id
+        val threadId = service.currentThreadId.value!!
+
+        val started = service.regenerateResponse(secondAssistantId, EnStrings, AppLanguage.EN)
+        assertTrue(started)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 4) return@repeat
+            delay(25)
+        }
+
+        assertEquals(4, service.messages.value.size)
+        assertEquals("First answer", service.messages.value[1].text)
+        assertEquals("follow up question", service.messages.value[2].text)
+        assertEquals("Regenerated second answer", service.messages.value[3].text)
+
+        val lastBody = capturedRequestBodies.last()
+        assertTrue(lastBody.contains("first question"))
+        assertTrue(lastBody.contains("First answer"))
+        assertTrue(lastBody.contains("follow up question"))
+        assertFalse(lastBody.contains("\"Second answer\""))
+
+        val reloaded = dbRepo.getAiChatMessages(threadId)
+        assertEquals(4, reloaded.size)
+        assertEquals("Regenerated second answer", reloaded.last().text)
+    }
+
+    @Test
+    fun testCopyableContentAndDisclaimerStrings() {
+        assertEquals(
+            "Kuma AI can make mistakes. Please verify important information.",
+            EnStrings.aiDisclaimerText
+        )
+        assertTrue(IdStrings.aiDisclaimerText.isNotBlank())
+
+        val userMsg = AiChatMessage(id = "u1", role = AiChatRole.USER, text = "Analyze squat depth")
+        assertEquals("Analyze squat depth", userMsg.copyableContent())
+
+        val assistantTextMsg = AiChatMessage(
+            id = "a1",
+            role = AiChatRole.ASSISTANT,
+            text = "Keep brace tight and knees tracking toes."
+        )
+        assertEquals("Keep brace tight and knees tracking toes.", assistantTextMsg.copyableContent())
+
+        val assistantNutritionOnly = AiChatMessage(
+            id = "a2",
+            role = AiChatRole.ASSISTANT,
+            text = "",
+            nutritionCard = AiNutritionCardData(
+                foodName = "Chicken Rice Bowl",
+                caloriesKcal = 620,
+                proteinGrams = 48,
+                carbsGrams = 68,
+                fatGrams = 14,
+                summary = "Solid post-workout meal."
+            )
+        )
+        val copiedNutrition = assistantNutritionOnly.copyableContent()
+        assertTrue(copiedNutrition.contains("Chicken Rice Bowl"))
+        assertTrue(copiedNutrition.contains("620 kcal"))
+        assertTrue(copiedNutrition.contains("Solid post-workout meal."))
+    }
+
+    @Test
+    fun testChangePreviewDiffTracksReplacedModifiedAddedRemovedAndVerifiesApply() = runBlocking {
+        val rearDelt = exerciseRepo.addCustomExercise(
+            name = "Dumbbell Rear Delt Raise",
+            primaryMuscle = MuscleGroup.SHOULDERS,
+            equipment = Equipment.DUMBBELL,
+            movementType = MovementType.ISOLATION
+        )
+        val pullup = exerciseRepo.addCustomExercise(
+            name = "Pull Up",
+            primaryMuscle = MuscleGroup.BACK,
+            equipment = Equipment.BODYWEIGHT,
+            movementType = MovementType.COMPOUND
+        )
+        val lyingRow = exerciseRepo.addCustomExercise(
+            name = "Lying Rear Delt Row",
+            primaryMuscle = MuscleGroup.SHOULDERS,
+            equipment = Equipment.DUMBBELL,
+            movementType = MovementType.ISOLATION
+        )
+        val pullRoutine = RoutineBlueprint(
+            id = "rt_custom_pull",
+            title = "Pull Day (Back, Biceps)",
+            splitCategory = "Pull",
+            muscleFocus = "BACK",
+            estimatedDurationMinutes = 45,
+            exerciseConfigs = listOf(
+                RoutineExerciseConfig(testExercises[0], targetSets = 3, targetReps = 10, targetWeightKg = 20.0, restTimerSeconds = 90),
+                RoutineExerciseConfig(pullup, targetSets = 3, targetReps = 8, restTimerSeconds = 90),
+                RoutineExerciseConfig(lyingRow, targetSets = 3, targetReps = 12, targetWeightKg = 10.0, restTimerSeconds = 60)
+            )
+        )
+        routineRepo.addRoutine(pullRoutine)
+
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val session = KumaAiToolSessionState()
+        executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "stage_update_routine",
+                args = Json.parseToJsonElement(
+                    """
+                    {
+                      "routineId": "rt_custom_pull",
+                      "exercises": [
+                        {"exerciseId": "ex_db_press", "targetSets": 4, "targetReps": 8, "targetWeightKg": 25.0, "restTimerSeconds": 120},
+                        {"exerciseId": "${rearDelt.id}", "targetSets": 3, "targetReps": 15, "targetWeightKg": 8.0, "restTimerSeconds": 60},
+                        {"exerciseId": "ex_lat_raise", "targetSets": 3, "targetReps": 12, "targetWeightKg": 10.0, "restTimerSeconds": 60}
+                      ]
+                    }
+                    """.trimIndent()
+                ).jsonObject
+            ),
+            session = session,
+            strings = EnStrings
+        )
+
+        val op = session.stagedOperations.single()
+        val detail = op.previewDetail
+        assertNotNull(detail)
+        assertEquals("Pull Day (Back, Biceps)", detail.routineName)
+        assertEquals(3, detail.updatedExercises.size)
+        assertTrue(detail.exerciseDiffs.any { it.status == AiExerciseDiffStatus.MODIFIED && it.before?.name == "Dumbbell Bench Press" && it.after?.sets == 4 })
+        assertTrue(detail.exerciseDiffs.any { it.status == AiExerciseDiffStatus.REMOVED && it.before?.name == "Pull Up" })
+        assertTrue(detail.exerciseDiffs.any { it.status == AiExerciseDiffStatus.REPLACED && it.before?.name == "Lying Rear Delt Row" && it.after?.name == "Dumbbell Rear Delt Raise" })
+        assertTrue(detail.exerciseDiffs.any { it.status == AiExerciseDiffStatus.ADDED && it.after?.name == "Dumbbell Lateral Raise" })
+
+        // Legacy fallback resolver works even when previewDetail is absent
+        val legacyOp = op.copy(previewDetail = null)
+        val resolvedLegacy = executor.resolveOperationPreview(legacyOp, AiProposalStatus.PENDING, EnStrings)
+        assertEquals(3, resolvedLegacy.updatedExercises.size)
+        assertEquals("Dumbbell Bench Press", resolvedLegacy.updatedExercises.first().name)
+
+        // Apply succeeds and verified live persisted data matches
+        val proposal = AiActionProposal(id = "p_diff", operations = listOf(op))
+        val (ok, note) = executor.commitProposal(proposal, EnStrings)
+        assertTrue(ok)
+        assertFalse(note.contains("rt_custom_pull"))
+        assertEquals(3, routineRepo.getRoutineById("rt_custom_pull")?.effectiveConfigs?.size)
+
+        // Deleting routine first makes apply fail instead of wrongly marking APPLIED
+        routineRepo.deleteRoutine("rt_custom_pull")
+        val (failOk, failMsg) = executor.commitProposal(proposal, EnStrings)
+        assertFalse(failOk)
+        assertFalse(failMsg.contains("rt_custom_pull"))
+    }
+
+    @Test
+    fun testUpdateRoutineSyncsExerciseTemplatesAndScheduleCancelDeleteCommitSafely() {
+        val routine = RoutineBlueprint(
+            id = "rt_sync_check",
+            title = "Upper Starter",
+            splitCategory = "Upper",
+            muscleFocus = "CHEST",
+            estimatedDurationMinutes = 40,
+            plannedSetsPerExercise = 3,
+            exerciseConfigs = listOf(
+                RoutineExerciseConfig(testExercises[0], targetSets = 3, targetReps = 10)
+            )
+        )
+        routineRepo.addRoutine(routine)
+
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val session = KumaAiToolSessionState()
+
+        // Non-primitive scheduledDays elements must not crash
+        executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "stage_update_routine",
+                args = Json.parseToJsonElement(
+                    """
+                    {
+                      "routineId": "rt_sync_check",
+                      "scheduledDays": [1, {"bad": 2}, 4],
+                      "exercises": [
+                        {"exerciseId": "ex_lat_raise", "targetSets": 4, "targetReps": 12}
+                      ]
+                    }
+                    """.trimIndent()
+                ).jsonObject
+            ),
+            session = session,
+            strings = EnStrings
+        )
+        val updateProp = AiActionProposal(id = "p_sync", operations = session.stagedOperations.toList())
+        val (updOk, _) = executor.commitProposal(updateProp, EnStrings)
+        assertTrue(updOk)
+        val updatedRoutine = routineRepo.getRoutineById("rt_sync_check")!!
+        assertEquals(listOf("ex_lat_raise"), updatedRoutine.exerciseTemplates.map { it.id })
+        assertEquals(4, updatedRoutine.plannedSetsPerExercise)
+        assertEquals(listOf(1, 4), updatedRoutine.scheduledDays)
+
+        // Schedule cancel + delete proposals commit without StageIdPayload crash
+        val event = scheduleRepo.scheduleRoutine(
+            routineId = updatedRoutine.id,
+            routineTitle = updatedRoutine.title,
+            splitType = updatedRoutine.splitCategory,
+            scheduledDate = kotlinx.datetime.LocalDate(2026, 11, 29)
+        )
+        val cancelSession = KumaAiToolSessionState()
+        executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "stage_cancel_or_delete_schedule",
+                args = Json.parseToJsonElement("""{"eventId":"${event.id}","deletePermanently":false}""").jsonObject
+            ),
+            session = cancelSession,
+            strings = EnStrings
+        )
+        val (cancelOk, _) = executor.commitProposal(
+            AiActionProposal(id = "p_cancel", operations = cancelSession.stagedOperations.toList()),
+            EnStrings
+        )
+        assertTrue(cancelOk)
+        assertTrue(scheduleRepo.events.value.first { it.id == event.id }.isCancelled)
+
+        val deleteSession = KumaAiToolSessionState()
+        executor.executeCall(
+            call = GeminiFunctionCall(
+                name = "stage_cancel_or_delete_schedule",
+                args = Json.parseToJsonElement("""{"eventId":"${event.id}","deletePermanently":true}""").jsonObject
+            ),
+            session = deleteSession,
+            strings = EnStrings
+        )
+        val deleteProp = AiActionProposal(id = "p_delete", operations = deleteSession.stagedOperations.toList())
+        val (delOk, _) = executor.commitProposal(deleteProp, EnStrings)
+        assertTrue(delOk)
+        assertFalse(scheduleRepo.events.value.any { it.id == event.id })
+
+        // Re-committing delete on missing event must fail instead of returning APPLIED
+        val (delAgainOk, _) = executor.commitProposal(deleteProp, EnStrings)
+        assertFalse(delAgainOk)
+    }
+
+    @Test
+    fun testHistoryAlternationPreservesImageTurnsAndMergesAfterErrorBubble() = runBlocking {
+        val capturedBodies = mutableListOf<String>()
+        val responses = ArrayDeque(
+            listOf(
+                AiHttpResponse(200, """{"candidates":[{"content":{"role":"model","parts":[{"text":"Looks like 600 kcal."}]}}]}"""),
+                AiHttpResponse(500, """{"error":{"message":"backend busy"}}"""),
+                AiHttpResponse(200, """{"candidates":[{"content":{"role":"model","parts":[{"text":"Got it."}]}}]}""")
+            )
+        )
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                capturedBodies.add(body)
+                return responses.removeFirst()
+            }
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo,
+            imageLoader = { path -> "image/jpeg" to "FAKE_$path" }
+        )
+
+        // Turn 1: image-only user prompt (no caption text)
+        service.sendMessage("", imagePaths = listOf("/tmp/meal1.jpg"), strings = EnStrings, language = AppLanguage.EN)
+        repeat(40) { if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat; delay(25) }
+
+        // Turn 2: fails with 500 error bubble
+        service.sendMessage("Add whey scoop", imagePaths = emptyList(), strings = EnStrings, language = AppLanguage.EN)
+        repeat(40) { if (!service.isWorking.value && service.messages.value.size >= 4) return@repeat; delay(25) }
+
+        // Turn 3: follow-up after error bubble
+        service.sendMessage("Try again", imagePaths = emptyList(), strings = EnStrings, language = AppLanguage.EN)
+        repeat(40) { if (!service.isWorking.value && service.messages.value.size >= 6) return@repeat; delay(25) }
+
+        val thirdReqContents = Json.parseToJsonElement(capturedBodies.last()).jsonObject["contents"]!!.jsonArray
+        val roles = thirdReqContents.map { it.jsonObject["role"]!!.jsonPrimitive.content }
+        assertEquals("user", roles.first())
+        assertEquals("user", roles.last())
+        for (i in 1 until roles.size) {
+            assertFalse(roles[i] == roles[i - 1], "Adjacent same role in $roles")
+        }
+        val firstTurnText = thirdReqContents.first().jsonObject["parts"]!!.jsonArray.toString()
+        assertTrue(firstTurnText.contains("shared a photo"), "Image-only user turn missing from history: $firstTurnText")
+    }
+
+    @Test
+    fun testDeleteThreadRemovesUnreferencedAiChatImagesOnly() = runBlocking {
+        val tempRoot = java.nio.file.Files.createTempDirectory("kuma_ai_img_test").toFile()
+        val imgDir = java.io.File(tempRoot, "ai_chat_images").apply { mkdirs() }
+        val orphanFile = java.io.File(imgDir, "ai_img_orphan.jpg").apply { writeText("img1") }
+        val sharedFile = java.io.File(imgDir, "ai_img_shared.jpg").apply { writeText("img2") }
+        val outsideFile = java.io.File(tempRoot, "outside.jpg").apply { writeText("keep") }
+
+        try {
+            val transport = object : AiHttpTransport {
+                override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) = error("Unexpected")
+                override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                    AiHttpResponse(200, """{"candidates":[{"content":{"role":"model","parts":[{"text":"OK"}]}}]}""")
+            }
+            val executor = KumaAiToolExecutor(
+                exerciseRepo, routineRepo, programRepo, scheduleRepo,
+                mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+            )
+            val service = KumaAiAgentService(
+                geminiClient = GeminiApiClient(transport),
+                toolExecutor = executor,
+                secretStore = InMemoryAiSecretStore("k"),
+                settingsRepository = settingsRepo,
+                databaseRepo = dbRepo,
+                imageLoader = { "image/jpeg" to "B64" }
+            )
+
+            service.sendMessage("Check 1", imagePaths = listOf(orphanFile.absolutePath, sharedFile.absolutePath, outsideFile.absolutePath), strings = EnStrings, language = AppLanguage.EN)
+            repeat(40) { if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat; delay(25) }
+            val thread1Id = service.currentThreadId.value!!
+
+            service.startNewChat()
+            service.sendMessage("Check 2", imagePaths = listOf(sharedFile.absolutePath), strings = EnStrings, language = AppLanguage.EN)
+            repeat(40) { if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat; delay(25) }
+
+            service.deleteThread(thread1Id)
+            assertFalse(orphanFile.exists(), "Orphan ai_chat_images file should be deleted")
+            assertTrue(sharedFile.exists(), "Shared file referenced by thread 2 must remain")
+            assertTrue(outsideFile.exists(), "File outside ai_chat_images must never be deleted")
+        } finally {
+            tempRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testSanitizeUserFacingTextRemovesInternalIdsSlugsAndJsonKeys() = runBlocking {
+        val starterPull = RoutineBlueprint(
+            id = "starter_pull_row",
+            title = "Pull Day (Back, Biceps)",
+            splitCategory = "Pull",
+            muscleFocus = "focus_pull",
+            estimatedDurationMinutes = 45,
+            exerciseConfigs = listOf(
+                RoutineExerciseConfig(testExercises[0], targetSets = 3, targetReps = 10)
+            ),
+            presetKey = "starter_pull",
+            isUserRenamed = false
+        )
+        routineRepo.addRoutine(starterPull)
+
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                error("Unexpected GET")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Yesterday you did not complete your workout (yesterdayWorkedOut: false), so your starter_pull session was missed."}]}}]}"""
+                )
+        }
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+
+        // Direct sanitizer checks (both EN and ID screenshot leaks)
+        val enSanitized = executor.sanitizeUserFacingText(
+            "Yesterday you did not complete your workout (yesterdayWorkedOut: false), so your starter_pull session was missed.",
+            EnStrings
+        )
+        assertFalse(enSanitized.contains("yesterdayWorkedOut"))
+        assertFalse(enSanitized.contains("starter_pull"))
+        assertTrue(enSanitized.contains(EnStrings.routinePullDayTitle))
+
+        val idSanitized = executor.sanitizeUserFacingText(
+            "Untuk latihan Pull Day, susunan rutinitas bawaan (starter_pull) belum optimal (todayWorkoutStatus: REST_DAY).",
+            IdStrings
+        )
+        assertFalse(idSanitized.contains("starter_pull"))
+        assertFalse(idSanitized.contains("todayWorkoutStatus"))
+        assertFalse(idSanitized.contains("REST_DAY"))
+
+        // End-to-end AI service sanitizes emitted assistant message while keeping internal snapshot working
+        service.sendMessage("check yesterday workout", null, EnStrings, AppLanguage.EN)
+        repeat(40) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+        val reply = service.messages.value.last().text
+        assertFalse(reply.contains("yesterdayWorkedOut"))
+        assertFalse(reply.contains("starter_pull"))
+        assertTrue(reply.contains(EnStrings.routinePullDayTitle))
+    }
+
+    @Test
+    fun testRichMarkdownLinksAndInlineImagesAreExtractedAndClickable() {
+        val sample = """
+            1. Cek panduan [Examine Creatine](https://examine.com/supplements/creatine)
+            ![Bench Diagram](https://cdn.example.com/bench.png)
+            Atau kunjungi https://jissn.biomedcentral.com/articles/10.1186.
+        """.trimIndent()
+
+        val extracted = extractAssistantRichContent(
+            rawText = sample,
+            attachedImages = listOf("file:///android_asset/images/0025-EIeI8Vf.jpg")
+        )
+        assertFalse(extracted.cleanText.contains("![Bench Diagram]"))
+        assertEquals(
+            listOf("file:///android_asset/images/0025-EIeI8Vf.jpg", "https://cdn.example.com/bench.png"),
+            extracted.images
+        )
+        assertEquals(2, extracted.webLinks.size)
+        assertEquals("https://examine.com/supplements/creatine", extracted.webLinks[0].url)
+        assertEquals("https://jissn.biomedcentral.com/articles/10.1186", extracted.webLinks[1].url)
+
+        val annotated = parseChatMarkdown(extracted.cleanText, Color.DarkGray, Color.Green)
+        assertTrue(annotated.text.contains("1. Cek panduan Examine Creatine"))
+        val links = annotated.getLinkAnnotations(0, annotated.text.length)
+        assertEquals(2, links.size)
+        assertEquals("https://examine.com/supplements/creatine", (links[0].item as LinkAnnotation.Url).url)
+        assertEquals("https://jissn.biomedcentral.com/articles/10.1186", (links[1].item as LinkAnnotation.Url).url)
+    }
+
+    @Test
+    fun testAssistantShowExerciseVisualsAndGenerateImagePersistInMessage() = runBlocking {
+        exerciseRepo = ExerciseRepository(
+            initialExercises = listOf(
+                Exercise(
+                    id = "ex_visual_bench",
+                    name = "Barbell Bench Press",
+                    primaryMuscle = MuscleGroup.CHEST,
+                    equipment = Equipment.BARBELL,
+                    movementType = MovementType.COMPOUND,
+                    thumbnailUrl = "images/0025-EIeI8Vf.jpg",
+                    gifUrl = "anim/0025-EIeI8Vf.webp"
+                )
+            ),
+            databaseRepo = dbRepo
+        )
+
+        val postResponses = ArrayDeque(
+            listOf(
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"show_exercise_visuals","args":{"exerciseIds":["ex_visual_bench"]}}},{"functionCall":{"name":"generate_image","args":{"prompt":"gym dumbbell illustration"}}}]}}]}"""
+                ),
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"inlineData":{"mimeType":"image/png","data":"AQID"}}]}}]}"""
+                ),
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Ini visual gerakan dan ilustrasinya!"}]}}]}"""
+                )
+            )
+        )
+
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                AiHttpResponse(200, """{"models":[{"name":"models/gemini-2.5-flash-image","supportedGenerationMethods":["generateContent"]}]}""")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                postResponses.removeFirst()
+        }
+
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("k"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo,
+            generatedImageSaver = { _, _ -> "/data/user/0/app/files/ai_chat_images/ai_img_gen_1.jpg" }
+        )
+
+        service.sendMessage("tunjukin gambar bench press & buatin ilustrasinya", null, IdStrings, AppLanguage.ID)
+        repeat(50) {
+            if (!service.isWorking.value && service.messages.value.size >= 2) return@repeat
+            delay(25)
+        }
+
+        val reply = service.messages.value.last()
+        assertFalse(reply.isError)
+        assertEquals(
+            listOf(
+                "file:///android_asset/images/0025-EIeI8Vf.jpg",
+                "/data/user/0/app/files/ai_chat_images/ai_img_gen_1.jpg"
+            ),
+            reply.effectiveImagePaths
+        )
+        val reloaded = dbRepo.getAiChatMessages(reply.threadId).last()
+        assertEquals(reply.effectiveImagePaths, reloaded.effectiveImagePaths)
+    }
+
+    @Test
+    fun testSanitizerPreservesFourDigitNumbersEscapesDollarSignsAndShowsEmptyKeyErrorInNewChat() = runBlocking {
+        exerciseRepo = ExerciseRepository(
+            initialExercises = listOf(
+                Exercise(
+                    id = "1700",
+                    name = "Dumbbell Push Press",
+                    primaryMuscle = MuscleGroup.SHOULDERS,
+                    equipment = Equipment.DUMBBELL,
+                    movementType = MovementType.COMPOUND
+                ),
+                Exercise(
+                    id = "ex_custom_dollar",
+                    name = "Gain \$100 Curl",
+                    primaryMuscle = MuscleGroup.ARMS,
+                    equipment = Equipment.DUMBBELL,
+                    movementType = MovementType.ISOLATION
+                )
+            ),
+            databaseRepo = dbRepo
+        )
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+
+        val cleaned = executor.sanitizeUserFacingText(
+            "Target kalori 1700 kcal dan coba ex_custom_dollar.",
+            IdStrings
+        )
+        assertTrue(cleaned.contains("1700 kcal"), "4-digit numbers must not be rewritten as built-in numeric exercise IDs")
+        assertTrue(cleaned.contains("Gain \$100 Curl"))
+
+        // Blank API key in fresh non-temp chat must emit visible error message
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int) =
+                AiHttpResponse(200, """{"name":{"nested":"invalid"}}""")
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int) =
+                error("Unexpected POST")
+        }
+        val client = GeminiApiClient(transport)
+        val verifyRes = client.verifyConnection("k", "gemini-2.5-flash")
+        assertTrue(verifyRes.isFailure)
+
+        val noKeyService = KumaAiAgentService(
+            geminiClient = client,
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore(""),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo
+        )
+        noKeyService.sendMessage("halo", null, IdStrings, AppLanguage.ID)
+        assertEquals(1, noKeyService.messages.value.size)
+        assertTrue(noKeyService.messages.value.first().isError)
+        assertEquals(IdStrings.aiErrorInvalidKey, noKeyService.messages.value.first().text)
+    }
+
+    @Test
+    fun testMarkdownTableSplittingAndWebToolsAndPureAgentStages() = runBlocking {
+        val rawMarkdown = """
+            Berikut perbandingan split latihan:
+
+            | Program | Hari | Fokus |
+            | :--- | :---: | ---: |
+            | Push Pull Legs | 6 | Hipertrofi |
+            | Upper / Lower | 4 | **Kekuatan** |
+
+            Lihat [Panduan Latihan](https://example.com/guide).
+        """.trimIndent()
+        val blocks = splitChatMarkdownBlocks(rawMarkdown)
+        assertEquals(3, blocks.size)
+        assertTrue(blocks[0] is ChatMarkdownBlock.TextBlock)
+        val table = blocks[1] as ChatMarkdownBlock.TableBlock
+        assertEquals(listOf("Program", "Hari", "Fokus"), table.headers)
+        assertEquals(2, table.rows.size)
+        assertEquals(listOf("Upper / Lower", "4", "**Kekuatan**"), table.rows[1])
+        assertTrue(blocks[2] is ChatMarkdownBlock.TextBlock)
+
+        val (pageTitle, pageBody) = extractReadableWebContent(
+            "<html><head><title>Creatine &amp; Strength</title><script>bad()</script></head><body><h1>Study</h1><p>5g daily works well.</p></body></html>"
+        )
+        assertEquals("Creatine & Strength", pageTitle)
+        assertTrue(pageBody.contains("Study"))
+        assertTrue(pageBody.contains("5g daily works well."))
+        assertFalse(pageBody.contains("bad()"))
+
+        val executor = KumaAiToolExecutor(
+            exerciseRepo, routineRepo, programRepo, scheduleRepo,
+            mesocycleRepo, readinessRepo, prRepo, workoutRepo, settingsRepo, dbRepo
+        )
+        val session = KumaAiToolSessionState()
+        executor.executeCall(
+            GeminiFunctionCall(
+                name = "stage_create_program",
+                args = buildJsonObject { put("name", "Powerbuilding Block") }
+            ),
+            session,
+            EnStrings
+        )
+        executor.executeCall(
+            GeminiFunctionCall(
+                name = "stage_create_exercise",
+                args = buildJsonObject {
+                    put("name", "Bulgarian Split Squat")
+                    put("primaryMuscle", "LEGS")
+                    put("equipment", "DUMBBELL")
+                }
+            ),
+            session,
+            EnStrings
+        )
+        executor.executeCall(
+            GeminiFunctionCall(
+                name = "stage_save_exercise_note",
+                args = buildJsonObject {
+                    put("exerciseId", "ex_db_press")
+                    put("note", "Keep elbows tucked 45 degrees")
+                }
+            ),
+            session,
+            EnStrings
+        )
+        executor.executeCall(
+            GeminiFunctionCall(
+                name = "stage_log_readiness",
+                args = buildJsonObject {
+                    put("sleep", 5)
+                    put("soreness", 4)
+                    put("energy", 5)
+                    put("stress", 4)
+                    put("notes", "Ready to hit PRs")
+                }
+            ),
+            session,
+            EnStrings
+        )
+        assertEquals(4, session.stagedOperations.size)
+        val proposal = AiActionProposal(
+            id = "prop_pure_agent",
+            summary = "Create program, exercise, note & readiness",
+            operations = session.stagedOperations.toList()
+        )
+        val (ok, _) = executor.commitProposal(proposal, EnStrings)
+        assertTrue(ok)
+        assertTrue(programRepo.programs.value.any { it.name == "Powerbuilding Block" })
+        assertTrue(exerciseRepo.exercises.value.any { it.name == "Bulgarian Split Squat" })
+        assertEquals("Keep elbows tucked 45 degrees", exerciseRepo.getExerciseById("ex_db_press")?.pinnedNote)
+        assertNotNull(readinessRepo.todayCheckIn.value)
+        assertEquals("Ready to hit PRs", readinessRepo.todayCheckIn.value?.notes)
+
+        val scriptedResponses = ArrayDeque(
+            listOf(
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"fetch_web_page","args":{"url":"https://example.com/study"}}}]}}]}"""
+                ),
+                AiHttpResponse(
+                    200,
+                    """{"candidates":[{"content":{"role":"model","parts":[{"text":"Ringkasan riset: volume 10-20 set per minggu efektif."}]}}]}"""
+                )
+            )
+        )
+        val transport = object : AiHttpTransport {
+            override suspend fun get(url: String, headers: Map<String, String>, timeoutMs: Int): AiHttpResponse {
+                return AiHttpResponse(200, "<html><title>Hypertrophy Review</title><body><p>10 to 20 sets per week.</p></body></html>")
+            }
+
+            override suspend fun postJson(url: String, headers: Map<String, String>, body: String, timeoutMs: Int): AiHttpResponse {
+                return scriptedResponses.removeFirst()
+            }
+        }
+        val service = KumaAiAgentService(
+            geminiClient = GeminiApiClient(transport),
+            toolExecutor = executor,
+            secretStore = InMemoryAiSecretStore("valid_test_key"),
+            settingsRepository = settingsRepo,
+            databaseRepo = dbRepo,
+            httpTransport = transport
+        )
+        service.sendMessage("Cari info volume latihan", null, IdStrings, AppLanguage.ID)
+        var guard = 0
+        while (service.isWorking.value && guard < 100) {
+            delay(20)
+            guard++
+        }
+        val assistant = service.messages.value.lastOrNull { it.role == AiChatRole.ASSISTANT }
+        assertNotNull(assistant)
+        assertTrue(assistant.text.contains("Hypertrophy Review"))
+        assertTrue(assistant.text.contains("https://example.com/study"))
     }
 }

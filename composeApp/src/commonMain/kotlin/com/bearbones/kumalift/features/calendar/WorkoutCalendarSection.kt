@@ -83,6 +83,7 @@ fun WorkoutCalendarSection(
     routines: List<RoutineBlueprint> = emptyList(),
     onScheduleRoutine: ((routine: RoutineBlueprint, date: LocalDate, notes: String?) -> Unit)? = null,
     onRescheduleEvent: ((eventId: String, newDate: LocalDate) -> Unit)? = null,
+    onUpdateEventNotes: ((eventId: String, notes: String?) -> Unit)? = null,
     onCancelEvent: ((eventId: String) -> Unit)? = null,
     onRestoreEvent: ((eventId: String) -> Unit)? = null,
     onDeleteEvent: ((eventId: String) -> Unit)? = null,
@@ -448,6 +449,9 @@ fun WorkoutCalendarSection(
             },
             onReschedule = { eventId, newDate ->
                 onRescheduleEvent?.invoke(eventId, newDate)
+            },
+            onUpdateNotes = { eventId, notes ->
+                onUpdateEventNotes?.invoke(eventId, notes)
             },
             onCancelSchedule = { eventId ->
                 onCancelEvent?.invoke(eventId)

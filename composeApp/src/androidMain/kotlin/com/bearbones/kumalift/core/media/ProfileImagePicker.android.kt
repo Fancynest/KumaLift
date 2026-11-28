@@ -6,30 +6,49 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+
+private const val MAX_AVATAR_BYTES = 25L * 1024L * 1024L
 
 @Composable
 actual fun rememberProfileImagePicker(
     onImagePicked: (String) -> Unit
 ): () -> Unit {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val latestOnImagePicked by rememberUpdatedState(onImagePicked)
+
+    val handlePickedUri: (Uri?) -> Unit = { uri ->
+        if (uri != null) {
+            scope.launch {
+                val path = withContext(Dispatchers.IO) {
+                    saveAvatarFromUri(context, uri)
+                }
+                if (path != null) {
+                    latestOnImagePicked(path)
+                }
+            }
+        }
+    }
 
     val getContentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) {
-            saveAvatarFromUri(context, uri, onImagePicked)
-        }
+        handlePickedUri(uri)
     }
 
     val pickMediaLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        if (uri != null) {
-            saveAvatarFromUri(context, uri, onImagePicked)
-        }
+        handlePickedUri(uri)
     }
 
     return remember(context) {
@@ -42,11 +61,10 @@ actual fun rememberProfileImagePicker(
                 } else {
                     getContentLauncher.launch("image/*")
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 try {
                     getContentLauncher.launch("image/*")
-                } catch (fallbackEx: Exception) {
-                    fallbackEx.printStackTrace()
+                } catch (_: Exception) {
                 }
             }
         }
@@ -55,23 +73,33 @@ actual fun rememberProfileImagePicker(
 
 private fun saveAvatarFromUri(
     context: Context,
-    uri: Uri,
-    onImagePicked: (String) -> Unit
-) {
+    uri: Uri
+): String? {
     var destFile: File? = null
-    try {
+    return try {
         val timestamp = System.currentTimeMillis()
         val targetFile = File(context.filesDir, "profile_avatar_$timestamp.jpg")
         destFile = targetFile
+        var totalBytes = 0L
         val copied = context.contentResolver.openInputStream(uri)?.use { input ->
             targetFile.outputStream().use { output ->
-                input.copyTo(output)
+                val buffer = ByteArray(16 * 1024)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    totalBytes += read
+                    if (totalBytes > MAX_AVATAR_BYTES) {
+                        throw IllegalStateException("Avatar exceeds max size")
+                    }
+                    output.write(buffer, 0, read)
+                }
+                output.flush()
             }
             true
         } ?: false
-        if (!copied) {
+        if (!copied || totalBytes <= 0L) {
             targetFile.delete()
-            return
+            return null
         }
         // Clean up older avatar files in private app storage
         context.filesDir.listFiles { _, name ->
@@ -80,9 +108,9 @@ private fun saveAvatarFromUri(
             try { oldFile.delete() } catch (_: Exception) {}
         }
 
-        onImagePicked(targetFile.absolutePath)
-    } catch (e: Exception) {
+        targetFile.absolutePath
+    } catch (_: Exception) {
         try { destFile?.delete() } catch (_: Exception) {}
-        e.printStackTrace()
+        null
     }
 }

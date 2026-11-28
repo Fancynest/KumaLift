@@ -6,6 +6,9 @@ import com.bearbones.kumalift.data.export.DataBackupManager
 import com.bearbones.kumalift.data.export.ImportMode
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
 import com.bearbones.kumalift.database.KumaDatabase
+import com.bearbones.kumalift.domain.ai.AiChatMessage
+import com.bearbones.kumalift.domain.ai.AiChatRole
+import com.bearbones.kumalift.domain.ai.AiChatThread
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AppTheme
 import com.bearbones.kumalift.domain.model.AppearanceSettings
@@ -15,6 +18,7 @@ import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.ProfileSettings
+import com.bearbones.kumalift.domain.model.ProgressPhotoEntry
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
@@ -656,5 +660,122 @@ class DataBackupManagerTests {
         assertTrue(setsCsv.contains("\"'-Bench \"\"Press\"\"\""), "Expected escaped exercise name in:\n$setsCsv")
         assertTrue(schedCsv.contains("\"'@IMPORTXML(A1)\""), "Expected escaped snapshot in:\n$schedCsv")
         assertTrue(schedCsv.contains("\"'+SUM(1,2) \"\"quoted\"\"\""), "Expected escaped notes in:\n$schedCsv")
+    }
+
+    @Test
+    fun testReplaceImportPreservesLocalAiChatsAndProgressPhotos() {
+        val settings = UserSettings()
+        repository.saveCustomExercise(
+            Exercise(
+                id = "custom_old_ex",
+                name = "Old Custom Lift",
+                primaryMuscle = MuscleGroup.BACK,
+                equipment = Equipment.DUMBBELL,
+                movementType = MovementType.COMPOUND
+            )
+        )
+        val backupJson = backupManager.exportJson(settings)
+
+        // Add local-only data excluded from backup JSON
+        repository.saveAiChatThread(
+            AiChatThread(
+                id = "thread_local_keep",
+                title = "Shoulder rehab advice",
+                contextSummary = "Keep pressing lighter",
+                messageCount = 1,
+                createdAtEpochMs = 1732000000000L,
+                updatedAtEpochMs = 1732000000000L
+            )
+        )
+        repository.saveAiChatMessage(
+            AiChatMessage(
+                id = "msg_local_keep",
+                role = AiChatRole.USER,
+                text = "Should I pause bench press?",
+                threadId = "thread_local_keep",
+                createdAtEpochMs = 1732000001000L
+            )
+        )
+        repository.saveProgressPhoto(
+            ProgressPhotoEntry(
+                id = "photo_local_keep",
+                imagePath = "/tmp/progress_1.jpg",
+                capturedDateEpochMs = 1732000000000L,
+                note = "Week 4 check-in"
+            )
+        )
+
+        // Mutate backup-managed data then restore via ImportMode.REPLACE
+        repository.saveCustomExercise(
+            Exercise(
+                id = "custom_after_ex",
+                name = "Temp After Lift",
+                primaryMuscle = MuscleGroup.LEGS,
+                equipment = Equipment.BARBELL,
+                movementType = MovementType.COMPOUND
+            )
+        )
+        val result = backupManager.importBackup(backupJson, ImportMode.REPLACE, settings)
+        assertTrue(result.success, "Replace restore should succeed: ${result.message}")
+
+        // Backup-managed data restored cleanly
+        val exercises = repository.getAllCustomExercises().map { it.id }
+        assertEquals(listOf("custom_old_ex"), exercises)
+
+        // Local-only AI threads/messages and progress photos must survive REPLACE import
+        assertEquals(1, repository.getAllAiChatThreads().size)
+        assertEquals("thread_local_keep", repository.getAllAiChatThreads().first().id)
+        assertEquals(1, repository.getAiChatMessages("thread_local_keep").size)
+        assertEquals(1, repository.getAllProgressPhotos().size)
+        assertEquals("photo_local_keep", repository.getAllProgressPhotos().first().id)
+    }
+
+    @Test
+    fun testSetIsPrPersistsAndExerciseNotesSurviveReplaceAndWipeClearsSafetySnapshot() {
+        val settings = UserSettings()
+        val bench = Exercise(
+            id = "ex_bench_note_test",
+            name = "Bench Press",
+            primaryMuscle = MuscleGroup.CHEST,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        repository.saveCompletedWorkout(
+            Workout(
+                id = "w_pr_persist",
+                title = "Chest",
+                splitType = "Push",
+                startTimeEpochMs = 1732000000000L,
+                endTimeEpochMs = 1732003600000L,
+                durationSeconds = 3600L,
+                isFinished = true,
+                exercises = listOf(
+                    WorkoutExercise(
+                        id = "we_pr_1",
+                        exercise = bench,
+                        sets = listOf(
+                            SetLog(id = "set_pr_yes", setNumber = 1, weightKg = 100.0, reps = 5, isCompleted = true, isPr = true),
+                            SetLog(id = "set_pr_no", setNumber = 2, weightKg = 90.0, reps = 5, isCompleted = true, isPr = false)
+                        )
+                    )
+                )
+            )
+        )
+        repository.saveExercisePinnedNote("ex_bench_note_test", "Pinch shoulder blades")
+
+        val loadedWorkouts = repository.getCompletedWorkouts()
+        val sets = loadedWorkouts.first { it.id == "w_pr_persist" }.exercises.first().sets
+        assertTrue(sets.first { it.id == "set_pr_yes" }.isPr)
+        assertFalse(sets.first { it.id == "set_pr_no" }.isPr)
+
+        val backupJson = backupManager.exportJson(settings)
+        repository.saveExercisePinnedNote("ex_bench_note_test", "Temporary override")
+        val restoreRes = backupManager.importBackup(backupJson, ImportMode.REPLACE, settings)
+        assertTrue(restoreRes.success)
+        assertEquals("Pinch shoulder blades", repository.getAllExerciseNotes()["ex_bench_note_test"])
+        assertNotNull(repository.getLatestSafetySnapshot())
+
+        repository.wipeAllUserData()
+        assertEquals(null, repository.getLatestSafetySnapshot())
     }
 }

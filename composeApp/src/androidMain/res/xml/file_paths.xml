@@ -2,4 +2,8 @@
 <paths>
     <files-path name="ai_chat_images" path="ai_chat_images/" />
     <cache-path name="ai_chat_camera" path="ai_chat_camera/" />
+    <files-path name="progress_photos" path="progress_photos/" />
+    <cache-path name="kuma_camera_capture" path="kuma_camera_capture/" />
+    <cache-path name="shared_images" path="shared_images/" />
+    <files-path name="share_card_photos" path="share_card_photos/" />
 </paths>

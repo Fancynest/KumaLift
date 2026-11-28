@@ -22,6 +22,7 @@ sealed interface Overlay {
     data object Summary : Overlay
     data object Settings : Overlay
     data object AiChat : Overlay
+    data object ProgressPhotos : Overlay
 }
 
 /**
@@ -99,6 +100,7 @@ class AppNavigator(
                             Overlay.Summary -> "SUMMARY"
                             Overlay.Settings -> "SETTINGS"
                             Overlay.AiChat -> "AI_CHAT"
+                            Overlay.ProgressPhotos -> "PROGRESS_PHOTOS"
                         }
                     }
                 )
@@ -114,6 +116,7 @@ class AppNavigator(
                         "SUMMARY" -> Overlay.Summary
                         "SETTINGS" -> Overlay.Settings
                         "AI_CHAT" -> Overlay.AiChat
+                        "PROGRESS_PHOTOS" -> Overlay.ProgressPhotos
                         else -> null
                     }
                 }

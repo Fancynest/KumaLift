@@ -23,6 +23,10 @@ actual fun rememberAiMediaLaunchers(
 
 actual suspend fun loadCompressedImageBase64(localPath: String): Pair<String, String>? = null
 
+actual suspend fun saveAiGeneratedImageBase64(base64Data: String, mimeType: String): String? = null
+
+actual fun deleteAiChatImageFile(localPath: String?) = Unit
+
 @Composable
 actual fun AiChatFullscreenImageViewer(
     imagePaths: List<String>,

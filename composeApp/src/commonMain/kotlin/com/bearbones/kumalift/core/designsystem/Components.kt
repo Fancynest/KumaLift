@@ -142,7 +142,7 @@ fun KumaFloatingToolbar(
         shape = PillShape,
         color = containerColor,
         shadowElevation = 10.dp,
-        tonalElevation = 4.dp,
+        tonalElevation = 0.dp,
         border = BorderStroke(1.dp, borderColor ?: colors.border)
     ) {
         Row(

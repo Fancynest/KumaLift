@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -69,7 +70,8 @@ fun RoutineDetailScreen(
     onNavigateBack: () -> Unit,
     onStartWorkout: (RoutineBlueprint) -> Unit,
     onEditRoutine: (RoutineBlueprint) -> Unit,
-    onDeleteRoutine: (RoutineBlueprint) -> Unit
+    onDeleteRoutine: (RoutineBlueprint) -> Unit,
+    onShareRoutine: ((RoutineBlueprint) -> Unit)? = null
 ) {
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
@@ -128,6 +130,24 @@ fun RoutineDetailScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onShareRoutine != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(KumaColors.SurfaceContainer)
+                                .clickable { onShareRoutine(routine) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = s.sharePlanDesc,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
                     // Edit Routine Button
                     Box(
                         modifier = Modifier
@@ -204,6 +224,9 @@ fun RoutineDetailScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     KumaBadge(text = routine.localizedSplitCategory(s))
+                                    routine.sharedByCreator?.takeIf { it.isNotBlank() }?.let { creator ->
+                                        KumaBadge(text = s.sharedByCreatorBadge(creator), isPr = false)
+                                    }
                                     if (routine.scheduledDays.isNotEmpty()) {
                                         val dayLabels = routine.scheduledDays.mapNotNull { s.dayNamesShort.getOrNull(it - 1) }.joinToString(", ")
                                         Box(
@@ -225,13 +248,15 @@ fun RoutineDetailScreen(
                                         }
                                     }
                                 }
-                                Text(
-                                    text = routine.lastPerformedDaysAgo?.let { s.lastPerformedDaysAgo(it) } ?: s.newBadge,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = KumaColors.TextMuted
-                                )
+                                routine.lastPerformedDaysAgo?.let { days ->
+                                    Text(
+                                        text = s.lastPerformedDaysAgo(days),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = KumaColors.TextMuted
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))

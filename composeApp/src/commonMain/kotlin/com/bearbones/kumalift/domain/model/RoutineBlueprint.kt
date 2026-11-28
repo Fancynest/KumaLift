@@ -88,7 +88,9 @@ data class RoutineBlueprint(
     val lastPerformedDaysAgo: String? = null,
     val scheduledDays: List<Int> = emptyList(), // 1 = Monday .. 7 = Sunday
     val presetKey: String? = null,
-    val isUserRenamed: Boolean = false
+    val isUserRenamed: Boolean = false,
+    val sharedByCreator: String? = null,
+    val sharedSourceTitle: String? = null
 ) {
     /**
      * Resolves effective exercise configurations, ensuring backward compatibility with

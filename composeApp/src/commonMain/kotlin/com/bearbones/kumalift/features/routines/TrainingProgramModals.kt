@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -78,6 +79,7 @@ fun TrainingProgramSelectorModal(
     onSelectProgram: (TrainingProgram) -> Unit,
     onEditProgram: (TrainingProgram) -> Unit,
     onDeleteProgram: (TrainingProgram) -> Unit,
+    onShareProgram: ((TrainingProgram) -> Unit)? = null,
     onCreateNewProgram: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -156,6 +158,7 @@ fun TrainingProgramSelectorModal(
                                 onSelect = { onSelectProgram(program) },
                                 onEdit = { onEditProgram(program) },
                                 onDelete = { onDeleteProgram(program) },
+                                onShare = onShareProgram?.let { cb -> { cb(program) } },
                                 canDelete = programs.size > 1
                             )
                         }
@@ -183,6 +186,7 @@ private fun ProgramItemCard(
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onShare: (() -> Unit)? = null,
     canDelete: Boolean
 ) {
     val s = LocalStrings.current
@@ -348,6 +352,20 @@ private fun ProgramItemCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (onShare != null) {
+                        IconButton(
+                            onClick = onShare,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = s.sharePlanDesc,
+                                tint = colors.accentText,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = onEdit,
                         modifier = Modifier.size(34.dp)

@@ -1,5 +1,6 @@
 package com.bearbones.kumalift.features.progress
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -30,12 +33,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,13 +74,17 @@ import com.bearbones.kumalift.core.designsystem.formatCompactChartValue
 import com.bearbones.kumalift.core.designsystem.formatIntegerChartValue
 import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.DateFormatPreference
+import com.bearbones.kumalift.domain.model.FitnessHistoryOrganizer
 import com.bearbones.kumalift.domain.model.MuscleVolumeCalculator
 import com.bearbones.kumalift.domain.model.PersonalRecord
+import com.bearbones.kumalift.domain.model.PrExerciseGroup
+import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.features.analytics.AnatomyBodyHighlighter
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -547,9 +558,14 @@ fun ProgressAnalyticsScreen(
                                 }
                             }
                         } else {
-                            prs.forEach { pr ->
-                                PersonalRecordItem(pr = pr)
+                            val groupedPrs = remember(prs) {
+                                com.bearbones.kumalift.domain.model.FitnessHistoryOrganizer.organizePersonalRecords(prs)
                             }
+                            GroupedPersonalRecordsSection(
+                                groups = groupedPrs,
+                                weightUnit = settings?.units?.weightUnit ?: com.bearbones.kumalift.domain.model.WeightUnit.KG,
+                                language = language
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(100.dp))
@@ -813,9 +829,171 @@ private fun effectiveOneRmKg(pr: PersonalRecord): Double =
 private fun formatMetricDecimal(value: Double, language: AppLanguage): String =
     NumberFormatUtils.formatDecimal(value, language, decimals = 1, trimTrailingZeros = true)
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupedPersonalRecordsSection(
+    groups: List<PrExerciseGroup>,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val expandedState = remember { mutableStateMapOf<String, Boolean>() }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        groups.forEachIndexed { idx, group ->
+            val key = group.exerciseId.ifBlank { "${group.exerciseName}_$idx" }
+            val isExpanded = expandedState[key] ?: (idx == 0)
+            GroupedPersonalRecordCard(
+                group = group,
+                isExpanded = isExpanded,
+                onToggleExpand = { expandedState[key] = !isExpanded },
+                weightUnit = weightUnit,
+                language = language
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupedPersonalRecordCard(
+    group: PrExerciseGroup,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    weightUnit: WeightUnit,
+    language: AppLanguage
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+    val unitLabel = if (weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
+    val bestOneRmText = formatMetricDecimal(UnitConverters.toDisplayWeight(group.bestOneRmKg, weightUnit), language)
+
+    KumaCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggleExpand),
+        backgroundColor = KumaColors.SurfaceContainer,
+        cornerRadius = 16.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = group.exerciseName,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        KumaBadge(
+                            text = s.prRecordsCountBadge(group.totalAchievements),
+                            isPr = true
+                        )
+                        if (group.bestOneRmKg > 0.0) {
+                            Text(
+                                text = s.prBestOneRmSummary("$bestOneRmText $unitLabel"),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = KumaColors.TextMuted,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) s.prCollapseDetailsDesc else s.prExpandDetailsDesc,
+                    tint = colors.accentText,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    group.weightGroups.forEach { weightGroup ->
+                        val weightFormatted = formatMetricDecimal(
+                            UnitConverters.toDisplayWeight(weightGroup.weightKg, weightUnit),
+                            language
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(KumaColors.SurfaceDim)
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = s.prWeightGroupHeader("$weightFormatted $unitLabel", weightGroup.records.size),
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = colors.accentText,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+
+                            weightGroup.records.forEachIndexed { recIdx, record ->
+                                if (recIdx > 0) {
+                                    HorizontalDivider(color = KumaColors.BorderDefault.copy(alpha = 0.4f))
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${record.reps} ${s.repsAbbrev} — ${s.prRepAchievementBadge(record.reps)}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = colors.textPrimary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        )
+                                        Text(
+                                            text = FitnessHistoryOrganizer.formatFullDateWithYear(
+                                                epochMs = record.dateAchievedEpochMs,
+                                                fallback = record.dateAchieved,
+                                                s = s
+                                            ),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = KumaColors.TextMuted,
+                                                fontSize = 11.sp
+                                            )
+                                        )
+                                    }
+                                    KumaBadge(text = record.prTier, isPr = true)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun PersonalRecordItem(pr: PersonalRecord) {
     val s = LocalStrings.current
+    val weightFormatted = formatMetricDecimal(pr.weightKg, AppLanguage.EN)
     KumaCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = KumaColors.SurfaceContainer,
@@ -839,11 +1017,11 @@ fun PersonalRecordItem(pr: PersonalRecord) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 val e1rmPart = if (pr.estimated1RmKg > 0.0) {
-                    val formatted1Rm = kotlin.math.round(pr.estimated1RmKg * 10.0) / 10.0
+                    val formatted1Rm = formatMetricDecimal(pr.estimated1RmKg, AppLanguage.EN)
                     " · ${s.estimatedOneRmLabel}: $formatted1Rm ${s.unitKg}"
                 } else ""
                 Text(
-                    text = "${pr.weightKg} ${s.unitKg} × ${pr.reps} ${s.repsAbbrev}$e1rmPart",
+                    text = "$weightFormatted ${s.unitKg} × ${pr.reps} ${s.repsAbbrev}$e1rmPart",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = KumaColors.TextMuted,
                         fontSize = 13.sp

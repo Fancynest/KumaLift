@@ -1,5 +1,6 @@
 package com.bearbones.kumalift
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.Window
@@ -8,16 +9,36 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.bearbones.kumalift.app.App
 import com.bearbones.kumalift.core.timer.AndroidAppProvider
+import com.bearbones.kumalift.domain.model.WorkoutPlanDeepLinkBus
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AndroidAppProvider.appContext = applicationContext
+        handleIncomingPlanIntent(intent)
         window.setBackgroundDrawableResource(android.R.color.black)
         enableEdgeToEdge()
         configureHighRefreshRate(window)
         setContent {
             App()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingPlanIntent(intent)
+    }
+
+    private fun handleIncomingPlanIntent(incoming: Intent?) {
+        val uriData = incoming?.data?.toString()
+        if (!uriData.isNullOrBlank()) {
+            WorkoutPlanDeepLinkBus.submit(uriData)
+            return
+        }
+        val sharedText = incoming?.getStringExtra(Intent.EXTRA_TEXT)
+        if (!sharedText.isNullOrBlank()) {
+            WorkoutPlanDeepLinkBus.submit(sharedText)
         }
     }
 

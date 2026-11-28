@@ -27,6 +27,12 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
+data class ExerciseNoteBackup(
+    val exerciseId: String,
+    val note: String
+)
+
+@Serializable
 data class KumaBackupData(
     val schemaVersion: Int = 1,
     val exportedAtEpochMs: Long = 0L,
@@ -39,7 +45,8 @@ data class KumaBackupData(
     val trainingPrograms: List<TrainingProgram> = emptyList(),
     val scheduledEvents: List<WorkoutScheduleEvent> = emptyList(),
     val mesocycles: List<MesocycleBlock> = emptyList(),
-    val dailyReadiness: List<com.bearbones.kumalift.domain.model.DailyReadinessCheckIn> = emptyList()
+    val dailyReadiness: List<com.bearbones.kumalift.domain.model.DailyReadinessCheckIn> = emptyList(),
+    val exerciseNotes: List<ExerciseNoteBackup> = emptyList()
 )
 
 enum class ImportMode {
@@ -85,6 +92,9 @@ class DataBackupManager(
         val scheduledEvents = databaseRepo.getAllScheduleEvents()
         val mesocycles = databaseRepo.getAllMesocycles()
         val dailyReadiness = databaseRepo.getAllDailyReadiness()
+        val exerciseNotes = databaseRepo.getAllExerciseNotes().entries
+            .sortedBy { it.key }
+            .map { (exerciseId, note) -> ExerciseNoteBackup(exerciseId = exerciseId, note = note) }
         return KumaBackupData(
             schemaVersion = 1,
             exportedAtEpochMs = currentEpochMillis(),
@@ -97,7 +107,8 @@ class DataBackupManager(
             trainingPrograms = trainingPrograms,
             scheduledEvents = scheduledEvents,
             mesocycles = mesocycles,
-            dailyReadiness = dailyReadiness
+            dailyReadiness = dailyReadiness,
+            exerciseNotes = exerciseNotes
         )
     }
 
@@ -337,7 +348,7 @@ class DataBackupManager(
                 val currentSnapshot = exportJson(currentSettings)
                 databaseRepo.runInTransaction {
                     databaseRepo.saveSafetySnapshot(currentSnapshot)
-                    databaseRepo.wipeAllUserData()
+                    databaseRepo.wipeBackupManagedData()
                     backup.trainingPrograms.forEach { databaseRepo.saveTrainingProgram(it) }
                     backup.customExercises.forEach { databaseRepo.saveCustomExercise(it) }
                     backup.customRoutines.forEach { databaseRepo.saveCustomRoutine(it) }
@@ -346,6 +357,7 @@ class DataBackupManager(
                     backup.scheduledEvents.forEach { databaseRepo.insertScheduleEvent(it) }
                     backup.mesocycles.forEach { databaseRepo.insertOrReplaceMesocycle(it) }
                     backup.dailyReadiness.forEach { databaseRepo.insertOrReplaceDailyReadiness(it) }
+                    backup.exerciseNotes.forEach { databaseRepo.saveExercisePinnedNote(it.exerciseId, it.note) }
                     databaseRepo.saveUserSettings(backup.settings)
                 }
                 onSettingsRestored(backup.settings)
@@ -433,6 +445,13 @@ class DataBackupManager(
                     backup.dailyReadiness.forEach { read ->
                         if (read.dateString !in existingReadinessDates) {
                             databaseRepo.insertOrReplaceDailyReadiness(read)
+                        }
+                    }
+
+                    val existingNotes = databaseRepo.getAllExerciseNotes()
+                    backup.exerciseNotes.forEach { entry ->
+                        if (!existingNotes.containsKey(entry.exerciseId) && entry.note.isNotBlank()) {
+                            databaseRepo.saveExercisePinnedNote(entry.exerciseId, entry.note)
                         }
                     }
                 }

@@ -43,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -62,10 +63,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Surface
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.bearbones.kumalift.core.designsystem.KumaBadge
 import com.bearbones.kumalift.core.designsystem.KumaCard
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.KumaSessionBarChart
@@ -81,10 +91,12 @@ import com.bearbones.kumalift.core.media.ProfileAvatarMedia
 import com.bearbones.kumalift.core.media.ProfilePhotoCropDialog
 import com.bearbones.kumalift.core.media.rememberProfileImagePicker
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.ProgressPhotoRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.core.util.NumberFormatUtils
 import com.bearbones.kumalift.core.util.UnitConverters
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
@@ -93,8 +105,12 @@ import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.AthleteSex
 import com.bearbones.kumalift.domain.model.DateFormatPreference
 import com.bearbones.kumalift.domain.model.ExperienceLevel
+import com.bearbones.kumalift.domain.model.FitnessHistoryOrganizer
+import com.bearbones.kumalift.domain.model.MonthlyWorkoutGroup
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.WeightUnit
+import com.bearbones.kumalift.domain.model.Workout
+import com.bearbones.kumalift.features.share.WorkoutShareEditorDialog
 
 enum class AnalyticsMetric {
     DURATION,
@@ -108,10 +124,12 @@ fun MeScreen(
     workoutRepository: WorkoutRepository,
     settingsRepository: SettingsRepository,
     personalRecordRepository: PersonalRecordRepository,
+    progressPhotoRepository: ProgressPhotoRepository? = null,
     onNavigateToSettings: () -> Unit,
     onNavigateToProgress: () -> Unit,
     onNavigateToLibrary: () -> Unit,
     onNavigateToRoutines: () -> Unit,
+    onOpenProgressPhotos: () -> Unit = {},
     onStartWorkout: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
@@ -125,6 +143,11 @@ fun MeScreen(
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showMeasuresDialog by remember { mutableStateOf(false) }
     var showScheduleModal by remember { mutableStateOf(false) }
+    var showAllWorkoutHistoryDialog by remember { mutableStateOf(false) }
+    var workoutToShare by remember { mutableStateOf<Workout?>(null) }
+    val meCoroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val expandedHistoryMonths = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
+    val photoCount = progressPhotoRepository?.photos?.collectAsState()?.value?.size ?: 0
 
     val athleteName = settings.profile.name.ifBlank { s.athleteDefault }
     val athleteUsername = settings.profile.username.ifBlank { s.athleteUsernameDefault }
@@ -574,11 +597,52 @@ fun MeScreen(
                             onClick = { showScheduleModal = true }
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Progress Photos & Share Card Studio (2-column row)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        DashboardCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            icon = Icons.Default.CameraAlt,
+                            title = s.progressPhotosTitle,
+                            subtitle = s.progressPhotosDashboardSubtitle(photoCount),
+                            onClick = onOpenProgressPhotos
+                        )
+
+                        DashboardCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            icon = Icons.Default.Share,
+                            title = s.shareStudioCardTitle,
+                            subtitle = s.shareStudioCardSubtitle,
+                            onClick = {
+                                workoutToShare = completedWorkouts.firstOrNull() ?: Workout(
+                                    id = "preview_session",
+                                    title = s.freestyleWorkoutName,
+                                    startTimeEpochMs = com.bearbones.kumalift.core.util.currentEpochMillis(),
+                                    durationSeconds = 2700L,
+                                    isFinished = true
+                                )
+                            }
+                        )
+                    }
                 }
             }
 
-            // Workouts Section (Recent Completed Workouts or Empty State)
+            // Workouts Section (Monthly Expandable Workout History)
             item {
+                val monthlyGroups = remember(completedWorkouts) {
+                    FitnessHistoryOrganizer.groupWorkoutsByMonth(completedWorkouts)
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -608,13 +672,13 @@ fun MeScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = colors.accentText
                             ),
-                            modifier = Modifier.clickable(onClick = onNavigateToRoutines)
+                            modifier = Modifier.clickable { showAllWorkoutHistoryDialog = true }
                         )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (completedWorkouts.isEmpty()) {
+                    if (monthlyGroups.isEmpty()) {
                         // Empty workouts card matching reference screenshot
                         KumaCard(
                             modifier = Modifier.fillMaxWidth()
@@ -662,34 +726,24 @@ fun MeScreen(
                             }
                         }
                     } else {
-                        // List completed workouts
-                        completedWorkouts.take(5).forEach { workout ->
-                            val durationMin = (workout.durationSeconds / 60).coerceAtLeast(1)
-                            val vol = if (isLb) workout.totalVolumeKg * 2.20462 else workout.totalVolumeKg
-                            val volFormatted = "${NumberFormatUtils.formatIntegerWithSeparators(vol.toLong(), settings.appearance.language)} $unitSuffix"
-
-                            val timeZone = TimeZone.currentSystemDefault()
-                            val workoutDate = Instant.fromEpochMilliseconds(workout.startTimeEpochMs)
-                                .toLocalDateTime(timeZone)
-                                .date
-                            val todayDate = Clock.System.now().toLocalDateTime(timeZone).date
-                            val dateText = if (workoutDate == todayDate) {
-                                s.todayLabel
-                            } else {
-                                val dayOfWeekName = s.dayNamesFull.getOrElse(workoutDate.dayOfWeek.ordinal) { "" }
-                                val monthName = s.monthNamesFull.getOrElse(workoutDate.monthNumber - 1) { "" }
-                                if (workoutDate.year == todayDate.year) {
-                                    "$dayOfWeekName, ${workoutDate.dayOfMonth} $monthName"
-                                } else {
-                                    "$dayOfWeekName, ${workoutDate.dayOfMonth} $monthName ${workoutDate.year}"
-                                }
-                            }
-                            WorkoutSummaryCard(
-                                title = workout.title,
-                                date = dateText,
-                                duration = "$durationMin ${s.minAbbrev}",
-                                volume = volFormatted,
-                                exerciseCount = workout.exercises.size
+                        Text(
+                            text = s.historyMonthCollapsedHint,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = colors.textSecondary,
+                                fontSize = 11.sp
+                            ),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        monthlyGroups.forEach { group ->
+                            val isExpanded = expandedHistoryMonths[group.key] ?: false
+                            MonthlyWorkoutGroupCard(
+                                group = group,
+                                isExpanded = isExpanded,
+                                onToggleExpand = { expandedHistoryMonths[group.key] = !isExpanded },
+                                onShareWorkout = { w -> workoutToShare = w },
+                                isLb = isLb,
+                                unitSuffix = unitSuffix,
+                                language = language
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                         }
@@ -711,6 +765,14 @@ fun MeScreen(
     if (showMeasuresDialog) {
         MeasuresModal(
             settingsRepository = settingsRepository,
+            onSyncWriteMetrics = { parsedW, parsedH ->
+                meCoroutineScope.launch {
+                    com.bearbones.kumalift.core.health.HealthSyncManager.writeBodyMetrics(
+                        bodyweightKg = parsedW,
+                        heightCm = parsedH
+                    )
+                }
+            },
             onDismiss = { showMeasuresDialog = false }
         )
     }
@@ -720,6 +782,232 @@ fun MeScreen(
             settingsRepository = settingsRepository,
             onDismiss = { showScheduleModal = false }
         )
+    }
+
+    if (showAllWorkoutHistoryDialog) {
+        val allGroups = remember(completedWorkouts) {
+            FitnessHistoryOrganizer.groupWorkoutsByMonth(completedWorkouts)
+        }
+        FullMonthlyWorkoutHistoryDialog(
+            groups = allGroups,
+            expandedMonths = expandedHistoryMonths,
+            isLb = isLb,
+            unitSuffix = unitSuffix,
+            language = language,
+            onShareWorkout = { w -> workoutToShare = w },
+            onStartWorkout = {
+                showAllWorkoutHistoryDialog = false
+                onStartWorkout()
+            },
+            onDismiss = { showAllWorkoutHistoryDialog = false }
+        )
+    }
+
+    workoutToShare?.let { targetWorkout ->
+        WorkoutShareEditorDialog(
+            workout = targetWorkout,
+            workoutRepository = workoutRepository,
+            settingsRepository = settingsRepository,
+            personalRecordRepository = personalRecordRepository,
+            allowSessionSwitching = true,
+            onDismiss = { workoutToShare = null }
+        )
+    }
+}
+
+@Composable
+private fun MonthlyWorkoutGroupCard(
+    group: MonthlyWorkoutGroup,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onShareWorkout: (Workout) -> Unit,
+    isLb: Boolean,
+    unitSuffix: String,
+    language: AppLanguage
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+    val monthHeader = FitnessHistoryOrganizer.formatMonthYearHeader(group.year, group.monthNumber, s)
+    val totalMinutes = (group.totalDurationSeconds / 60).toInt()
+    val volVal = if (isLb) group.totalVolumeKg * 2.20462 else group.totalVolumeKg
+    val volText = "${NumberFormatUtils.formatIntegerWithSeparators(volVal.toLong(), language)} $unitSuffix"
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        KumaCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggleExpand),
+            backgroundColor = KumaColors.SurfaceContainerLow,
+            cornerRadius = 16.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = monthHeader,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                    )
+                    Text(
+                        text = s.monthlyWorkoutCountSummary(group.workouts.size, totalMinutes, volText),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = colors.textSecondary
+                        )
+                    )
+                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) s.collapseMonthActionDesc else s.expandMonthActionDesc,
+                    tint = colors.accentText,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                group.workouts.forEach { workout ->
+                    val durationMin = (workout.durationSeconds / 60).coerceAtLeast(1)
+                    val wVol = if (isLb) workout.totalVolumeKg * 2.20462 else workout.totalVolumeKg
+                    val wVolFormatted = "${NumberFormatUtils.formatIntegerWithSeparators(wVol.toLong(), language)} $unitSuffix"
+                    val fullDateText = FitnessHistoryOrganizer.formatFullDateWithYear(
+                        epochMs = workout.startTimeEpochMs,
+                        fallback = s.todayLabel,
+                        s = s,
+                        includeDayOfWeek = true
+                    )
+                    WorkoutSummaryCard(
+                        title = workout.title,
+                        date = fullDateText,
+                        duration = "$durationMin ${s.minAbbrev}",
+                        volume = wVolFormatted,
+                        exerciseCount = workout.exercises.size,
+                        onShareClick = { onShareWorkout(workout) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullMonthlyWorkoutHistoryDialog(
+    groups: List<MonthlyWorkoutGroup>,
+    expandedMonths: MutableMap<String, Boolean>,
+    isLb: Boolean,
+    unitSuffix: String,
+    language: AppLanguage,
+    onShareWorkout: (Workout) -> Unit,
+    onStartWorkout: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val s = LocalStrings.current
+    val colors = LocalKumaColors.current
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 28.dp),
+            shape = RoundedCornerShape(22.dp),
+            color = KumaColors.SurfaceDim,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = s.workoutHistoryFullTitle,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.textPrimary
+                        )
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = s.close,
+                            tint = colors.textSecondary
+                        )
+                    }
+                }
+
+                if (groups.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = s.noWorkoutsCompletedYet,
+                            style = MaterialTheme.typography.bodyMedium.copy(color = colors.textSecondary)
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Button(
+                            onClick = onStartWorkout,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.accentFill,
+                                contentColor = colors.onAccentFill
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(s.startWorkoutButton, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Text(
+                        text = s.historyMonthCollapsedHint,
+                        style = MaterialTheme.typography.labelSmall.copy(color = colors.textSecondary)
+                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(groups, key = { it.key }) { group ->
+                            val isExpanded = expandedMonths[group.key] ?: false
+                            MonthlyWorkoutGroupCard(
+                                group = group,
+                                isExpanded = isExpanded,
+                                onToggleExpand = { expandedMonths[group.key] = !isExpanded },
+                                onShareWorkout = onShareWorkout,
+                                isLb = isLb,
+                                unitSuffix = unitSuffix,
+                                language = language
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -856,8 +1144,10 @@ private fun WorkoutSummaryCard(
     date: String,
     duration: String,
     volume: String,
-    exerciseCount: Int
+    exerciseCount: Int,
+    onShareClick: (() -> Unit)? = null
 ) {
+    val s = LocalStrings.current
     val colors = LocalKumaColors.current
     KumaCard(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -888,6 +1178,19 @@ private fun WorkoutSummaryCard(
                         color = colors.textSecondary
                     )
                 )
+                if (onShareClick != null) {
+                    IconButton(
+                        onClick = onShareClick,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = s.shareWorkoutCardAction,
+                            tint = colors.accentText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1197,12 +1500,16 @@ private fun ProfileField(
 @Composable
 private fun MeasuresModal(
     settingsRepository: SettingsRepository,
+    onSyncWriteMetrics: (Double?, Double?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val settings by settingsRepository.settings.collectAsState()
     val colors = LocalKumaColors.current
     val s = LocalStrings.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val healthSyncController = com.bearbones.kumalift.features.settings.rememberHealthBodyMetricsSyncController(
+        settingsRepository = settingsRepository
+    )
 
     var weightInput by remember(settings.profile.bodyweightKg, settings.units.weightUnit) {
         mutableStateOf(
@@ -1238,13 +1545,42 @@ private fun MeasuresModal(
                 )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val hcStatus = com.bearbones.kumalift.core.health.HealthSyncManager.getStatus()
+            if (hcStatus != com.bearbones.kumalift.domain.model.HealthSyncStatus.UNAVAILABLE) {
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { healthSyncController.syncNow() },
+                    enabled = !healthSyncController.isSyncing,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = s.healthSyncFromHealthConnectAction,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.accentText
+                    )
+                }
+                healthSyncController.statusMessage?.let { msg ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodySmall.copy(color = colors.accentText)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            } else {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
             val weightUnitStr = if (settings.units.weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
             ProfileField(
                 label = "${s.bodyWeightMeasureLabel} ($weightUnitStr)",
                 value = weightInput,
-                onValueChange = { weightInput = it },
+                onValueChange = {
+                    weightInput = it
+                    hasValidationError = false
+                },
                 placeholder = "0.0"
             )
 
@@ -1290,6 +1626,7 @@ private fun MeasuresModal(
                     if ((trimmedW.isNotEmpty() && parsedW == null) || (trimmedH.isNotEmpty() && parsedH == null)) {
                         hasValidationError = true
                     } else {
+                        val currentHealth = settings.health
                         settingsRepository.update { current ->
                             current.copy(
                                 profile = current.profile.copy(
@@ -1297,6 +1634,9 @@ private fun MeasuresModal(
                                     heightCm = parsedH
                                 )
                             )
+                        }
+                        if (currentHealth.healthEnabled && (currentHealth.syncBodyMetrics || currentHealth.writeBodyWeight)) {
+                            onSyncWriteMetrics(parsedW, parsedH)
                         }
                         onDismiss()
                     }

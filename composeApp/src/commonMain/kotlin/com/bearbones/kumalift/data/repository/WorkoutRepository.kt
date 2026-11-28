@@ -43,13 +43,23 @@ class ExerciseRepository(
     private val onSaveCustom: ((List<Exercise>) -> Unit)? = null
 ) {
     private val baseExercises = initialExercises.filterNot { it.id.startsWith("custom_") }
-    private val _exercises = MutableStateFlow(initialExercises)
+    private val _exercises = MutableStateFlow(applyPersistedNotes(initialExercises))
     val exercises: StateFlow<List<Exercise>> = _exercises.asStateFlow()
+
+    private fun applyPersistedNotes(list: List<Exercise>): List<Exercise> {
+        val db = databaseRepo ?: return list
+        val notes = db.getAllExerciseNotes()
+        if (notes.isEmpty()) return list
+        return list.map { ex ->
+            val saved = notes[ex.id]
+            if (saved != null) ex.copy(pinnedNote = saved) else ex
+        }
+    }
 
     fun reloadFromDatabase() {
         val db = databaseRepo ?: return
         val custom = db.getAllCustomExercises()
-        _exercises.value = custom + baseExercises
+        _exercises.value = applyPersistedNotes(custom + baseExercises)
     }
 
     fun getExerciseById(id: String): Exercise? {
@@ -106,6 +116,12 @@ class ExerciseRepository(
             list.map { ex ->
                 if (ex.id == exerciseId) ex.copy(pinnedNote = note) else ex
             }
+        }
+        databaseRepo?.saveExercisePinnedNote(exerciseId, note)
+        val updated = _exercises.value.find { it.id == exerciseId }
+        if (updated != null && updated.id.startsWith("custom_")) {
+            databaseRepo?.saveCustomExercise(updated)
+            onSaveCustom?.invoke(_exercises.value.filter { it.id.startsWith("custom_") })
         }
     }
 }
@@ -567,6 +583,9 @@ class WorkoutRepository(
         prefillSource: PrefillSource = PrefillSource.LAST_SESSION,
         scheduledEventId: String? = null
     ) {
+        if (_activeWorkout.value != null) {
+            cancelWorkout()
+        }
         val now = currentEpochMillis()
         val isDeload = mesocycleRepository?.isDeloadActive() == true
         val configs = routine.effectiveConfigs
@@ -633,6 +652,9 @@ class WorkoutRepository(
     }
 
     fun startEmptyWorkout(title: String = "Freestyle Workout") {
+        if (_activeWorkout.value != null) {
+            cancelWorkout()
+        }
         val now = currentEpochMillis()
         val newWorkout = Workout(
             id = IdGenerator.workoutId("freestyle"),
@@ -660,6 +682,9 @@ class WorkoutRepository(
         var isNowCompleted = false
 
         _activeWorkout.update { currentWorkout ->
+            completedSet = null
+            exerciseForPr = null
+            isNowCompleted = false
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
@@ -687,7 +712,7 @@ class WorkoutRepository(
         }
 
         // T5: Side effects run strictly outside update lambda
-        val updatedWorkout = _activeWorkout.value
+        val updatedWorkout = _activeWorkout.value ?: return
         databaseRepo?.saveActiveWorkout(updatedWorkout)
 
         if (isNowCompleted && exerciseForPr != null && completedSet != null) {
@@ -757,6 +782,8 @@ class WorkoutRepository(
         var touchedExerciseId: String? = null
         var touchedCompletedSet = false
         _activeWorkout.update { currentWorkout ->
+            touchedExerciseId = null
+            touchedCompletedSet = false
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
@@ -776,16 +803,19 @@ class WorkoutRepository(
             }
             currentWorkout.copy(exercises = updatedExercises)
         }
+        val active = _activeWorkout.value ?: return
         if (touchedCompletedSet && touchedExerciseId != null) {
             syncActiveExercisePrs(touchedExerciseId!!)
         }
-        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value ?: active)
     }
 
     fun updateSetType(exerciseId: String, setId: String, setType: SetType) {
         var touchedExerciseId: String? = null
         var touchedCompletedSet = false
         _activeWorkout.update { currentWorkout ->
+            touchedExerciseId = null
+            touchedCompletedSet = false
             if (currentWorkout == null) return@update null
             val hasDirectMatch = currentWorkout.exercises.any { it.id == exerciseId }
             val updatedExercises = currentWorkout.exercises.map { we ->
@@ -805,10 +835,11 @@ class WorkoutRepository(
             }
             currentWorkout.copy(exercises = updatedExercises)
         }
+        val active = _activeWorkout.value ?: return
         if (touchedCompletedSet && touchedExerciseId != null) {
             syncActiveExercisePrs(touchedExerciseId!!)
         }
-        databaseRepo?.saveActiveWorkout(_activeWorkout.value)
+        databaseRepo?.saveActiveWorkout(_activeWorkout.value ?: active)
     }
 
     fun updateSetRpe(exerciseId: String, setId: String, rpe: Double?) {
@@ -1169,28 +1200,34 @@ class WorkoutRepository(
     }
 
     fun pauseWorkout() {
-        val current = _activeWorkout.value ?: return
-        if (current.isPaused) return
+        var changed: Workout? = null
         val now = currentEpochMillis()
-        val updated = current.copy(isPaused = true, pausedAtEpochMs = now)
-        _activeWorkout.value = updated
+        _activeWorkout.update { current ->
+            changed = null
+            if (current == null || current.isPaused) return@update current
+            current.copy(isPaused = true, pausedAtEpochMs = now).also { changed = it }
+        }
+        val updated = changed ?: return
         databaseRepo?.saveActiveWorkout(updated)
-        KumaLogger.i("WorkoutRepository", "Paused workout '${current.title}' (${current.id})")
+        KumaLogger.i("WorkoutRepository", "Paused workout '${updated.title}' (${updated.id})")
     }
 
     fun resumeWorkout() {
-        val current = _activeWorkout.value ?: return
-        if (!current.isPaused) return
+        var changed: Workout? = null
         val now = currentEpochMillis()
-        val pausedDuration = if (current.pausedAtEpochMs != null) now - current.pausedAtEpochMs else 0L
-        val updated = current.copy(
-            isPaused = false,
-            pausedAtEpochMs = null,
-            totalPausedDurationMs = current.totalPausedDurationMs + maxOf(0L, pausedDuration)
-        )
-        _activeWorkout.value = updated
+        _activeWorkout.update { current ->
+            changed = null
+            if (current == null || !current.isPaused) return@update current
+            val pausedDuration = if (current.pausedAtEpochMs != null) now - current.pausedAtEpochMs else 0L
+            current.copy(
+                isPaused = false,
+                pausedAtEpochMs = null,
+                totalPausedDurationMs = current.totalPausedDurationMs + maxOf(0L, pausedDuration)
+            ).also { changed = it }
+        }
+        val updated = changed ?: return
         databaseRepo?.saveActiveWorkout(updated)
-        KumaLogger.i("WorkoutRepository", "Resumed workout '${current.title}' (${current.id})")
+        KumaLogger.i("WorkoutRepository", "Resumed workout '${updated.title}' (${updated.id})")
     }
 
     fun finishWorkout(
@@ -1213,6 +1250,14 @@ class WorkoutRepository(
             maxOf(1L, (finalNow - current.startTimeEpochMs - current.totalPausedDurationMs) / 1000L)
         } else current.durationSeconds
 
+        val setHrs = current.exercises
+            .flatMap { it.sets }
+            .filter { it.isCompleted }
+            .mapNotNull { it.heartRateBpm }
+            .filter { it > 0 }
+        val resolvedAvgHr = avgHeartRateBpm ?: setHrs.takeIf { it.isNotEmpty() }?.average()?.roundToInt()
+        val resolvedPeakHr = peakHeartRateBpm ?: setHrs.maxOrNull()
+
         val finished = current.copy(
             isFinished = true,
             isPaused = false,
@@ -1220,8 +1265,8 @@ class WorkoutRepository(
             sessionRpe = sessionRpe,
             endTimeEpochMs = now,
             durationSeconds = durationSec,
-            avgHeartRateBpm = avgHeartRateBpm,
-            peakHeartRateBpm = peakHeartRateBpm,
+            avgHeartRateBpm = resolvedAvgHr,
+            peakHeartRateBpm = resolvedPeakHr,
             activeCaloriesKcal = activeCaloriesKcal
         )
 

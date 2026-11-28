@@ -1,6 +1,7 @@
 package com.bearbones.kumalift.domain.ai
 
 import com.bearbones.kumalift.core.localization.AppStrings
+import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.util.IdGenerator
 import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.data.local.KumaDatabaseRepository
@@ -8,14 +9,17 @@ import com.bearbones.kumalift.data.repository.DailyReadinessRepository
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.MesocycleRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.ProgressPhotoRepository
 import com.bearbones.kumalift.data.repository.RoutineRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
 import com.bearbones.kumalift.data.repository.TrainingProgramRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.data.repository.WorkoutScheduleRepository
+import com.bearbones.kumalift.domain.model.DailyReadinessCheckIn
 import com.bearbones.kumalift.domain.model.Equipment
 import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MuscleGroup
+import com.bearbones.kumalift.domain.model.ExperienceLevel
 import com.bearbones.kumalift.domain.model.MuscleRecoveryTracker
 import com.bearbones.kumalift.domain.model.MuscleVolumeCalculator
 import com.bearbones.kumalift.domain.model.RoutineBlueprint
@@ -49,7 +53,6 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -134,9 +137,43 @@ private data class StageTextPayload(
     val text: String
 )
 
+@Serializable
+private data class StageCreateProgramPayload(
+    val name: String,
+    val description: String = "",
+    val category: TrainingGoal = TrainingGoal.HYPERTROPHY,
+    val activeDays: List<Int> = listOf(1, 3, 5),
+    val setActive: Boolean = true
+)
+
+@Serializable
+private data class StageCreateExercisePayload(
+    val name: String,
+    val primaryMuscle: MuscleGroup,
+    val equipment: Equipment = Equipment.BARBELL,
+    val secondaryMuscles: List<MuscleGroup> = emptyList()
+)
+
+@Serializable
+private data class StageSaveExerciseNotePayload(
+    val exerciseId: String,
+    val note: String
+)
+
+@Serializable
+private data class StageLogReadinessPayload(
+    val sleep: Int,
+    val soreness: Int,
+    val energy: Int,
+    val stress: Int,
+    val notes: String = ""
+)
+
 class KumaAiToolSessionState {
     val stagedOperations = mutableListOf<AiProposedOperation>()
     var nutritionCard: AiNutritionCardData? = null
+    val assistantImages = mutableListOf<String>()
+    val webSourceLinks = mutableListOf<AiWebSource>()
 }
 
 internal data class AiTodayContext(
@@ -181,7 +218,8 @@ class KumaAiToolExecutor(
     private val databaseRepo: KumaDatabaseRepository? = null,
     private val nowProvider: () -> LocalDateTime = {
         Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-    }
+    },
+    private val progressPhotoRepository: ProgressPhotoRepository? = null
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -401,6 +439,103 @@ class KumaAiToolExecutor(
                 putJsonObject("limit") { put("type", "INTEGER"); put("description", "Max messages to return (default 8)") }
             }
         ))
+
+        add(fnDecl(
+            name = "show_exercise_visuals",
+            toolDoc = "Attach exercise form/movement illustrations from KumaLift Exercise Library directly into your reply bubble. Always call search_exercises first to get exact exerciseId values.",
+            props = {
+                putJsonObject("exerciseIds") {
+                    put("type", "ARRAY")
+                    putJsonObject("items") { put("type", "STRING") }
+                    put("description", "Up to 6 exerciseId strings to display visually")
+                }
+            },
+            required = listOf("exerciseIds")
+        ))
+
+        add(fnDecl(
+            name = "get_progress_photos",
+            toolDoc = "Read the user's saved private progress photos & body check-ins, and optionally attach them into your reply for visual feedback or comparison.",
+            props = {
+                putJsonObject("limit") { put("type", "INTEGER"); put("description", "Max records to read (default 4, max 8)") }
+                putJsonObject("attachImages") { put("type", "BOOLEAN"); put("description", "Set true when user asks to view/show/compare their photos (default false)") }
+            }
+        ))
+
+        add(fnDecl(
+            name = "generate_image",
+            toolDoc = "Generate a custom image or illustration using Gemini when the user asks to create, draw, visualize, or generate an image.",
+            props = {
+                putJsonObject("prompt") { put("type", "STRING"); put("description", "Detailed visual description in English for generating the image") }
+            },
+            required = listOf("prompt")
+        ))
+
+        add(fnDecl(
+            name = "stage_create_program",
+            toolDoc = "Stage creating a new training program (and optionally switching to it as active) for user approval.",
+            props = {
+                putJsonObject("name") { put("type", "STRING") }
+                putJsonObject("description") { put("type", "STRING") }
+                putJsonObject("category") { put("type", "STRING"); put("description", "HYPERTROPHY, STRENGTH, ENDURANCE, FAT_LOSS, or GENERAL") }
+                putJsonObject("activeDays") { put("type", "ARRAY"); putJsonObject("items") { put("type", "INTEGER") } }
+                putJsonObject("setActive") { put("type", "BOOLEAN"); put("description", "Default true: switch active program so staged routines belong to it") }
+            },
+            required = listOf("name")
+        ))
+
+        add(fnDecl(
+            name = "stage_create_exercise",
+            toolDoc = "Stage creating a new custom exercise in KumaLift Exercise Library when no matching movement exists.",
+            props = {
+                putJsonObject("name") { put("type", "STRING") }
+                putJsonObject("primaryMuscle") { put("type", "STRING"); put("description", "CHEST, BACK, SHOULDERS, ARMS, LEGS, CORE, CARDIO, or FULL_BODY") }
+                putJsonObject("equipment") { put("type", "STRING"); put("description", "BARBELL, DUMBBELL, CABLE, MACHINE, BODYWEIGHT, KETTLEBELL, BAND, or OTHER") }
+                putJsonObject("secondaryMuscles") { put("type", "ARRAY"); putJsonObject("items") { put("type", "STRING") } }
+            },
+            required = listOf("name", "primaryMuscle")
+        ))
+
+        add(fnDecl(
+            name = "stage_save_exercise_note",
+            toolDoc = "Stage saving a persistent pinned coaching/technique note on an existing exercise.",
+            props = {
+                putJsonObject("exerciseId") { put("type", "STRING") }
+                putJsonObject("note") { put("type", "STRING") }
+            },
+            required = listOf("exerciseId", "note")
+        ))
+
+        add(fnDecl(
+            name = "stage_log_readiness",
+            toolDoc = "Stage logging today's daily readiness check-in (sleep, soreness, energy, stress from 1..5).",
+            props = {
+                putJsonObject("sleep") { put("type", "INTEGER"); put("description", "1 (poor) to 5 (great)") }
+                putJsonObject("soreness") { put("type", "INTEGER"); put("description", "1 (very sore) to 5 (fresh)") }
+                putJsonObject("energy") { put("type", "INTEGER"); put("description", "1 (exhausted) to 5 (energized)") }
+                putJsonObject("stress") { put("type", "INTEGER"); put("description", "1 (high stress) to 5 (relaxed)") }
+                putJsonObject("notes") { put("type", "STRING") }
+            },
+            required = listOf("sleep", "soreness", "energy", "stress")
+        ))
+
+        add(fnDecl(
+            name = "search_web_live",
+            toolDoc = "Search the live internet via Google Search for up-to-date facts, scientific studies, nutrition info, guides, products, or clickable web URLs.",
+            props = {
+                putJsonObject("query") { put("type", "STRING"); put("description", "Concise search query") }
+            },
+            required = listOf("query")
+        ))
+
+        add(fnDecl(
+            name = "fetch_web_page",
+            toolDoc = "Fetch and read readable text content from a specific https:// or http:// web page URL.",
+            props = {
+                putJsonObject("url") { put("type", "STRING"); put("description", "Full https:// or http:// URL to read") }
+            },
+            required = listOf("url")
+        ))
     }
 
     fun stepLabelForCall(name: String, strings: AppStrings): String = when (name) {
@@ -410,6 +545,11 @@ class KumaAiToolExecutor(
         "search_exercises" -> strings.aiStepReadingExercises
         "search_chat_history" -> strings.aiStepSearchingHistory
         "present_nutrition_analysis" -> strings.aiStepPreparingNutrition
+        "show_exercise_visuals" -> strings.aiStepLoadingVisuals
+        "get_progress_photos" -> strings.aiStepReadingProgressPhotos
+        "generate_image" -> strings.aiStepGeneratingImage
+        "search_web_live" -> strings.aiStepSearchingWeb
+        "fetch_web_page" -> strings.aiStepReadingWebPage
         else -> strings.aiStepStagingDraft
     }
 
@@ -428,10 +568,16 @@ class KumaAiToolExecutor(
             "get_muscle_recovery_and_volume" -> handleGetMuscleRecoveryAndVolume()
             "get_active_workout" -> handleGetActiveWorkout()
             "search_chat_history" -> handleSearchChatHistory(call.args, strings)
+            "show_exercise_visuals" -> handleShowExerciseVisuals(call.args, session)
+            "get_progress_photos" -> handleGetProgressPhotos(call.args, session)
             "present_nutrition_analysis" -> handlePresentNutritionAnalysis(call.args, session)
             "stage_create_routine" -> handleStageCreateRoutine(call.args, session, strings)
             "stage_update_routine" -> handleStageUpdateRoutine(call.args, session, strings)
             "stage_delete_routine" -> handleStageDeleteRoutine(call.args, session, strings)
+            "stage_create_program" -> handleStageCreateProgram(call.args, session, strings)
+            "stage_create_exercise" -> handleStageCreateExercise(call.args, session)
+            "stage_save_exercise_note" -> handleStageSaveExerciseNote(call.args, session, strings)
+            "stage_log_readiness" -> handleStageLogReadiness(call.args, session, strings)
             "stage_schedule_workout" -> handleStageScheduleWorkout(call.args, session, strings)
             "stage_cancel_or_delete_schedule" -> handleStageCancelOrDeleteSchedule(call.args, session, strings)
             "stage_start_mesocycle" -> handleStageStartMesocycle(call.args, session, strings)
@@ -1035,6 +1181,71 @@ class KumaAiToolExecutor(
         }
     }
 
+    private fun handleShowExerciseVisuals(args: JsonObject, session: KumaAiToolSessionState): JsonElement {
+        val rawIds = (args["exerciseIds"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.takeIf { id -> id.isNotBlank() } }
+            ?.distinct()
+            ?.take(6)
+            .orEmpty()
+        if (rawIds.isEmpty()) return errorJson("exerciseIds must be a non-empty array")
+
+        val attachedNames = mutableListOf<String>()
+        val missingIds = mutableListOf<String>()
+        rawIds.forEach { id ->
+            val ex = exerciseRepository.getExerciseById(id)
+            val assetRel = ex?.thumbnailUrl?.trim()?.takeIf { it.isNotBlank() }
+                ?: ex?.gifUrl?.trim()?.takeIf { it.endsWith(".gif", ignoreCase = true) }
+            if (ex != null && assetRel != null) {
+                val uri = "file:///android_asset/${assetRel.removePrefix("/")}"
+                if (!session.assistantImages.contains(uri)) {
+                    session.assistantImages.add(uri)
+                }
+                attachedNames.add(ex.name)
+            } else {
+                missingIds.add(id)
+            }
+        }
+        return buildJsonObject {
+            put("attachedCount", attachedNames.size)
+            putJsonArray("attachedExercises") { attachedNames.forEach { add(JsonPrimitive(it)) } }
+            if (missingIds.isNotEmpty()) {
+                putJsonArray("missingIds") { missingIds.forEach { add(JsonPrimitive(it)) } }
+            }
+        }
+    }
+
+    private fun handleGetProgressPhotos(args: JsonObject, session: KumaAiToolSessionState): JsonElement {
+        val repo = progressPhotoRepository ?: return errorJson("Progress photos repository unavailable")
+        val limit = (args.intVal("limit") ?: 4).coerceIn(1, 8)
+        val attachImages = (args["attachImages"] as? JsonPrimitive)?.booleanOrNull == true
+        val photos = repo.photos.value
+            .sortedByDescending { it.capturedDateEpochMs }
+            .take(limit)
+        val tz = TimeZone.currentSystemDefault()
+        return buildJsonObject {
+            put("count", photos.size)
+            putJsonArray("photos") {
+                photos.forEachIndexed { idx, photo ->
+                    val dateStr = Instant.fromEpochMilliseconds(photo.capturedDateEpochMs)
+                        .toLocalDateTime(tz).date.toString()
+                    val shouldAttach = attachImages && idx < 4 && photo.imagePath.isNotBlank()
+                    if (shouldAttach && !session.assistantImages.contains(photo.imagePath)) {
+                        session.assistantImages.add(photo.imagePath)
+                    }
+                    add(buildJsonObject {
+                        put("date", dateStr)
+                        photo.bodyweightKg?.let { put("bodyweightKg", it) }
+                        photo.waistCm?.let { put("waistCm", it) }
+                        photo.chestCm?.let { put("chestCm", it) }
+                        photo.armsCm?.let { put("armsCm", it) }
+                        if (photo.note.isNotBlank()) put("note", photo.note.take(120))
+                        put("attached", shouldAttach)
+                    })
+                }
+            }
+        }
+    }
+
     private fun handlePresentNutritionAnalysis(args: JsonObject, session: KumaAiToolSessionState): JsonElement {
         val foodName = args.str("foodName")?.takeIf { it.isNotBlank() } ?: return errorJson("Missing foodName")
         val card = AiNutritionCardData(
@@ -1078,7 +1289,8 @@ class KumaAiToolExecutor(
             operationKind = AiOperationKind.ADD,
             title = "${strings.createRoutineTitle}: $title",
             subtitle = strings.routineSubtitle(exList.size, duration),
-            payloadJson = json.encodeToString(payload)
+            payloadJson = json.encodeToString(payload),
+            previewDetail = buildCreateRoutinePreview(payload)
         )
         session.stagedOperations.add(op)
         return buildJsonObject {
@@ -1111,7 +1323,9 @@ class KumaAiToolExecutor(
             scheduledDays = args["scheduledDays"]?.let { parseIntList(it).filter { d -> d in 1..7 }.distinct() },
             exercises = exercises
         )
-        val targetTitle = payload.title ?: existing.title
+        val beforeTitle = existing.localizedTitle(strings)
+        val targetTitle = payload.title ?: beforeTitle
+        val preview = buildUpdateRoutinePreview(existing, payload, beforeTitle, targetTitle)
         val countInfo = exercises?.let { strings.exerciseCountLabel(it.size) } ?: strings.editRoutineTitle
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
@@ -1119,7 +1333,8 @@ class KumaAiToolExecutor(
             operationKind = AiOperationKind.UPDATE,
             title = "${strings.editRoutineTitle}: $targetTitle",
             subtitle = countInfo,
-            payloadJson = json.encodeToString(payload)
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1132,13 +1347,23 @@ class KumaAiToolExecutor(
     ): JsonElement {
         val routineId = args.str("routineId") ?: return errorJson("Missing routineId")
         val existing = routineRepository.getRoutineById(routineId) ?: return errorJson("Routine not found: $routineId")
+        val existingTitle = existing.localizedTitle(strings)
+        val beforeItems = existing.effectiveConfigs.map { it.toPreviewItem() }
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.DELETE_ROUTINE,
             operationKind = AiOperationKind.DELETE,
-            title = "${strings.deleteRoutineContentDesc}: ${existing.title}",
+            title = "${strings.deleteRoutineContentDesc}: $existingTitle",
             subtitle = strings.exerciseCountLabel(existing.effectiveConfigs.size),
-            payloadJson = json.encodeToString(StageIdPayload(routineId))
+            payloadJson = json.encodeToString(StageIdPayload(routineId)),
+            previewDetail = AiOperationPreviewDetail(
+                routineId = routineId,
+                beforeRoutineName = existingTitle,
+                beforeSplitCategory = existing.splitCategory,
+                beforeDurationMinutes = existing.estimatedDurationMinutes,
+                beforeScheduledDays = existing.scheduledDays,
+                exerciseDiffs = beforeItems.map { AiExerciseDiffEntry(AiExerciseDiffStatus.REMOVED, before = it) }
+            )
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1161,7 +1386,7 @@ class KumaAiToolExecutor(
         val stagedRoutineTitle = matchedStagedCreate?.let {
             try { json.decodeFromString<StageCreateRoutinePayload>(it.payloadJson).title } catch (_: Exception) { null }
         }
-        val titleSnapshot = existingRoutine?.title ?: stagedRoutineTitle
+        val titleSnapshot = existingRoutine?.localizedTitle(strings) ?: stagedRoutineTitle
             ?: return errorJson("Routine not found: $routineId. Create or query a routine first.")
 
         val payload = StageScheduleWorkoutPayload(
@@ -1169,13 +1394,25 @@ class KumaAiToolExecutor(
             scheduledDate = parsedDate.toString(),
             notes = args.str("notes")
         )
+        val preview = AiOperationPreviewDetail(
+            routineId = routineId,
+            routineName = titleSnapshot,
+            fieldChanges = buildList {
+                add(AiFieldChangePreview("routine_name", afterValue = titleSnapshot))
+                add(AiFieldChangePreview("schedule_date", afterValue = parsedDate.toString()))
+                payload.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                    add(AiFieldChangePreview("notes", afterValue = note))
+                }
+            }
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.SCHEDULE_WORKOUT,
             operationKind = AiOperationKind.ADD,
             title = "${strings.scheduleRoutineTitle}: $parsedDate",
             subtitle = titleSnapshot,
-            payloadJson = json.encodeToString(payload)
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1189,14 +1426,27 @@ class KumaAiToolExecutor(
         val eventId = args.str("eventId") ?: return errorJson("Missing eventId")
         val event = workoutScheduleRepository.events.value.find { it.id == eventId }
             ?: return errorJson("Schedule event not found: $eventId")
-        val deletePerm = args["deletePermanently"]?.jsonPrimitive?.booleanOrNull == true
+        val deletePerm = (args["deletePermanently"] as? JsonPrimitive)?.booleanOrNull == true
+        val preview = AiOperationPreviewDetail(
+            routineName = event.routineTitleSnapshot,
+            fieldChanges = listOf(
+                AiFieldChangePreview("routine_name", afterValue = event.routineTitleSnapshot),
+                AiFieldChangePreview("schedule_date", afterValue = event.scheduledDate),
+                AiFieldChangePreview(
+                    fieldKey = "event_status",
+                    beforeValue = event.status.name,
+                    afterValue = if (deletePerm) "DELETED" else "CANCELLED"
+                )
+            )
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = if (deletePerm) AiActionType.DELETE_SCHEDULE else AiActionType.CANCEL_SCHEDULE,
             operationKind = if (deletePerm) AiOperationKind.DELETE else AiOperationKind.UPDATE,
             title = "${if (deletePerm) strings.deleteSchedule else strings.cancelSchedule}: ${event.scheduledDate}",
             subtitle = event.routineTitleSnapshot,
-            payloadJson = json.encodeToString(StageCancelOrDeleteSchedulePayload(eventId, deletePerm))
+            payloadJson = json.encodeToString(StageCancelOrDeleteSchedulePayload(eventId, deletePerm)),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1216,13 +1466,37 @@ class KumaAiToolExecutor(
             deloadWeek = deload,
             notes = args.str("notes").orEmpty()
         )
+        val beforeMeso = mesocycleRepository.activeMesocycle.value
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = buildList {
+                add(AiFieldChangePreview("routine_name", beforeValue = beforeMeso?.name, afterValue = name))
+                add(
+                    AiFieldChangePreview(
+                        fieldKey = "weeks",
+                        beforeValue = beforeMeso?.totalWeeks?.toString(),
+                        afterValue = weeks.toString()
+                    )
+                )
+                add(
+                    AiFieldChangePreview(
+                        fieldKey = "deload_week",
+                        beforeValue = beforeMeso?.deloadWeek?.toString(),
+                        afterValue = deload.toString()
+                    )
+                )
+                if (payload.notes.isNotBlank()) {
+                    add(AiFieldChangePreview("notes", afterValue = payload.notes))
+                }
+            }
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.START_MESOCYCLE,
             operationKind = AiOperationKind.ADD,
             title = name,
             subtitle = "${strings.mesocycleWeekShort(weeks)} · ${strings.phaseDeload}: ${strings.mesocycleWeekShort(deload)}",
-            payloadJson = json.encodeToString(payload)
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1233,16 +1507,29 @@ class KumaAiToolExecutor(
         session: KumaAiToolSessionState,
         strings: AppStrings
     ): JsonElement {
-        val weightKg = args["weightKg"]?.jsonPrimitive?.doubleOrNull
+        val weightKg = args.doubleVal("weightKg")
             ?: return errorJson("Missing weightKg")
         if (weightKg !in 20.0..400.0) return errorJson("weightKg out of realistic range (20..400)")
+        val beforeWeight = settingsRepository.settings.value.profile.bodyweightKg
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = listOf(
+                AiFieldChangePreview(
+                    fieldKey = "bodyweight",
+                    beforeValue = beforeWeight?.let { "$it kg" },
+                    afterValue = "$weightKg kg",
+                    beforeWeightKg = beforeWeight,
+                    afterWeightKg = weightKg
+                )
+            )
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.LOG_BODYWEIGHT,
             operationKind = AiOperationKind.UPDATE,
             title = "${strings.bodyWeightMeasureLabel}: $weightKg ${strings.unitKg}",
             subtitle = strings.profileTitle,
-            payloadJson = json.encodeToString(StageLogBodyweightPayload(weightKg))
+            payloadJson = json.encodeToString(StageLogBodyweightPayload(weightKg)),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1256,13 +1543,24 @@ class KumaAiToolExecutor(
         val goalRaw = args.str("goal") ?: return errorJson("Missing goal")
         val goal = TrainingGoal.entries.firstOrNull { it.name.equals(goalRaw, ignoreCase = true) }
             ?: return errorJson("Invalid goal '$goalRaw'. Allowed: HYPERTROPHY, STRENGTH, ENDURANCE, FAT_LOSS, GENERAL")
+        val beforeGoal = settingsRepository.settings.value.profile.goal
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = listOf(
+                AiFieldChangePreview(
+                    fieldKey = "goal",
+                    beforeValue = beforeGoal.name,
+                    afterValue = goal.name
+                )
+            )
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.UPDATE_TRAINING_GOAL,
             operationKind = AiOperationKind.UPDATE,
-            title = "${strings.trainingGoalTitle}: ${goal.name}",
+            title = "${strings.trainingGoalTitle}: ${goal.label(strings)}",
             subtitle = strings.profileTitle,
-            payloadJson = json.encodeToString(StageUpdateGoalPayload(goal))
+            payloadJson = json.encodeToString(StageUpdateGoalPayload(goal)),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1278,13 +1576,34 @@ class KumaAiToolExecutor(
         val exerciseId = args.str("exerciseId") ?: return errorJson("Missing exerciseId")
         val exercise = exerciseRepository.getExerciseById(exerciseId)
             ?: return errorJson("Unknown exerciseId: $exerciseId")
+        val defaultSets = settingsRepository.settings.value.logging.defaultSetCount.coerceIn(1, 10)
+        val item = AiExercisePreviewItem(
+            exerciseId = exercise.id,
+            name = exercise.name,
+            primaryMuscleCode = exercise.primaryMuscle.name,
+            equipmentCode = exercise.equipment.name,
+            sets = defaultSets,
+            reps = 10,
+            restSeconds = settingsRepository.settings.value.logging.restTimerDefaultSec
+        )
+        val preview = AiOperationPreviewDetail(
+            routineName = workoutRepository.activeWorkout.value?.title.orEmpty(),
+            exerciseDiffs = listOf(AiExerciseDiffEntry(AiExerciseDiffStatus.ADDED, after = item)),
+            updatedExercises = listOf(item),
+            fieldChanges = listOf(
+                AiFieldChangePreview("exercise", afterValue = exercise.name),
+                AiFieldChangePreview("category", afterValue = exercise.primaryMuscle.name),
+                AiFieldChangePreview("equipment", afterValue = exercise.equipment.name)
+            )
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT,
             operationKind = AiOperationKind.ADD,
             title = exercise.name,
             subtitle = workoutRepository.activeWorkout.value?.title.orEmpty(),
-            payloadJson = json.encodeToString(StageIdPayload(exerciseId))
+            payloadJson = json.encodeToString(StageIdPayload(exerciseId)),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
@@ -1296,21 +1615,173 @@ class KumaAiToolExecutor(
         strings: AppStrings
     ): JsonElement {
         val note = args.str("preferencesNote")?.trim() ?: return errorJson("Missing preferencesNote")
+        val beforeNote = settingsRepository.settings.value.ai.preferencesNote.trim().takeIf { it.isNotBlank() }
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = listOf(
+                AiFieldChangePreview(
+                    fieldKey = "notes",
+                    beforeValue = beforeNote,
+                    afterValue = note
+                )
+            )
+        )
         val op = AiProposedOperation(
             id = IdGenerator.nextId("aiop"),
             actionType = AiActionType.UPDATE_AI_PREFERENCES,
             operationKind = AiOperationKind.UPDATE,
             title = note.take(64),
             subtitle = strings.aiPreferencesLabel,
-            payloadJson = json.encodeToString(StageTextPayload(note))
+            payloadJson = json.encodeToString(StageTextPayload(note)),
+            previewDetail = preview
         )
         session.stagedOperations.add(op)
         return stagedAck(op)
     }
 
-    fun commitProposal(proposal: AiActionProposal): Pair<Boolean, String> {
-        if (proposal.operations.isEmpty()) return false to "No operations"
+    private fun handleStageCreateProgram(
+        args: JsonObject,
+        session: KumaAiToolSessionState,
+        strings: AppStrings
+    ): JsonElement {
+        val name = args.str("name")?.trim() ?: return errorJson("Missing program name")
+        val description = args.str("description")?.trim().orEmpty()
+        val categoryRaw = args.str("category")?.uppercase()
+        val category = TrainingGoal.entries.firstOrNull { it.name == categoryRaw } ?: TrainingGoal.HYPERTROPHY
+        val activeDays = parseIntList(args["activeDays"]).filter { it in 1..7 }.distinct().sorted()
+            .ifEmpty { listOf(1, 3, 5) }
+        val setActive = (args["setActive"] as? JsonPrimitive)?.booleanOrNull ?: true
+        val payload = StageCreateProgramPayload(
+            name = name,
+            description = description,
+            category = category,
+            activeDays = activeDays,
+            setActive = setActive
+        )
+        val preview = buildCreateProgramPreview(payload)
+        val op = AiProposedOperation(
+            id = IdGenerator.nextId("aiop"),
+            actionType = AiActionType.CREATE_PROGRAM,
+            operationKind = AiOperationKind.ADD,
+            title = name,
+            subtitle = category.label(strings),
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
+        )
+        session.stagedOperations.add(op)
+        return stagedAck(op)
+    }
+
+    private fun handleStageCreateExercise(
+        args: JsonObject,
+        session: KumaAiToolSessionState
+    ): JsonElement {
+        val name = args.str("name")?.trim() ?: return errorJson("Missing exercise name")
+        val muscleRaw = args.str("primaryMuscle")?.uppercase()
+        val primaryMuscle = MuscleGroup.entries.firstOrNull { it.name == muscleRaw }
+            ?: return errorJson("Invalid primaryMuscle")
+        val equipRaw = args.str("equipment")?.uppercase()
+        val equipment = Equipment.entries.firstOrNull { it.name == equipRaw } ?: Equipment.OTHER
+        val secondary = (args["secondaryMuscles"] as? JsonArray)
+            ?.mapNotNull { el ->
+                val raw = (el as? JsonPrimitive)?.contentOrNull?.uppercase()
+                MuscleGroup.entries.firstOrNull { it.name == raw }
+            }
+            ?.distinct()
+            .orEmpty()
+        val payload = StageCreateExercisePayload(
+            name = name,
+            primaryMuscle = primaryMuscle,
+            equipment = equipment,
+            secondaryMuscles = secondary
+        )
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = listOf(
+                AiFieldChangePreview("exercise", afterValue = name),
+                AiFieldChangePreview("category", afterValue = primaryMuscle.name),
+                AiFieldChangePreview("equipment", afterValue = equipment.name)
+            )
+        )
+        val op = AiProposedOperation(
+            id = IdGenerator.nextId("aiop"),
+            actionType = AiActionType.CREATE_EXERCISE,
+            operationKind = AiOperationKind.ADD,
+            title = name,
+            subtitle = primaryMuscle.name,
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
+        )
+        session.stagedOperations.add(op)
+        return stagedAck(op)
+    }
+
+    private fun handleStageSaveExerciseNote(
+        args: JsonObject,
+        session: KumaAiToolSessionState,
+        strings: AppStrings
+    ): JsonElement {
+        val exerciseId = args.str("exerciseId") ?: return errorJson("Missing exerciseId")
+        val note = args.str("note")?.trim() ?: return errorJson("Missing note")
+        val ex = exerciseRepository.getExerciseById(exerciseId)
+            ?: return errorJson("Exercise not found: $exerciseId")
+        val payload = StageSaveExerciseNotePayload(exerciseId = ex.id, note = note)
+        val beforeNote = ex.pinnedNote.trim().takeIf { it.isNotBlank() }
+        val preview = AiOperationPreviewDetail(
+            fieldChanges = listOf(
+                AiFieldChangePreview("exercise", afterValue = ex.name),
+                AiFieldChangePreview("notes", beforeValue = beforeNote, afterValue = note)
+            )
+        )
+        val op = AiProposedOperation(
+            id = IdGenerator.nextId("aiop"),
+            actionType = AiActionType.SAVE_EXERCISE_NOTE,
+            operationKind = AiOperationKind.UPDATE,
+            title = ex.name,
+            subtitle = strings.aiPreviewFieldNotes,
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
+        )
+        session.stagedOperations.add(op)
+        return stagedAck(op)
+    }
+
+    private fun handleStageLogReadiness(
+        args: JsonObject,
+        session: KumaAiToolSessionState,
+        strings: AppStrings
+    ): JsonElement {
+        val sleep = (args.intVal("sleep") ?: return errorJson("Missing sleep")).coerceIn(1, 5)
+        val soreness = (args.intVal("soreness") ?: return errorJson("Missing soreness")).coerceIn(1, 5)
+        val energy = (args.intVal("energy") ?: return errorJson("Missing energy")).coerceIn(1, 5)
+        val stress = (args.intVal("stress") ?: return errorJson("Missing stress")).coerceIn(1, 5)
+        val notes = args.str("notes")?.trim().orEmpty()
+        val payload = StageLogReadinessPayload(
+            sleep = sleep,
+            soreness = soreness,
+            energy = energy,
+            stress = stress,
+            notes = notes
+        )
+        val preview = buildLogReadinessPreview(payload)
+        val (pct, _) = DailyReadinessCheckIn.calculate(sleep, soreness, energy, stress)
+        val op = AiProposedOperation(
+            id = IdGenerator.nextId("aiop"),
+            actionType = AiActionType.LOG_READINESS,
+            operationKind = AiOperationKind.ADD,
+            title = "${strings.dailyReadinessTitle} ($pct%)",
+            subtitle = notes.ifBlank { "${sleep}/5 · ${soreness}/5 · ${energy}/5 · ${stress}/5" },
+            payloadJson = json.encodeToString(payload),
+            previewDetail = preview
+        )
+        session.stagedOperations.add(op)
+        return stagedAck(op)
+    }
+
+    fun commitProposal(proposal: AiActionProposal, strings: AppStrings? = null): Pair<Boolean, String> {
+        if (proposal.operations.isEmpty()) {
+            return false to (strings?.aiCommitErrorGeneric ?: "No operations")
+        }
         var lastCreatedRoutineId: String? = null
+        var createdProgramId: String? = null
         val createdRoutinesByOpId = mutableMapOf<String, String>()
         val appliedTitles = mutableListOf<String>()
 
@@ -1323,17 +1794,21 @@ class KumaAiToolExecutor(
                     AiActionType.CREATE_ROUTINE -> {
                         val dto = json.decodeFromString<StageCreateRoutinePayload>(op.payloadJson)
                         val validCount = dto.exercises.count { exerciseRepository.getExerciseById(it.exerciseId) != null }
-                        require(validCount > 0) { "No valid exercises in routine ${dto.title}" }
+                        require(validCount > 0) {
+                            strings?.aiCommitErrorNoValidExercises ?: "No valid exercises in routine ${dto.title}"
+                        }
                         pendingRoutineCreates++
                         pendingCreateOpIds.add(op.id)
                     }
                     AiActionType.UPDATE_ROUTINE -> {
                         val dto = json.decodeFromString<StageUpdateRoutinePayload>(op.payloadJson)
                         routineRepository.getRoutineById(dto.routineId)
-                            ?: error("Routine ${dto.routineId} no longer exists")
+                            ?: throw IllegalStateException(strings?.aiCommitErrorRoutineMissing ?: "Routine no longer exists")
                         dto.exercises?.let { list ->
                             val validCount = list.count { exerciseRepository.getExerciseById(it.exerciseId) != null }
-                            require(validCount > 0) { "No valid exercises in routine update" }
+                            require(validCount > 0) {
+                                strings?.aiCommitErrorNoValidExercises ?: "No valid exercises in routine update"
+                            }
                         }
                     }
                     AiActionType.SCHEDULE_WORKOUT -> {
@@ -1341,18 +1816,28 @@ class KumaAiToolExecutor(
                         val hasRoutine = routineRepository.getRoutineById(dto.routineId) != null ||
                             dto.routineId in pendingCreateOpIds ||
                             pendingRoutineCreates > 0
-                        require(hasRoutine) { "Routine not found for scheduling" }
+                        require(hasRoutine) {
+                            strings?.aiCommitErrorRoutineMissing ?: "Routine not found for scheduling"
+                        }
                         LocalDate.parse(dto.scheduledDate)
                     }
                     AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT -> {
                         val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
-                        check(workoutRepository.activeWorkout.value != null) { "No active workout session" }
-                        exerciseRepository.getExerciseById(dto.id) ?: error("Exercise not found")
+                        check(workoutRepository.activeWorkout.value != null) {
+                            strings?.aiCommitErrorNoActiveWorkout ?: "No active workout session"
+                        }
+                        exerciseRepository.getExerciseById(dto.id)
+                            ?: throw IllegalStateException(strings?.aiCommitErrorGeneric ?: "Exercise not found")
                     }
-                    AiActionType.DELETE_ROUTINE,
+                    AiActionType.DELETE_ROUTINE -> {
+                        json.decodeFromString<StageIdPayload>(op.payloadJson)
+                    }
                     AiActionType.CANCEL_SCHEDULE,
                     AiActionType.DELETE_SCHEDULE -> {
-                        json.decodeFromString<StageIdPayload>(op.payloadJson)
+                        val dto = json.decodeFromString<StageCancelOrDeleteSchedulePayload>(op.payloadJson)
+                        check(workoutScheduleRepository.events.value.any { it.id == dto.eventId }) {
+                            strings?.aiCommitErrorGeneric ?: "Scheduled event not found"
+                        }
                     }
                     AiActionType.START_MESOCYCLE -> {
                         json.decodeFromString<StageStartMesocyclePayload>(op.payloadJson)
@@ -1366,22 +1851,82 @@ class KumaAiToolExecutor(
                     AiActionType.UPDATE_AI_PREFERENCES -> {
                         json.decodeFromString<StageTextPayload>(op.payloadJson)
                     }
+                    AiActionType.CREATE_PROGRAM -> {
+                        val dto = json.decodeFromString<StageCreateProgramPayload>(op.payloadJson)
+                        require(dto.name.isNotBlank()) { "Program name required" }
+                    }
+                    AiActionType.CREATE_EXERCISE -> {
+                        val dto = json.decodeFromString<StageCreateExercisePayload>(op.payloadJson)
+                        require(dto.name.isNotBlank()) { "Exercise name required" }
+                    }
+                    AiActionType.SAVE_EXERCISE_NOTE -> {
+                        val dto = json.decodeFromString<StageSaveExerciseNotePayload>(op.payloadJson)
+                        exerciseRepository.getExerciseById(dto.exerciseId)
+                            ?: throw IllegalStateException(strings?.aiCommitErrorGeneric ?: "Exercise not found")
+                    }
+                    AiActionType.LOG_READINESS -> {
+                        json.decodeFromString<StageLogReadinessPayload>(op.payloadJson)
+                    }
                 }
             }
 
             proposal.operations.forEach { op ->
                 when (op.actionType) {
+                    AiActionType.CREATE_PROGRAM -> {
+                        val dto = json.decodeFromString<StageCreateProgramPayload>(op.payloadJson)
+                        val created = trainingProgramRepository.createProgram(
+                            name = dto.name,
+                            description = dto.description,
+                            category = dto.category,
+                            activeDays = dto.activeDays
+                        )
+                        if (dto.setActive) {
+                            trainingProgramRepository.setActiveProgramId(created.id)
+                        }
+                        createdProgramId = created.id
+                        appliedTitles.add(created.name)
+                    }
+                    AiActionType.CREATE_EXERCISE -> {
+                        val dto = json.decodeFromString<StageCreateExercisePayload>(op.payloadJson)
+                        val created = exerciseRepository.addCustomExercise(
+                            name = dto.name,
+                            primaryMuscle = dto.primaryMuscle,
+                            equipment = dto.equipment,
+                            secondaryMuscles = dto.secondaryMuscles
+                        )
+                        appliedTitles.add(created.name)
+                    }
+                    AiActionType.SAVE_EXERCISE_NOTE -> {
+                        val dto = json.decodeFromString<StageSaveExerciseNotePayload>(op.payloadJson)
+                        val ex = exerciseRepository.getExerciseById(dto.exerciseId)
+                            ?: throw IllegalStateException(strings?.aiCommitErrorGeneric ?: "Exercise not found")
+                        exerciseRepository.updatePinnedNote(ex.id, dto.note)
+                        appliedTitles.add(ex.name)
+                    }
+                    AiActionType.LOG_READINESS -> {
+                        val dto = json.decodeFromString<StageLogReadinessPayload>(op.payloadJson)
+                        val checkIn = dailyReadinessRepository.recordCheckIn(
+                            sleep = dto.sleep,
+                            soreness = dto.soreness,
+                            energy = dto.energy,
+                            stress = dto.stress,
+                            notes = dto.notes
+                        )
+                        appliedTitles.add("${strings?.dailyReadinessTitle ?: "Daily Readiness"} (${checkIn.overallPercentage}%)")
+                    }
                     AiActionType.CREATE_ROUTINE -> {
                         val dto = json.decodeFromString<StageCreateRoutinePayload>(op.payloadJson)
                         val configs = dto.exercises.mapNotNull { item ->
                             val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
                             item.toRoutineExerciseConfig(ex)
                         }
-                        require(configs.isNotEmpty()) { "No valid exercises in routine ${dto.title}" }
+                        require(configs.isNotEmpty()) {
+                            strings?.aiCommitErrorNoValidExercises ?: "No valid exercises in routine ${dto.title}"
+                        }
                         val routineId = IdGenerator.routineId(dto.title)
                         val blueprint = RoutineBlueprint(
                             id = routineId,
-                            programId = trainingProgramRepository.activeProgram.id,
+                            programId = createdProgramId ?: trainingProgramRepository.activeProgram.id,
                             title = dto.title,
                             splitCategory = dto.splitCategory,
                             muscleFocus = dto.muscleFocus.ifBlank {
@@ -1394,6 +1939,9 @@ class KumaAiToolExecutor(
                             scheduledDays = dto.scheduledDays
                         )
                         routineRepository.addRoutine(blueprint)
+                        check(routineRepository.getRoutineById(routineId) != null) {
+                            strings?.aiCommitErrorGeneric ?: "Routine save failed"
+                        }
                         lastCreatedRoutineId = routineId
                         createdRoutinesByOpId[op.id] = routineId
                         appliedTitles.add(dto.title)
@@ -1401,13 +1949,15 @@ class KumaAiToolExecutor(
                     AiActionType.UPDATE_ROUTINE -> {
                         val dto = json.decodeFromString<StageUpdateRoutinePayload>(op.payloadJson)
                         val existing = routineRepository.getRoutineById(dto.routineId)
-                            ?: error("Routine ${dto.routineId} no longer exists")
+                            ?: throw IllegalStateException(strings?.aiCommitErrorRoutineMissing ?: "Routine no longer exists")
                         val newConfigs = dto.exercises?.let { list ->
                             val resolved = list.mapNotNull { item ->
                                 val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
                                 item.toRoutineExerciseConfig(ex)
                             }
-                            require(resolved.isNotEmpty()) { "No valid exercises in routine update" }
+                            require(resolved.isNotEmpty()) {
+                                strings?.aiCommitErrorNoValidExercises ?: "No valid exercises in routine update"
+                            }
                             resolved
                         } ?: existing.effectiveConfigs
                         val updated = existing.copy(
@@ -1416,33 +1966,47 @@ class KumaAiToolExecutor(
                             muscleFocus = dto.muscleFocus ?: existing.muscleFocus,
                             estimatedDurationMinutes = dto.estimatedDurationMinutes ?: existing.estimatedDurationMinutes,
                             scheduledDays = dto.scheduledDays ?: existing.scheduledDays,
+                            exerciseTemplates = newConfigs.map { it.exercise },
+                            plannedSetsPerExercise = newConfigs.firstOrNull()?.targetSets ?: existing.plannedSetsPerExercise,
                             exerciseConfigs = newConfigs,
                             isUserRenamed = dto.title != null || existing.isUserRenamed
                         )
                         routineRepository.updateRoutine(updated)
-                        appliedTitles.add(updated.title)
+                        check(routineRepository.getRoutineById(updated.id) == updated) {
+                            strings?.aiCommitErrorGeneric ?: "Routine update failed"
+                        }
+                        val displayName = strings?.let { updated.localizedTitle(it) } ?: updated.title
+                        appliedTitles.add(displayName)
                     }
                     AiActionType.DELETE_ROUTINE -> {
                         val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
                         val existing = routineRepository.getRoutineById(dto.id)
+                        val deletedName = existing?.let { r -> strings?.let { r.localizedTitle(it) } ?: r.title }
+                            ?: op.previewDetail?.beforeRoutineName
+                            ?: strings?.workoutRoutinesTitle
+                            ?: "Routine"
                         routineRepository.deleteRoutine(dto.id)
-                        appliedTitles.add(existing?.title ?: dto.id)
+                        check(routineRepository.getRoutineById(dto.id) == null) {
+                            strings?.aiCommitErrorGeneric ?: "Routine delete failed"
+                        }
+                        appliedTitles.add(deletedName)
                     }
                     AiActionType.SCHEDULE_WORKOUT -> {
                         val dto = json.decodeFromString<StageScheduleWorkoutPayload>(op.payloadJson)
                         val resolvedRoutine = routineRepository.getRoutineById(dto.routineId)
                             ?: createdRoutinesByOpId[dto.routineId]?.let { routineRepository.getRoutineById(it) }
                             ?: lastCreatedRoutineId?.let { routineRepository.getRoutineById(it) }
-                            ?: error("Routine not found for scheduling")
+                            ?: throw IllegalStateException(strings?.aiCommitErrorRoutineMissing ?: "Routine not found for scheduling")
                         val date = LocalDate.parse(dto.scheduledDate)
+                        val displayTitle = strings?.let { resolvedRoutine.localizedTitle(it) } ?: resolvedRoutine.title
                         workoutScheduleRepository.scheduleRoutine(
                             routineId = resolvedRoutine.id,
-                            routineTitle = resolvedRoutine.title,
+                            routineTitle = displayTitle,
                             splitType = resolvedRoutine.splitCategory,
                             scheduledDate = date,
                             notes = dto.notes
                         )
-                        appliedTitles.add("${resolvedRoutine.title} (${dto.scheduledDate})")
+                        appliedTitles.add("$displayTitle (${dto.scheduledDate})")
                     }
                     AiActionType.CANCEL_SCHEDULE -> {
                         val dto = json.decodeFromString<StageCancelOrDeleteSchedulePayload>(op.payloadJson)
@@ -1468,17 +2032,20 @@ class KumaAiToolExecutor(
                     AiActionType.LOG_BODYWEIGHT -> {
                         val dto = json.decodeFromString<StageLogBodyweightPayload>(op.payloadJson)
                         settingsRepository.updateProfile { it.copy(bodyweightKg = dto.weightKg) }
-                        appliedTitles.add("${dto.weightKg} kg")
+                        appliedTitles.add("${dto.weightKg} ${strings?.unitKg ?: "kg"}")
                     }
                     AiActionType.UPDATE_TRAINING_GOAL -> {
                         val dto = json.decodeFromString<StageUpdateGoalPayload>(op.payloadJson)
                         settingsRepository.updateProfile { it.copy(goal = dto.goal) }
-                        appliedTitles.add(dto.goal.name)
+                        appliedTitles.add(strings?.let { dto.goal.label(it) } ?: dto.goal.name)
                     }
                     AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT -> {
                         val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
-                        check(workoutRepository.activeWorkout.value != null) { "No active workout session" }
-                        val ex = exerciseRepository.getExerciseById(dto.id) ?: error("Exercise not found")
+                        check(workoutRepository.activeWorkout.value != null) {
+                            strings?.aiCommitErrorNoActiveWorkout ?: "No active workout session"
+                        }
+                        val ex = exerciseRepository.getExerciseById(dto.id)
+                            ?: throw IllegalStateException(strings?.aiCommitErrorGeneric ?: "Exercise not found")
                         workoutRepository.addExerciseToActiveWorkout(ex)
                         appliedTitles.add(ex.name)
                     }
@@ -1489,10 +2056,554 @@ class KumaAiToolExecutor(
                     }
                 }
             }
-            true to appliedTitles.joinToString(", ")
+            val joined = appliedTitles.joinToString(", ")
+            true to (if (strings != null) sanitizeUserFacingText(joined, strings) else joined)
         } catch (e: Exception) {
-            false to (e.message ?: "Commit failed")
+            val rawMsg = e.message
+            val safeError = if (strings != null) {
+                when (rawMsg) {
+                    strings.aiCommitErrorRoutineMissing,
+                    strings.aiCommitErrorNoActiveWorkout,
+                    strings.aiCommitErrorNoValidExercises -> rawMsg
+                    else -> strings.aiCommitErrorGeneric
+                }
+            } else {
+                rawMsg ?: "Commit failed"
+            }
+            false to safeError
         }
+    }
+
+    /**
+     * Resolves an interactive preview detail for any proposed operation, verifying live routine state
+     * when applied and synthesizing Before/After snapshots even for legacy persisted proposals.
+     */
+    fun resolveOperationPreview(
+        op: AiProposedOperation,
+        status: AiProposalStatus,
+        strings: AppStrings
+    ): AiOperationPreviewDetail {
+        val base = op.previewDetail ?: synthesizeFallbackPreview(op, strings)
+        if (status == AiProposalStatus.APPLIED && base.routineId != null && op.actionType == AiActionType.UPDATE_ROUTINE) {
+            val liveRoutine = routineRepository.getRoutineById(base.routineId)
+            if (liveRoutine != null) {
+                return base.copy(
+                    routineName = liveRoutine.localizedTitle(strings),
+                    splitCategory = liveRoutine.splitCategory,
+                    durationMinutes = liveRoutine.estimatedDurationMinutes,
+                    scheduledDays = liveRoutine.scheduledDays,
+                    updatedExercises = liveRoutine.effectiveConfigs.map { it.toPreviewItem() }
+                )
+            }
+        }
+        return base
+    }
+
+    private fun synthesizeFallbackPreview(op: AiProposedOperation, strings: AppStrings): AiOperationPreviewDetail {
+        return try {
+            when (op.actionType) {
+                AiActionType.CREATE_ROUTINE -> {
+                    val dto = json.decodeFromString<StageCreateRoutinePayload>(op.payloadJson)
+                    buildCreateRoutinePreview(dto)
+                }
+                AiActionType.UPDATE_ROUTINE -> {
+                    val dto = json.decodeFromString<StageUpdateRoutinePayload>(op.payloadJson)
+                    val live = routineRepository.getRoutineById(dto.routineId)
+                    val items = dto.exercises?.mapNotNull { item ->
+                        exerciseRepository.getExerciseById(item.exerciseId)?.let { item.toRoutineExerciseConfig(it).toPreviewItem() }
+                    } ?: live?.effectiveConfigs?.map { it.toPreviewItem() }.orEmpty()
+                    AiOperationPreviewDetail(
+                        routineId = dto.routineId,
+                        routineName = dto.title ?: live?.localizedTitle(strings) ?: op.title,
+                        splitCategory = dto.splitCategory ?: live?.splitCategory,
+                        durationMinutes = dto.estimatedDurationMinutes ?: live?.estimatedDurationMinutes,
+                        scheduledDays = dto.scheduledDays ?: live?.scheduledDays.orEmpty(),
+                        exerciseDiffs = items.map { AiExerciseDiffEntry(AiExerciseDiffStatus.UNCHANGED, after = it) },
+                        updatedExercises = items
+                    )
+                }
+                AiActionType.DELETE_ROUTINE -> {
+                    val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
+                    val live = routineRepository.getRoutineById(dto.id)
+                    AiOperationPreviewDetail(
+                        routineId = dto.id,
+                        beforeRoutineName = live?.localizedTitle(strings) ?: op.title,
+                        exerciseDiffs = live?.effectiveConfigs?.map {
+                            AiExerciseDiffEntry(AiExerciseDiffStatus.REMOVED, before = it.toPreviewItem())
+                        }.orEmpty()
+                    )
+                }
+                AiActionType.SCHEDULE_WORKOUT -> {
+                    val dto = json.decodeFromString<StageScheduleWorkoutPayload>(op.payloadJson)
+                    val rTitle = routineRepository.getRoutineById(dto.routineId)?.localizedTitle(strings) ?: op.subtitle
+                    AiOperationPreviewDetail(
+                        routineId = dto.routineId,
+                        routineName = rTitle,
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("routine_name", afterValue = rTitle),
+                            AiFieldChangePreview("schedule_date", afterValue = dto.scheduledDate)
+                        )
+                    )
+                }
+                AiActionType.LOG_BODYWEIGHT -> {
+                    val dto = json.decodeFromString<StageLogBodyweightPayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("bodyweight", afterValue = "${dto.weightKg} kg", afterWeightKg = dto.weightKg)
+                        )
+                    )
+                }
+                AiActionType.UPDATE_TRAINING_GOAL -> {
+                    val dto = json.decodeFromString<StageUpdateGoalPayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(AiFieldChangePreview("goal", afterValue = dto.goal.name))
+                    )
+                }
+                AiActionType.ADD_EXERCISE_TO_ACTIVE_WORKOUT -> {
+                    val dto = json.decodeFromString<StageIdPayload>(op.payloadJson)
+                    val ex = exerciseRepository.getExerciseById(dto.id)
+                    val item = ex?.let {
+                        AiExercisePreviewItem(
+                            exerciseId = it.id,
+                            name = it.name,
+                            primaryMuscleCode = it.primaryMuscle.name,
+                            equipmentCode = it.equipment.name,
+                            sets = settingsRepository.settings.value.logging.defaultSetCount.coerceIn(1, 10),
+                            reps = 10,
+                            restSeconds = settingsRepository.settings.value.logging.restTimerDefaultSec
+                        )
+                    }
+                    AiOperationPreviewDetail(
+                        routineName = op.subtitle,
+                        exerciseDiffs = listOfNotNull(item?.let { AiExerciseDiffEntry(AiExerciseDiffStatus.ADDED, after = it) }),
+                        updatedExercises = listOfNotNull(item)
+                    )
+                }
+                AiActionType.START_MESOCYCLE -> {
+                    val dto = json.decodeFromString<StageStartMesocyclePayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("routine_name", afterValue = dto.name),
+                            AiFieldChangePreview("weeks", afterValue = dto.totalWeeks.toString()),
+                            AiFieldChangePreview("deload_week", afterValue = dto.deloadWeek.toString())
+                        )
+                    )
+                }
+                AiActionType.CANCEL_SCHEDULE,
+                AiActionType.DELETE_SCHEDULE -> {
+                    val dto = json.decodeFromString<StageCancelOrDeleteSchedulePayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("routine_name", afterValue = op.subtitle.ifBlank { op.title }),
+                            AiFieldChangePreview(
+                                "event_status",
+                                afterValue = if (dto.deletePermanently || op.actionType == AiActionType.DELETE_SCHEDULE) "DELETED" else "CANCELLED"
+                            )
+                        )
+                    )
+                }
+                AiActionType.UPDATE_AI_PREFERENCES -> {
+                    val dto = json.decodeFromString<StageTextPayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(AiFieldChangePreview("notes", afterValue = dto.text))
+                    )
+                }
+                AiActionType.CREATE_PROGRAM -> {
+                    val dto = json.decodeFromString<StageCreateProgramPayload>(op.payloadJson)
+                    buildCreateProgramPreview(dto)
+                }
+                AiActionType.CREATE_EXERCISE -> {
+                    val dto = json.decodeFromString<StageCreateExercisePayload>(op.payloadJson)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("exercise", afterValue = dto.name),
+                            AiFieldChangePreview("category", afterValue = dto.primaryMuscle.name),
+                            AiFieldChangePreview("equipment", afterValue = dto.equipment.name)
+                        )
+                    )
+                }
+                AiActionType.SAVE_EXERCISE_NOTE -> {
+                    val dto = json.decodeFromString<StageSaveExerciseNotePayload>(op.payloadJson)
+                    val ex = exerciseRepository.getExerciseById(dto.exerciseId)
+                    AiOperationPreviewDetail(
+                        fieldChanges = listOf(
+                            AiFieldChangePreview("exercise", afterValue = ex?.name ?: op.title),
+                            AiFieldChangePreview("notes", afterValue = dto.note)
+                        )
+                    )
+                }
+                AiActionType.LOG_READINESS -> {
+                    val dto = json.decodeFromString<StageLogReadinessPayload>(op.payloadJson)
+                    buildLogReadinessPreview(dto)
+                }
+            }
+        } catch (_: Exception) {
+            AiOperationPreviewDetail()
+        }
+    }
+
+    private fun buildCreateProgramPreview(dto: StageCreateProgramPayload): AiOperationPreviewDetail {
+        val changes = buildList {
+            add(AiFieldChangePreview("routine_name", afterValue = dto.name))
+            add(AiFieldChangePreview("goal", afterValue = dto.category.name))
+            if (dto.activeDays.isNotEmpty()) {
+                add(AiFieldChangePreview("scheduled_days", afterValue = dto.activeDays.joinToString(",")))
+            }
+            if (dto.description.isNotBlank()) {
+                add(AiFieldChangePreview("notes", afterValue = dto.description))
+            }
+        }
+        return AiOperationPreviewDetail(
+            routineName = dto.name,
+            scheduledDays = dto.activeDays,
+            fieldChanges = changes
+        )
+    }
+
+    private fun buildLogReadinessPreview(dto: StageLogReadinessPayload): AiOperationPreviewDetail {
+        val (pct, _) = DailyReadinessCheckIn.calculate(dto.sleep, dto.soreness, dto.energy, dto.stress)
+        val changes = buildList {
+            add(
+                AiFieldChangePreview(
+                    fieldKey = "notes",
+                    afterValue = "$pct% (Sleep ${dto.sleep}/5 · Soreness ${dto.soreness}/5 · Energy ${dto.energy}/5 · Stress ${dto.stress}/5)" +
+                        if (dto.notes.isNotBlank()) " — ${dto.notes}" else ""
+                )
+            )
+        }
+        return AiOperationPreviewDetail(fieldChanges = changes)
+    }
+
+    private fun buildCreateRoutinePreview(dto: StageCreateRoutinePayload): AiOperationPreviewDetail {
+        val afterItems = dto.exercises.mapNotNull { item ->
+            val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
+            item.toRoutineExerciseConfig(ex).toPreviewItem()
+        }
+        return AiOperationPreviewDetail(
+            routineName = dto.title,
+            splitCategory = dto.splitCategory,
+            durationMinutes = dto.estimatedDurationMinutes,
+            scheduledDays = dto.scheduledDays,
+            exerciseDiffs = afterItems.map { AiExerciseDiffEntry(AiExerciseDiffStatus.ADDED, after = it) },
+            updatedExercises = afterItems,
+            fieldChanges = buildList {
+                add(AiFieldChangePreview("routine_name", afterValue = dto.title))
+                add(AiFieldChangePreview("split", afterValue = dto.splitCategory))
+                add(AiFieldChangePreview("duration", afterValue = dto.estimatedDurationMinutes.toString()))
+                if (dto.scheduledDays.isNotEmpty()) {
+                    add(AiFieldChangePreview("scheduled_days", afterValue = dto.scheduledDays.joinToString(",")))
+                }
+            }
+        )
+    }
+
+    private fun buildUpdateRoutinePreview(
+        existing: RoutineBlueprint,
+        payload: StageUpdateRoutinePayload,
+        beforeTitle: String,
+        targetTitle: String
+    ): AiOperationPreviewDetail {
+        val beforeItems = existing.effectiveConfigs.map { it.toPreviewItem() }
+        val afterItems = payload.exercises?.mapNotNull { item ->
+            val ex = exerciseRepository.getExerciseById(item.exerciseId) ?: return@mapNotNull null
+            item.toRoutineExerciseConfig(ex).toPreviewItem()
+        } ?: beforeItems
+        val diffs = buildRoutineExerciseDiffs(beforeItems, afterItems)
+        val afterSplit = payload.splitCategory ?: existing.splitCategory
+        val afterDuration = payload.estimatedDurationMinutes ?: existing.estimatedDurationMinutes
+        val afterDays = payload.scheduledDays ?: existing.scheduledDays
+        val changes = buildList {
+            if (beforeTitle != targetTitle) {
+                add(AiFieldChangePreview("routine_name", beforeValue = beforeTitle, afterValue = targetTitle))
+            }
+            if (existing.splitCategory != afterSplit) {
+                add(AiFieldChangePreview("split", beforeValue = existing.splitCategory, afterValue = afterSplit))
+            }
+            if (existing.estimatedDurationMinutes != afterDuration) {
+                add(
+                    AiFieldChangePreview(
+                        "duration",
+                        beforeValue = existing.estimatedDurationMinutes.toString(),
+                        afterValue = afterDuration.toString()
+                    )
+                )
+            }
+            if (existing.scheduledDays.sorted() != afterDays.sorted()) {
+                add(
+                    AiFieldChangePreview(
+                        "scheduled_days",
+                        beforeValue = existing.scheduledDays.joinToString(","),
+                        afterValue = afterDays.joinToString(",")
+                    )
+                )
+            }
+        }
+        return AiOperationPreviewDetail(
+            routineId = existing.id,
+            routineName = targetTitle,
+            beforeRoutineName = beforeTitle,
+            splitCategory = afterSplit,
+            beforeSplitCategory = existing.splitCategory,
+            durationMinutes = afterDuration,
+            beforeDurationMinutes = existing.estimatedDurationMinutes,
+            scheduledDays = afterDays,
+            beforeScheduledDays = existing.scheduledDays,
+            exerciseDiffs = diffs,
+            updatedExercises = afterItems,
+            fieldChanges = changes
+        )
+    }
+
+    private fun RoutineExerciseConfig.toPreviewItem(): AiExercisePreviewItem {
+        val resolvedSets = setConfigs.takeIf { it.isNotEmpty() }?.map { setCfg ->
+            AiSetPreview(
+                setNumber = setCfg.setNumber,
+                reps = setCfg.targetReps,
+                weightKg = setCfg.targetWeightKg,
+                restSeconds = setCfg.restTimerSeconds ?: restTimerSeconds
+            )
+        } ?: emptyList()
+        return AiExercisePreviewItem(
+            exerciseId = exercise.id,
+            name = exercise.name,
+            primaryMuscleCode = exercise.primaryMuscle.name,
+            equipmentCode = exercise.equipment.name,
+            sets = targetSets,
+            reps = targetReps,
+            weightKg = targetWeightKg,
+            restSeconds = restTimerSeconds,
+            setDetails = resolvedSets
+        )
+    }
+
+    internal fun buildRoutineExerciseDiffs(
+        before: List<AiExercisePreviewItem>,
+        after: List<AiExercisePreviewItem>
+    ): List<AiExerciseDiffEntry> {
+        val matchedAfterByBeforeIdx = IntArray(before.size) { -1 }
+        val usedAfter = BooleanArray(after.size)
+
+        // Match identical exerciseId occurrences in sequence
+        before.forEachIndexed { bIdx, bItem ->
+            val matchIdx = after.indices.firstOrNull { aIdx ->
+                !usedAfter[aIdx] && bItem.exerciseId.isNotBlank() && after[aIdx].exerciseId == bItem.exerciseId
+            }
+            if (matchIdx != null) {
+                matchedAfterByBeforeIdx[bIdx] = matchIdx
+                usedAfter[matchIdx] = true
+            }
+        }
+
+        val unmatchedBefore = before.indices.filter { matchedAfterByBeforeIdx[it] < 0 }
+        val unmatchedAfter = after.indices.filter { !usedAfter[it] }
+        val replacedBeforeIndices = mutableMapOf<Int, Int>()
+        val replacedAfterIndices = mutableSetOf<Int>()
+
+        if (unmatchedBefore.size == 1 && unmatchedAfter.size == 1 && before.size == after.size) {
+            // Single 1-for-1 swap preserving routine size -> treat cleanly as REPLACED
+            val bIdx = unmatchedBefore.first()
+            val aIdx = unmatchedAfter.first()
+            replacedBeforeIndices[bIdx] = aIdx
+            replacedAfterIndices.add(aIdx)
+        } else if (unmatchedBefore.isNotEmpty() && unmatchedAfter.isNotEmpty()) {
+            // Pair same-muscle swaps first (prefer closest list position) so extra removals/additions stay distinct
+            val availableAfter = unmatchedAfter.toMutableList()
+            unmatchedBefore.forEach { bIdx ->
+                val bMuscle = before[bIdx].primaryMuscleCode
+                val bTokens = before[bIdx].name.lowercase().split(Regex("[^a-z0-9]+")).filter { it.length >= 3 }.toSet()
+                val matchingMuscleIdx = if (bMuscle.isNotBlank()) {
+                    availableAfter
+                        .filter { aIdx -> after[aIdx].primaryMuscleCode == bMuscle }
+                        .minWithOrNull(
+                            compareByDescending<Int> { aIdx ->
+                                val aTokens = after[aIdx].name.lowercase().split(Regex("[^a-z0-9]+")).filter { it.length >= 3 }
+                                aTokens.count { it in bTokens }
+                            }.thenBy { aIdx -> kotlin.math.abs(aIdx - bIdx) }
+                        )
+                } else {
+                    null
+                }
+                if (matchingMuscleIdx != null) {
+                    replacedBeforeIndices[bIdx] = matchingMuscleIdx
+                    replacedAfterIndices.add(matchingMuscleIdx)
+                    availableAfter.remove(matchingMuscleIdx)
+                }
+            }
+        }
+
+        val result = mutableListOf<AiExerciseDiffEntry>()
+        val consumedAfter = BooleanArray(after.size)
+
+        before.forEachIndexed { bIdx, bItem ->
+            val matchedA = matchedAfterByBeforeIdx[bIdx]
+            val replacedA = replacedBeforeIndices[bIdx]
+            when {
+                matchedA >= 0 -> {
+                    val aItem = after[matchedA]
+                    consumedAfter[matchedA] = true
+                    val isModified = bItem.sets != aItem.sets ||
+                        bItem.reps != aItem.reps ||
+                        bItem.weightKg != aItem.weightKg ||
+                        bItem.restSeconds != aItem.restSeconds ||
+                        bItem.setDetails != aItem.setDetails
+                    result.add(
+                        AiExerciseDiffEntry(
+                            status = if (isModified) AiExerciseDiffStatus.MODIFIED else AiExerciseDiffStatus.UNCHANGED,
+                            before = bItem,
+                            after = aItem
+                        )
+                    )
+                }
+                replacedA != null -> {
+                    val aItem = after[replacedA]
+                    consumedAfter[replacedA] = true
+                    result.add(
+                        AiExerciseDiffEntry(
+                            status = AiExerciseDiffStatus.REPLACED,
+                            before = bItem,
+                            after = aItem
+                        )
+                    )
+                }
+                else -> {
+                    result.add(AiExerciseDiffEntry(status = AiExerciseDiffStatus.REMOVED, before = bItem))
+                }
+            }
+        }
+
+        after.forEachIndexed { aIdx, aItem ->
+            if (!consumedAfter[aIdx]) {
+                result.add(AiExerciseDiffEntry(status = AiExerciseDiffStatus.ADDED, after = aItem))
+            }
+        }
+        return result
+    }
+
+    /**
+     * Converts accidental internal identifiers, raw JSON field keys, starter slugs, or enum codes
+     * in AI-generated text into natural human-readable labels before showing to the user.
+     */
+    fun sanitizeUserFacingText(rawText: String, strings: AppStrings): String {
+        if (rawText.isBlank()) return rawText
+        var sanitized = rawText
+
+        // Build resolution maps from live domain repositories + starter slugs
+        val slugTitleMap = linkedMapOf<String, String>(
+            "starter_push" to strings.routinePushDayTitle,
+            "starter_pull" to strings.routinePullDayTitle,
+            "starter_strength_a" to strings.routineFullBodyTitle,
+            "starter_general_full" to strings.routineUpperLowerTitle,
+            "program_hypertrophy" to trainingProgramRepository.activeProgram.name,
+            "program_hypertrophy_default" to trainingProgramRepository.activeProgram.name
+        )
+        routineRepository.routines.value.forEach { r ->
+            val label = r.localizedTitle(strings)
+            slugTitleMap[r.id] = label
+            r.presetKey?.takeIf { it.isNotBlank() }?.let { slugTitleMap[it] = label }
+        }
+        trainingProgramRepository.programs.value.forEach { p ->
+            slugTitleMap[p.id] = p.name
+            p.presetKey?.takeIf { it.isNotBlank() }?.let { slugTitleMap[it] = p.name }
+        }
+        exerciseRepository.exercises.value.forEach { ex ->
+            // Skip bare all-digit dataset IDs (e.g. "1700", "2400") so numeric quantities like "1700 kcal" are never corrupted
+            if (!ex.id.all { it.isDigit() }) {
+                slugTitleMap[ex.id] = ex.name
+            }
+        }
+
+        // 1. Strip parenthetical or bracketed internal key-value debug leaks e.g. "(yesterdayWorkedOut: false)"
+        sanitized = PARENTHETICAL_INTERNAL_KV_REGEX.replace(sanitized, "")
+
+        // 2. Strip bare key: true/false debug leaks e.g. "yesterdayWorkedOut: false"
+        sanitized = BARE_INTERNAL_KV_REGEX.replace(sanitized) { match ->
+            val key = match.groupValues[1]
+            val value = match.groupValues[2].trim().lowercase()
+            when {
+                key == "todayWorkoutStatus" && value == "rest_day" -> strings.aiStatusRestDay
+                key == "todayWorkoutStatus" && value == "scheduled" -> strings.aiStatusScheduled
+                else -> ""
+            }
+        }
+
+        // 3. Replace or deduplicate known slugs/IDs (e.g. "starter_pull", "ex_db_press", "routine_...")
+        val orderedKeys = slugTitleMap.keys.sortedByDescending { it.length }
+        orderedKeys.forEach { key ->
+            val humanLabel = slugTitleMap[key] ?: return@forEach
+            val escaped = Regex.escape(key)
+            val shortPrefix = humanLabel.substringBefore(" (").trim()
+            val parenRegex = Regex("""\s*[(\[]\s*`?$escaped`?\s*[)\]]""")
+            sanitized = parenRegex.replace(sanitized) { m ->
+                val lookbackStart = (m.range.first - 140).coerceAtLeast(0)
+                val recentWindow = sanitized.substring(lookbackStart, m.range.first)
+                if (recentWindow.contains(humanLabel, ignoreCase = true) ||
+                    (shortPrefix.length >= 4 && recentWindow.contains(shortPrefix, ignoreCase = true))
+                ) {
+                    ""
+                } else {
+                    " ($humanLabel)"
+                }
+            }
+            val bareRegex = Regex("""(?<![A-Za-z0-9_])`?$escaped`?(?![A-Za-z0-9_])""")
+            sanitized = bareRegex.replace(sanitized) { humanLabel }
+        }
+
+        // 4. Strip leftover generated internal ID prefixes and raw backticked field names
+        sanitized = GENERATED_PAREN_ID_REGEX.replace(sanitized, "")
+        sanitized = GENERATED_BARE_ID_REGEX.replace(sanitized, "")
+        sanitized = BACKTICKED_INTERNAL_KEY_REGEX.replace(sanitized, "")
+
+        // 5. Translate standalone raw uppercase enum codes into localized labels
+        TrainingGoal.entries.forEach { goal ->
+            val labelText = goal.label(strings)
+            sanitized = Regex("""\b${goal.name}\b""").replace(sanitized) { labelText }
+        }
+        ExperienceLevel.entries.forEach { level ->
+            val labelText = level.label(strings)
+            sanitized = Regex("""\b${level.name}\b""").replace(sanitized) { labelText }
+        }
+        sanitized = Regex("""\bREST_DAY\b""").replace(sanitized, strings.aiStatusRestDay)
+        sanitized = Regex("""\bSCHEDULED\b""").replace(sanitized, strings.aiStatusScheduled)
+
+        // 6. Polish spacing/punctuation artifacts without altering markdown indentation or newlines
+        sanitized = EMPTY_PARENS_REGEX.replace(sanitized, "")
+        sanitized = SPACE_BEFORE_PUNCT_REGEX.replace(sanitized, "$1")
+        sanitized = DOUBLE_COMMA_REGEX.replace(sanitized, ", ")
+        sanitized = MULTI_SPACE_MIDLINE_REGEX.replace(sanitized, " ")
+        return sanitized.trim()
+    }
+
+    private companion object {
+        private const val INTERNAL_KEY_ALTERNATION =
+            "yesterdayWorkedOut|todayWorkedOut|yesterdayWorkouts|todayCompletedWorkouts|" +
+                "todayScheduledWorkouts|todayCalendarEvents|todayWorkoutStatus|recentWorkoutsTop5|" +
+                "savedChatHistories|savedRoutines|currentThreadEarlierContext|activeProgramId|" +
+                "activeProgramName|activeMesocycle|todayReadiness|aiPreferencesNote|todayDate|" +
+                "yesterdayDate|todayDayOfWeekEn|todayIsoDayNumber|routineId|exerciseId|eventId|" +
+                "threadId|workoutExerciseId|targetWeightKg|setConfigs|targetSets|targetReps|" +
+                "restTimerSeconds|isScheduledToday|scheduledDays|scheduledDayNames|splitCategory|" +
+                "muscleFocus|estimatedDurationMinutes|bestWeightKg|bestReps|volumeKg|durationMin|" +
+                "completedSets|readinessPct|weeklySets|weeklyScheduledToday|isDeloadActive|payloadJson"
+
+        private val PARENTHETICAL_INTERNAL_KV_REGEX = Regex(
+            """\s*[(\[]\s*`?(?:$INTERNAL_KEY_ALTERNATION|id)`?\s*[:=]\s*[^)\]\n]+[)\]]"""
+        )
+        private val BARE_INTERNAL_KV_REGEX = Regex(
+            """\b($INTERNAL_KEY_ALTERNATION)\s*[:=]\s*([A-Za-z0-9_.\-]+)"""
+        )
+        private val BACKTICKED_INTERNAL_KEY_REGEX = Regex(
+            """`(?:$INTERNAL_KEY_ALTERNATION)`"""
+        )
+        private val GENERATED_PAREN_ID_REGEX = Regex(
+            """\s*[(\[]\s*`?(?:aichat|aimsg|aiop|aiprop|routine|rt|ex|we|set|pr|sched|meso|program)_[A-Za-z0-9_-]+`?\s*[)\]]"""
+        )
+        private val GENERATED_BARE_ID_REGEX = Regex(
+            """(?<![A-Za-z0-9_])`?(?:aichat|aimsg|aiop|aiprop|sched|meso)_[A-Za-z0-9_-]+`?(?![A-Za-z0-9_])"""
+        )
+        private val EMPTY_PARENS_REGEX = Regex("""\s*\(\s*\)""")
+        private val SPACE_BEFORE_PUNCT_REGEX = Regex(""" +([,.!?;:])""")
+        private val DOUBLE_COMMA_REGEX = Regex(""",\s*,""")
+        private val MULTI_SPACE_MIDLINE_REGEX = Regex("""(?<=[^\s]) {2,}""")
     }
 
     private fun StageRoutineExerciseDto.toRoutineExerciseConfig(ex: Exercise): RoutineExerciseConfig {
@@ -1564,7 +2675,7 @@ class KumaAiToolExecutor(
 
     private fun parseIntList(element: JsonElement?): List<Int> {
         val arr = element as? JsonArray ?: return emptyList()
-        return arr.mapNotNull { it.jsonPrimitive.intOrNull }
+        return arr.mapNotNull { (it as? JsonPrimitive)?.intOrNull }
     }
 
     private fun stagedAck(op: AiProposedOperation): JsonElement = buildJsonObject {
@@ -1578,13 +2689,13 @@ class KumaAiToolExecutor(
     }
 
     private fun JsonObject.str(key: String): String? =
-        this[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        (this[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
 
     private fun JsonObject.intVal(key: String): Int? =
-        this[key]?.jsonPrimitive?.intOrNull
+        (this[key] as? JsonPrimitive)?.intOrNull
 
     private fun JsonObject.doubleVal(key: String): Double? =
-        this[key]?.jsonPrimitive?.doubleOrNull
+        (this[key] as? JsonPrimitive)?.doubleOrNull
 
     private fun fnDecl(
         name: String,

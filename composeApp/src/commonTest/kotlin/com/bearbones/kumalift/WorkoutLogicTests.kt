@@ -10,7 +10,9 @@ import com.bearbones.kumalift.domain.model.Exercise
 import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.OneRepMaxFormula
+import com.bearbones.kumalift.domain.model.PlateCalculator
 import com.bearbones.kumalift.domain.model.PrMetricType
+import com.bearbones.kumalift.domain.model.RoutineBlueprint
 import com.bearbones.kumalift.domain.model.SetLog
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.Workout
@@ -383,5 +385,93 @@ class WorkoutLogicTests {
         assertFalse(finished.isPaused)
         assertNull(finished.pausedAtEpochMs)
         assertNull(workoutRepo.finishWorkout())
+    }
+
+    @Test
+    fun testStartingNewWorkoutCancelsPreviousActiveSessionAndRevokesSessionPrs() {
+        val prRepo = PersonalRecordRepository()
+        val workoutRepo = WorkoutRepository(prRepository = prRepo)
+        val squat = Exercise(
+            id = "ex_squat_overwrite",
+            name = "Barbell Squat",
+            primaryMuscle = MuscleGroup.LEGS,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        workoutRepo.startEmptyWorkout("First Unfinished")
+        workoutRepo.addExerciseToActiveWorkout(squat)
+        val we1 = workoutRepo.activeWorkout.value!!.exercises.first()
+        val s1 = we1.sets.first()
+        workoutRepo.updateSet(we1.id, s1.id, weightKg = 200.0, reps = 3)
+        workoutRepo.toggleSetCompletion(we1.id, s1.id) {}
+        assertEquals(200.0, prRepo.personalRecords.value.find { it.exerciseId == squat.id }?.weightKg)
+
+        // Starting another workout must revoke discarded active-session PRs
+        workoutRepo.startEmptyWorkout("Replacement Session")
+        assertNull(prRepo.personalRecords.value.find { it.exerciseId == squat.id })
+
+        // Same when replacing via startWorkoutFromRoutine
+        val we2Id = workoutRepo.activeWorkout.value?.let {
+            workoutRepo.addExerciseToActiveWorkout(squat)
+            val addedWe = workoutRepo.activeWorkout.value!!.exercises.first()
+            val addedSet = addedWe.sets.first()
+            workoutRepo.updateSet(addedWe.id, addedSet.id, weightKg = 190.0, reps = 3)
+            workoutRepo.toggleSetCompletion(addedWe.id, addedSet.id) {}
+            addedWe.id
+        }
+        assertNotNull(we2Id)
+        assertEquals(190.0, prRepo.personalRecords.value.find { it.exerciseId == squat.id }?.weightKg)
+
+        val routine = RoutineBlueprint(
+            id = "rt_replace_check",
+            title = "Leg Routine",
+            splitCategory = "Legs",
+            muscleFocus = "Quads",
+            estimatedDurationMinutes = 45,
+            exerciseTemplates = listOf(squat)
+        )
+        workoutRepo.startWorkoutFromRoutine(routine)
+        assertNull(prRepo.personalRecords.value.find { it.exerciseId == squat.id })
+    }
+
+    @Test
+    fun testFinishWorkoutAggregatesCompletedSetHeartRateBpm() {
+        val prRepo = PersonalRecordRepository()
+        val workoutRepo = WorkoutRepository(prRepository = prRepo)
+        val row = Exercise(
+            id = "ex_row_hr",
+            name = "Barbell Row",
+            primaryMuscle = MuscleGroup.BACK,
+            equipment = Equipment.BARBELL,
+            movementType = MovementType.COMPOUND
+        )
+        workoutRepo.startEmptyWorkout("HR Aggregate")
+        workoutRepo.addExerciseToActiveWorkout(row)
+        val we = workoutRepo.activeWorkout.value!!.exercises.first()
+        val set1 = we.sets[0]
+        val set2 = we.sets[1]
+        workoutRepo.toggleSetCompletion(we.id, set1.id, currentHeartRateBpm = 140) {}
+        workoutRepo.toggleSetCompletion(we.id, set2.id, currentHeartRateBpm = 160) {}
+
+        val finished = workoutRepo.finishWorkout()
+        assertNotNull(finished)
+        assertEquals(150, finished.avgHeartRateBpm)
+        assertEquals(160, finished.peakHeartRateBpm)
+    }
+
+    @Test
+    fun testPlateCalculatorSupportsImperialPlatesPalette() {
+        val calc = PlateCalculator.calculate(
+            targetWeightKg = 225.0,
+            barWeightKg = 45.0,
+            availablePlatesKg = listOf(45.0, 35.0, 25.0, 10.0, 5.0, 2.5),
+            useImperialPalette = true
+        )
+        assertTrue(calc.isExactMatch)
+        assertEquals(90.0, calc.weightPerSideKg, 0.001)
+        assertEquals(1, calc.platesPerSide.size)
+        assertEquals(45.0, calc.platesPerSide.first().weightKg)
+        assertEquals(2, calc.platesPerSide.first().countPerSide)
+        assertEquals(0xFF1E88E5, calc.platesPerSide.first().hexColor)
     }
 }

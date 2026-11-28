@@ -8,6 +8,7 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.bearbones.kumalift.core.media.ShareImageExporter
 import com.bearbones.kumalift.core.notification.PlatformNotificationChannels
 import com.bearbones.kumalift.core.sound.AppForegroundTracker
 import com.bearbones.kumalift.core.sound.KumaSoundPlayer
@@ -21,6 +22,7 @@ class KumaApplication : Application(), ImageLoaderFactory {
         AppForegroundTracker.register(this)
         KumaSoundPlayer.initialize(this)
         PlatformNotificationChannels.ensureChannels(this, AppLanguage.SYSTEM)
+        ShareImageExporter.cleanupOldSharedImages(maxKeep = 20)
     }
 
     override fun newImageLoader(): ImageLoader {

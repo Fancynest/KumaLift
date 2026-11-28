@@ -17,6 +17,10 @@ expect fun rememberAiMediaLaunchers(
 
 expect suspend fun loadCompressedImageBase64(localPath: String): Pair<String, String>?
 
+expect suspend fun saveAiGeneratedImageBase64(base64Data: String, mimeType: String = "image/png"): String?
+
+expect fun deleteAiChatImageFile(localPath: String?)
+
 @Composable
 expect fun AiChatImageThumbnail(
     imagePath: String,

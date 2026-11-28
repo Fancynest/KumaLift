@@ -77,7 +77,10 @@ import com.bearbones.kumalift.features.calendar.WorkoutCalendarSection
 import com.bearbones.kumalift.features.mesocycle.MesocycleSection
 import com.bearbones.kumalift.features.readiness.DailyReadinessCard
 import kotlinx.datetime.Clock
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 
 private data class ScheduledProgramItem(
@@ -200,11 +203,21 @@ fun HomeScreen(
         TrainingGoal.GENERAL -> s.phaseGeneral
     }
 
-    // Real dynamic stats calculated from stored database data
-    val nowMs = remember { Clock.System.now().toEpochMilliseconds() }
-    val oneWeekAgoMs = nowMs - 7L * 24 * 3600_000L
-    val thisWeekWorkouts = remember(completedWorkouts) {
-        completedWorkouts.filter { it.startTimeEpochMs >= oneWeekAgoMs }
+    // Real dynamic stats calculated from current calendar week
+    val nowMs = nowInstant.toEpochMilliseconds()
+    val tz = TimeZone.currentSystemDefault()
+    val daysSinceWeekStart = when (settings.units.firstDayOfWeek) {
+        FirstDayOfWeek.MONDAY -> nowDt.dayOfWeek.ordinal
+        FirstDayOfWeek.SUNDAY -> (nowDt.dayOfWeek.ordinal + 1) % 7
+        FirstDayOfWeek.SATURDAY -> (nowDt.dayOfWeek.ordinal + 2) % 7
+    }
+    val startOfWeekMs = remember(nowDt.date, settings.units.firstDayOfWeek) {
+        nowDt.date.minus(DatePeriod(days = daysSinceWeekStart))
+            .atStartOfDayIn(tz)
+            .toEpochMilliseconds()
+    }
+    val thisWeekWorkouts = remember(completedWorkouts, startOfWeekMs) {
+        completedWorkouts.filter { it.startTimeEpochMs >= startOfWeekMs }
     }
     val thisWeekVolumeKg = remember(thisWeekWorkouts) {
         thisWeekWorkouts.sumOf { it.totalVolumeKg }
@@ -485,13 +498,13 @@ fun HomeScreen(
 
                                         Text(
                                             text = routine?.let {
-                                                s.routineSubtitle(it.exerciseTemplates.size, it.estimatedDurationMinutes)
+                                                s.routineSubtitle(it.effectiveConfigs.size, it.estimatedDurationMinutes)
                                             } ?: s.createRoutineForProgramHint(program.localizedTitle(s)),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = KumaColors.TextSecondary
                                         )
 
-                                        if (routine != null && routine.exerciseTemplates.isNotEmpty()) {
+                                        if (routine != null && routine.effectiveConfigs.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(16.dp))
 
                                             // Exercise Preview Chips
@@ -499,8 +512,8 @@ fun HomeScreen(
                                                 modifier = Modifier.isolateHorizontalScroll(),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                items(routine.exerciseTemplates.take(4)) { ex ->
-                                                    KumaBadge(text = ex.name)
+                                                items(routine.effectiveConfigs.take(4)) { cfg ->
+                                                    KumaBadge(text = cfg.exercise.name)
                                                 }
                                             }
                                         }
@@ -848,6 +861,9 @@ fun HomeScreen(
                             onRescheduleEvent = { eventId, newDate ->
                                 workoutScheduleRepository?.rescheduleEvent(eventId, newDate)
                             },
+                            onUpdateEventNotes = { eventId, notes ->
+                                workoutScheduleRepository?.updateEventNotes(eventId, notes)
+                            },
                             onCancelEvent = { eventId ->
                                 workoutScheduleRepository?.cancelEvent(eventId)
                             },
@@ -933,15 +949,29 @@ fun HomeScreen(
                 // 5. Recent Workouts & Freestyle Button
                 if (settings.appearance.showRecentWorkouts) {
                     item {
+                        val recentLastMonthWorkouts = remember(completedWorkouts) {
+                            com.bearbones.kumalift.domain.model.FitnessHistoryOrganizer.filterRecentWorkoutsLastMonth(completedWorkouts)
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                text = s.recentWorkoutsLabel,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = s.recentWorkoutsLabel,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 )
-                            )
+                                KumaBadge(
+                                    text = s.recentWorkoutsMonthWindowTag,
+                                    isPr = false
+                                )
+                            }
 
-                            if (completedWorkouts.isEmpty()) {
+                            if (recentLastMonthWorkouts.isEmpty()) {
                                 KumaCard(
                                     modifier = Modifier.fillMaxWidth(),
                                     backgroundColor = KumaColors.SurfaceContainer,
@@ -954,7 +984,11 @@ fun HomeScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = s.noRecentWorkouts,
+                                            text = if (completedWorkouts.isNotEmpty()) {
+                                                s.noRecentWorkoutsLastMonth
+                                            } else {
+                                                s.noRecentWorkouts
+                                            },
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = KumaColors.TextMuted,
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -962,7 +996,7 @@ fun HomeScreen(
                                     }
                                 }
                             } else {
-                                completedWorkouts.take(settings.appearance.recentWorkoutsCount).forEach { workout ->
+                                recentLastMonthWorkouts.take(settings.appearance.recentWorkoutsCount).forEach { workout ->
                                 val durationMin = workout.durationSeconds / 60
                                 val durationText = "${durationMin} ${s.minAbbrev}"
                                 val volDisplay = if (isLb) (workout.totalVolumeKg * 2.20462).toInt() else workout.totalVolumeKg.toInt()
@@ -1019,8 +1053,15 @@ fun HomeScreen(
                                 .background(KumaColors.SurfaceContainer)
                                 .border(1.dp, KumaColors.BorderDefault, RoundedCornerShape(14.dp))
                                 .clickable {
-                                    workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
-                                    onStartFreestyle()
+                                    val launchAction = {
+                                        workoutRepository.startEmptyWorkout(s.freestyleWorkoutName)
+                                        onStartFreestyle()
+                                    }
+                                    if (activeWorkout != null) {
+                                        pendingStartWorkoutAction = launchAction
+                                    } else {
+                                        launchAction()
+                                    }
                                 },
                             contentAlignment = Alignment.Center
                         ) {

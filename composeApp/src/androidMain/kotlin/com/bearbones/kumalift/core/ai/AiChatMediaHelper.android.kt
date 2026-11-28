@@ -1,10 +1,6 @@
 package com.bearbones.kumalift.core.ai
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
 import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -53,21 +49,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.FileProvider
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.bearbones.kumalift.core.designsystem.KumaColors
 import com.bearbones.kumalift.core.designsystem.PillShape
 import com.bearbones.kumalift.core.logging.KumaLogger
+import com.bearbones.kumalift.core.media.compressAndStoreJpeg
+import com.bearbones.kumalift.core.media.rememberPermissionAwareCameraCapture
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.util.UUID
 
-private const val MAX_IMAGE_DIMENSION_PX = 1600
-private const val JPEG_QUALITY = 90
+private const val AI_CHAT_OUTPUT_DIR = "ai_chat_images"
+private const val AI_CHAT_CACHE_DIR = "ai_chat_camera"
+private const val AI_CHAT_PREFIX = "ai_img_"
 
 @Composable
 actual fun rememberAiMediaLaunchers(
@@ -76,29 +72,14 @@ actual fun rememberAiMediaLaunchers(
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val latestOnImagesReady by rememberUpdatedState(onImagesReady)
-    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
     var pendingMaxPick by remember { mutableStateOf(MAX_AI_CHAT_IMAGES) }
 
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        val file = pendingCameraFile
-        pendingCameraFile = null
-        if (success && file != null && file.exists() && file.length() > 0L) {
-            scope.launch(Dispatchers.IO) {
-                val savedPath = compressAndStoreBitmap(
-                    context = context,
-                    openStream = { file.inputStream() }
-                )
-                try { file.delete() } catch (_: Exception) {}
-                if (savedPath != null) {
-                    withContext(Dispatchers.Main) { latestOnImagesReady(listOf(savedPath)) }
-                }
-            }
-        } else if (file != null) {
-            try { file.delete() } catch (_: Exception) {}
-        }
-    }
+    val launchCamera = rememberPermissionAwareCameraCapture(
+        cacheSubDir = AI_CHAT_CACHE_DIR,
+        outputSubDir = AI_CHAT_OUTPUT_DIR,
+        filePrefix = AI_CHAT_PREFIX,
+        onSaved = { savedPath -> latestOnImagesReady(listOf(savedPath)) }
+    )
 
     val getMultipleLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -107,8 +88,10 @@ actual fun rememberAiMediaLaunchers(
         if (capped.isNotEmpty()) {
             scope.launch(Dispatchers.IO) {
                 val savedPaths = capped.mapNotNull { uri ->
-                    compressAndStoreBitmap(
+                    compressAndStoreJpeg(
                         context = context,
+                        outputSubDir = AI_CHAT_OUTPUT_DIR,
+                        filePrefix = AI_CHAT_PREFIX,
                         openStream = { context.contentResolver.openInputStream(uri) }
                     )
                 }
@@ -126,8 +109,10 @@ actual fun rememberAiMediaLaunchers(
         if (capped.isNotEmpty()) {
             scope.launch(Dispatchers.IO) {
                 val savedPaths = capped.mapNotNull { uri ->
-                    compressAndStoreBitmap(
+                    compressAndStoreJpeg(
                         context = context,
+                        outputSubDir = AI_CHAT_OUTPUT_DIR,
+                        filePrefix = AI_CHAT_PREFIX,
                         openStream = { context.contentResolver.openInputStream(uri) }
                     )
                 }
@@ -143,8 +128,10 @@ actual fun rememberAiMediaLaunchers(
     ) { uri: Uri? ->
         if (uri != null) {
             scope.launch(Dispatchers.IO) {
-                val savedPath = compressAndStoreBitmap(
+                val savedPath = compressAndStoreJpeg(
                     context = context,
+                    outputSubDir = AI_CHAT_OUTPUT_DIR,
+                    filePrefix = AI_CHAT_PREFIX,
                     openStream = { context.contentResolver.openInputStream(uri) }
                 )
                 if (savedPath != null) {
@@ -154,65 +141,37 @@ actual fun rememberAiMediaLaunchers(
         }
     }
 
-    return remember(context, cameraLauncher, pickSingleLauncher, pickMultipleLauncher, getMultipleLauncher) {
-        createAiMediaLaunchers(
+    return remember(context, launchCamera, pickSingleLauncher, pickMultipleLauncher, getMultipleLauncher) {
+        buildAiMediaLaunchers(
             context = context,
-            onLaunchCamera = { uri -> cameraLauncher.launch(uri) },
+            launchCamera = launchCamera,
+            onSetMaxPick = { pendingMaxPick = it },
             onLaunchSingle = { req -> pickSingleLauncher.launch(req) },
             onLaunchMultiple = { req -> pickMultipleLauncher.launch(req) },
-            onLaunchFallback = { mime -> getMultipleLauncher.launch(mime) },
-            onSetPendingCamera = { pendingCameraFile = it },
-            onSetPendingMaxPick = { pendingMaxPick = it }
+            onLaunchFallback = { mime -> getMultipleLauncher.launch(mime) }
         )
     }
 }
 
-private fun createAiMediaLaunchers(
+private fun buildAiMediaLaunchers(
     context: Context,
-    onLaunchCamera: (Uri) -> Unit,
+    launchCamera: () -> Unit,
+    onSetMaxPick: (Int) -> Unit,
     onLaunchSingle: (PickVisualMediaRequest) -> Unit,
     onLaunchMultiple: (PickVisualMediaRequest) -> Unit,
-    onLaunchFallback: (String) -> Unit,
-    onSetPendingCamera: (File?) -> Unit,
-    onSetPendingMaxPick: (Int) -> Unit
+    onLaunchFallback: (String) -> Unit
 ): AiMediaLaunchers = AiMediaLaunchers(
-    launchCamera = {
-        try {
-            val camDir = File(context.cacheDir, "ai_chat_camera").apply { mkdirs() }
-            val tempFile = File(camDir, "cam_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.jpg")
-            onSetPendingCamera(tempFile)
-            val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                tempFile
-            )
-            onLaunchCamera(uri)
-        } catch (e: Exception) {
-            KumaLogger.w("AiMedia", "Camera launch failed: ${e.message}")
-            onSetPendingCamera(null)
-        }
-    },
+    launchCamera = launchCamera,
     launchGallery = { maxSelectCount ->
         val remaining = maxSelectCount.coerceIn(1, MAX_AI_CHAT_IMAGES)
-        onSetPendingMaxPick(remaining)
-        try {
-            if (ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)) {
-                val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                if (remaining == 1) {
-                    onLaunchSingle(request)
-                } else {
-                    onLaunchMultiple(request)
-                }
-            } else {
-                onLaunchFallback("image/*")
-            }
-        } catch (_: Exception) {
-            try {
-                onLaunchFallback("image/*")
-            } catch (e: Exception) {
-                KumaLogger.w("AiMedia", "Gallery launch failed: ${e.message}")
-            }
-        }
+        onSetMaxPick(remaining)
+        com.bearbones.kumalift.core.media.launchAndroidGalleryPicker(
+            context = context,
+            maxSelectCount = remaining,
+            onLaunchSingle = onLaunchSingle,
+            onLaunchMultiple = onLaunchMultiple,
+            onLaunchFallback = onLaunchFallback
+        )
     }
 )
 
@@ -229,6 +188,38 @@ actual suspend fun loadCompressedImageBase64(localPath: String): Pair<String, St
         }
     }
 
+actual suspend fun saveAiGeneratedImageBase64(base64Data: String, mimeType: String): String? =
+    withContext(Dispatchers.IO) {
+        val context = com.bearbones.kumalift.core.timer.AndroidAppProvider.appContext ?: return@withContext null
+        val bytes = try {
+            Base64.decode(base64Data, Base64.DEFAULT)
+        } catch (e: Exception) {
+            KumaLogger.w("AiMedia", "Invalid generated image base64: ${e.message}")
+            return@withContext null
+        }
+        if (bytes.isEmpty()) return@withContext null
+        compressAndStoreJpeg(
+            context = context,
+            outputSubDir = AI_CHAT_OUTPUT_DIR,
+            filePrefix = AI_CHAT_PREFIX,
+            openStream = { bytes.inputStream() }
+        )
+    }
+
+private fun resolveAiImageModel(rawPath: String): Pair<Any?, Boolean> {
+    val trimmed = rawPath.trim()
+    if (trimmed.isBlank()) return null to false
+    if (trimmed.startsWith("https://", ignoreCase = true) || trimmed.startsWith("http://", ignoreCase = true)) {
+        return trimmed to false
+    }
+    if (trimmed.startsWith("file:///android_asset/", ignoreCase = true)) {
+        return trimmed to true
+    }
+    val cleanPath = trimmed.removePrefix("file://")
+    val file = File(cleanPath)
+    return if (file.exists() && file.length() > 0L) (file to false) else (null to false)
+}
+
 @Composable
 actual fun AiChatImageThumbnail(
     imagePath: String,
@@ -236,23 +227,24 @@ actual fun AiChatImageThumbnail(
     modifier: Modifier
 ) {
     val context = LocalContext.current
-    val cleanPath = imagePath.removePrefix("file://")
-    val file = remember(cleanPath) { File(cleanPath) }
+    val (modelData, isAsset) = remember(imagePath) { resolveAiImageModel(imagePath) }
     val shape = RoundedCornerShape(12.dp)
 
-    if (!file.exists() || file.length() <= 0L) {
+    if (modelData == null) {
         AiImageFallbackBox(modifier = modifier.clip(shape))
         return
     }
 
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(context)
-            .data(file)
+            .data(modelData)
             .crossfade(true)
             .build(),
         contentDescription = contentDescription,
-        contentScale = ContentScale.Crop,
-        modifier = modifier.clip(shape),
+        contentScale = if (isAsset) ContentScale.Fit else ContentScale.Crop,
+        modifier = modifier
+            .clip(shape)
+            .then(if (isAsset) Modifier.background(Color.White) else Modifier),
         loading = { AiImageFallbackBox(Modifier.fillMaxSize()) },
         error = { AiImageFallbackBox(Modifier.fillMaxSize()) }
     )
@@ -291,8 +283,8 @@ actual fun AiChatFullscreenImageViewer(
                 userScrollEnabled = activeZoomScale <= 1.05f,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                val cleanPath = safePaths[page].removePrefix("file://")
-                val file = remember(cleanPath) { File(cleanPath) }
+                val rawPath = safePaths[page]
+                val (modelData, isAsset) = remember(rawPath) { resolveAiImageModel(rawPath) }
                 var scale by remember(page) { mutableFloatStateOf(1f) }
                 var panOffset by remember(page) { mutableStateOf(Offset.Zero) }
 
@@ -312,6 +304,7 @@ actual fun AiChatFullscreenImageViewer(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .then(if (isAsset) Modifier.background(Color.White) else Modifier)
                         .pointerInput(page) {
                             detectTapGestures(
                                 onDoubleTap = {
@@ -343,12 +336,12 @@ actual fun AiChatFullscreenImageViewer(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!file.exists() || file.length() <= 0L) {
+                    if (modelData == null) {
                         AiImageFallbackBox(Modifier.size(160.dp))
                     } else {
                         SubcomposeAsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(file)
+                                .data(modelData)
                                 .crossfade(true)
                                 .build(),
                             contentDescription = null,
@@ -409,6 +402,17 @@ actual fun AiChatFullscreenImageViewer(
     }
 }
 
+actual fun deleteAiChatImageFile(localPath: String?) {
+    if (localPath.isNullOrBlank()) return
+    try {
+        val file = File(localPath)
+        if (file.isFile && file.parentFile?.name == AI_CHAT_OUTPUT_DIR) {
+            file.delete()
+        }
+    } catch (_: Exception) {
+    }
+}
+
 @Composable
 private fun AiImageFallbackBox(modifier: Modifier) {
     Box(
@@ -420,74 +424,5 @@ private fun AiImageFallbackBox(modifier: Modifier) {
             contentDescription = null,
             tint = KumaColors.TextSecondary
         )
-    }
-}
-
-private fun compressAndStoreBitmap(
-    context: Context,
-    openStream: () -> java.io.InputStream?
-): String? {
-    return try {
-        val rawBytes = openStream()?.use { it.readBytes() } ?: return null
-        if (rawBytes.isEmpty()) return null
-
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, bounds)
-        val srcW = bounds.outWidth
-        val srcH = bounds.outHeight
-        if (srcW <= 0 || srcH <= 0) return null
-
-        var sampleSize = 1
-        while ((srcW / sampleSize) > MAX_IMAGE_DIMENSION_PX * 2 || (srcH / sampleSize) > MAX_IMAGE_DIMENSION_PX * 2) {
-            sampleSize *= 2
-        }
-
-        val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-        val decoded = BitmapFactory.decodeByteArray(rawBytes, 0, rawBytes.size, decodeOpts) ?: return null
-
-        val orientation = try {
-            rawBytes.inputStream().use { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }
-        } catch (_: Exception) {
-            ExifInterface.ORIENTATION_NORMAL
-        }
-        val rotationDegrees = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> 0f
-        }
-
-        val oriented = if (rotationDegrees != 0f) {
-            val matrix = Matrix().apply { postRotate(rotationDegrees) }
-            val rotated = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
-            if (rotated != decoded) decoded.recycle()
-            rotated
-        } else {
-            decoded
-        }
-
-        val maxSide = maxOf(oriented.width, oriented.height)
-        val finalBitmap = if (maxSide > MAX_IMAGE_DIMENSION_PX) {
-            val scale = MAX_IMAGE_DIMENSION_PX.toFloat() / maxSide.toFloat()
-            val targetW = (oriented.width * scale).toInt().coerceAtLeast(1)
-            val targetH = (oriented.height * scale).toInt().coerceAtLeast(1)
-            val scaled = Bitmap.createScaledBitmap(oriented, targetW, targetH, true)
-            if (scaled != oriented) oriented.recycle()
-            scaled
-        } else {
-            oriented
-        }
-
-        val dir = File(context.filesDir, "ai_chat_images").apply { mkdirs() }
-        val dest = File(dir, "ai_img_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.jpg")
-        FileOutputStream(dest).use { out ->
-            finalBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            out.flush()
-        }
-        finalBitmap.recycle()
-        dest.absolutePath
-    } catch (e: Exception) {
-        KumaLogger.w("AiMedia", "Failed compressing AI chat image: ${e.message}")
-        null
     }
 }

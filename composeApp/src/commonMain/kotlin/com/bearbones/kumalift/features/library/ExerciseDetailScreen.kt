@@ -81,10 +81,16 @@ import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedEquipmentDetail
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.localization.localizedSecondaryMuscles
+import com.bearbones.kumalift.core.util.NumberFormatUtils
+import com.bearbones.kumalift.core.util.OneRepMaxCalculator
+import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.data.repository.SettingsRepository
+import com.bearbones.kumalift.domain.model.AppLanguage
 import com.bearbones.kumalift.domain.model.Exercise
+import com.bearbones.kumalift.domain.model.OneRepMaxFormula
 import com.bearbones.kumalift.domain.model.TrainingGoal
 import com.bearbones.kumalift.domain.model.TrainingGoalConfig
+import com.bearbones.kumalift.domain.model.WeightUnit
 import androidx.compose.runtime.collectAsState
 
 enum class ExerciseDetailTab {
@@ -109,6 +115,7 @@ fun ExerciseDetailScreen(
     onSaveNote: ((String) -> Unit)? = null
 ) {
     val s = LocalStrings.current
+    val userSettings = settingsRepository?.settings?.collectAsState()?.value
     var selectedTab by rememberSaveable(exercise.id, initialTab) { mutableStateOf(initialTab) }
     var selectedMetric by rememberSaveable { mutableStateOf(MetricSwitcherType.HEAVIEST_WEIGHT) }
     var showNoteDialog by rememberSaveable { mutableStateOf(false) }
@@ -642,9 +649,29 @@ fun ExerciseDetailScreen(
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                val prWeight = exercise.currentPrWeightKg?.let { "$it kg" } ?: "—"
-                                val pr1rm = exercise.currentPrWeightKg?.let { "${(it * 1.1).toInt()}.0 kg" } ?: "—"
-                                val bestSetVol = exercise.currentPrWeightKg?.let { "${it * (exercise.currentPrReps ?: 1)} kg" } ?: "—"
+                                val weightUnit = userSettings?.units?.weightUnit ?: WeightUnit.KG
+                                val language = userSettings?.appearance?.language ?: AppLanguage.SYSTEM
+                                val oneRmFormula = userSettings?.calculations?.oneRepMaxFormula ?: OneRepMaxFormula.EPLEY
+                                val unitLabel = if (weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
+                                val prWeight = exercise.currentPrWeightKg?.let { kg ->
+                                    val disp = UnitConverters.toDisplayWeight(kg, weightUnit)
+                                    "${NumberFormatUtils.formatDecimal(disp, language, 1, trimTrailingZeros = true)} $unitLabel"
+                                } ?: "—"
+                                val pr1rm = exercise.currentPrWeightKg?.let { kg ->
+                                    val est1rmKg = OneRepMaxCalculator.calculate(
+                                        weightKg = kg,
+                                        reps = (exercise.currentPrReps ?: 1).coerceAtLeast(1),
+                                        formula = oneRmFormula,
+                                        maxReps = 36
+                                    )
+                                    val disp = UnitConverters.toDisplayWeight(est1rmKg, weightUnit)
+                                    "${NumberFormatUtils.formatDecimal(disp, language, 1, trimTrailingZeros = true)} $unitLabel"
+                                } ?: "—"
+                                val bestSetVol = exercise.currentPrWeightKg?.let { kg ->
+                                    val volKg = kg * (exercise.currentPrReps ?: 1).coerceAtLeast(1)
+                                    val disp = UnitConverters.toDisplayWeight(volKg, weightUnit)
+                                    "${NumberFormatUtils.formatDecimal(disp, language, 1, trimTrailingZeros = true)} $unitLabel"
+                                } ?: "—"
 
                                 PrMetricRow(label = s.heaviestWeightTab, value = prWeight)
                                 Spacer(modifier = Modifier.height(10.dp))

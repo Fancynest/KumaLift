@@ -117,6 +117,7 @@ import com.bearbones.kumalift.core.localization.LocalStrings
 import com.bearbones.kumalift.core.localization.label
 import com.bearbones.kumalift.core.localization.localizedMuscleSubtitle
 import com.bearbones.kumalift.core.timer.RestTimer
+import com.bearbones.kumalift.core.util.NumberFormatUtils
 import com.bearbones.kumalift.core.util.UnitConverters
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.SettingsRepository
@@ -1188,6 +1189,7 @@ fun ExerciseLoggingCard(
         PlateCalculatorDialog(
             initialWeightKg = currentTopWeight,
             unit = settings.units.weightUnit,
+            language = settings.appearance.language,
             onDismiss = { showPlateCalcModal = false },
             onConfirm = { calculatedWeight ->
                 val firstWorkingSet = workoutExercise.sets.firstOrNull { it.setType != SetType.WARMUP }
@@ -1413,9 +1415,25 @@ fun ExerciseLoggingCard(
                             Spacer(modifier = Modifier.height(3.dp))
                             val isIndonesian = settings.appearance.language == AppLanguage.ID || s.minAbbrev == "mnt"
                             val detailsText = if (isIndonesian) progressionAdvice.detailsId else progressionAdvice.details
-                            val e1RmText = if (progressionAdvice.projectedE1RmKg != null) " • ${s.estimatedOneRmLabel}: ${progressionAdvice.projectedE1RmKg} ${s.unitKg}" else ""
+                            val weightUnit = settings.units.weightUnit
+                            val unitLabel = if (weightUnit == WeightUnit.LB) s.unitLb else s.unitKg
+                            val deltaStr = NumberFormatUtils.formatDecimal(
+                                UnitConverters.toDisplayWeight(progressionAdvice.deltaKg, weightUnit),
+                                settings.appearance.language,
+                                1,
+                                trimTrailingZeros = true
+                            )
+                            val e1RmText = progressionAdvice.projectedE1RmKg?.let { e1rmKg ->
+                                val e1RmStr = NumberFormatUtils.formatDecimal(
+                                    UnitConverters.toDisplayWeight(e1rmKg, weightUnit),
+                                    settings.appearance.language,
+                                    1,
+                                    trimTrailingZeros = true
+                                )
+                                " • ${s.estimatedOneRmLabel}: $e1RmStr $unitLabel"
+                            } ?: ""
                             Text(
-                                text = "+${progressionAdvice.deltaKg} ${s.unitKg} ($detailsText)$e1RmText",
+                                text = "+$deltaStr $unitLabel ($detailsText)$e1RmText",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = LocalKumaColors.current.textSecondary,
                                     fontSize = 11.sp,

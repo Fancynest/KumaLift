@@ -6,6 +6,8 @@ import com.bearbones.kumalift.core.util.currentEpochMillis
 import com.bearbones.kumalift.database.KumaDatabase
 import com.bearbones.kumalift.data.repository.ExerciseRepository
 import com.bearbones.kumalift.data.repository.PersonalRecordRepository
+import com.bearbones.kumalift.data.repository.RoutineRepository
+import com.bearbones.kumalift.data.repository.TrainingProgramRepository
 import com.bearbones.kumalift.data.repository.WorkoutRepository
 import com.bearbones.kumalift.domain.model.AppearanceSettings
 import com.bearbones.kumalift.domain.model.AppLanguage
@@ -16,13 +18,21 @@ import com.bearbones.kumalift.domain.model.MovementType
 import com.bearbones.kumalift.domain.model.MuscleGroup
 import com.bearbones.kumalift.domain.model.PersonalRecord
 import com.bearbones.kumalift.domain.model.ProfileSettings
+import com.bearbones.kumalift.domain.model.RoutineBlueprint
+import com.bearbones.kumalift.domain.model.ScheduleStatus
 import com.bearbones.kumalift.domain.model.SetLog
+import com.bearbones.kumalift.domain.model.SharedExerciseSpec
+import com.bearbones.kumalift.domain.model.SharedPlanType
+import com.bearbones.kumalift.domain.model.SharedRoutineSpec
+import com.bearbones.kumalift.domain.model.SharedWorkoutPlanPackage
+import com.bearbones.kumalift.domain.model.WorkoutScheduleEvent
 import com.bearbones.kumalift.domain.model.SetType
 import com.bearbones.kumalift.domain.model.UnitSettings
 import com.bearbones.kumalift.domain.model.UserSettings
 import com.bearbones.kumalift.domain.model.WeightUnit
 import com.bearbones.kumalift.domain.model.Workout
 import com.bearbones.kumalift.domain.model.WorkoutExercise
+import com.bearbones.kumalift.domain.model.WorkoutPlanShareImporter
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -298,5 +308,122 @@ class LocalDatabasePersistenceTests {
         val dbWorkouts = repository.getCompletedWorkouts()
         assertEquals(1, dbWorkouts.size)
         assertEquals(180.0, dbWorkouts.first().exercises.first().sets.first().weightKg)
+    }
+
+    @Test
+    fun testExercisePinnedNotesPersistAndScheduleReferencesClearOnDelete() {
+        val exercise = Exercise(
+            id = "ex_pin_1",
+            name = "Incline Dumbbell Press",
+            primaryMuscle = MuscleGroup.CHEST,
+            equipment = Equipment.DUMBBELL,
+            movementType = MovementType.COMPOUND
+        )
+        val repo1 = ExerciseRepository(initialExercises = listOf(exercise), databaseRepo = repository)
+        repo1.updatePinnedNote("ex_pin_1", "Keep 30-deg bench angle")
+
+        // New repository instance must load persisted pinned note from SQLite
+        val repo2 = ExerciseRepository(initialExercises = listOf(exercise), databaseRepo = repository)
+        assertEquals("Keep 30-deg bench angle", repo2.getExerciseById("ex_pin_1")?.pinnedNote)
+
+        // Clearing note removes persisted override
+        repo2.updatePinnedNote("ex_pin_1", "")
+        val repo3 = ExerciseRepository(initialExercises = listOf(exercise), databaseRepo = repository)
+        assertEquals("", repo3.getExerciseById("ex_pin_1")?.pinnedNote)
+
+        // Deleting routine & workout clears stale FK refs on schedule events while preserving snapshot
+        val routine = RoutineBlueprint(
+            id = "rt_del_ref",
+            title = "Pull Reference",
+            splitCategory = "Pull",
+            muscleFocus = "Back",
+            estimatedDurationMinutes = 40,
+            exerciseTemplates = listOf(exercise)
+        )
+        repository.saveCustomRoutine(routine)
+        val workout = Workout(
+            id = "w_del_ref",
+            title = "Pull Reference",
+            startTimeEpochMs = 1730000000000L,
+            durationSeconds = 1800L,
+            exercises = emptyList(),
+            isFinished = true
+        )
+        repository.saveCompletedWorkout(workout)
+        repository.insertScheduleEvent(
+            WorkoutScheduleEvent(
+                id = "sched_ref_1",
+                routineId = routine.id,
+                scheduledDate = "2026-11-28",
+                status = ScheduleStatus.COMPLETED,
+                linkedWorkoutId = workout.id,
+                routineTitleSnapshot = routine.title,
+                createdAtEpochMs = 1730000000000L,
+                updatedAtEpochMs = 1730000000000L
+            )
+        )
+
+        repository.deleteWorkout(workout.id)
+        repository.deleteCustomRoutine(routine.id)
+
+        val evAfter = repository.getScheduleEventById("sched_ref_1")
+        assertNotNull(evAfter)
+        assertNull(evAfter.linkedWorkoutId)
+        assertNull(evAfter.routineId)
+        assertEquals("Pull Reference", evAfter.routineTitleSnapshot)
+    }
+
+    @Test
+    fun testImportedSharedPlanPersistsCustomExercisePinnedNote() {
+        val exerciseRepo = ExerciseRepository(initialExercises = emptyList(), databaseRepo = repository)
+        val routineRepo = RoutineRepository(databaseRepo = repository)
+        val programRepo = TrainingProgramRepository(databaseRepo = repository)
+
+        val pkg = SharedWorkoutPlanPackage(
+            planType = SharedPlanType.ROUTINE,
+            title = "Shared Custom Pull",
+            routines = listOf(
+                SharedRoutineSpec(
+                    title = "Shared Custom Pull",
+                    exercises = listOf(
+                        SharedExerciseSpec(
+                            exerciseId = "custom_foreign_chest_supported_kelso",
+                            name = "Custom Kelso Shrug",
+                            primaryMuscle = MuscleGroup.BACK,
+                            equipment = Equipment.DUMBBELL,
+                            movementType = MovementType.ISOLATION,
+                            pinnedNote = "Pause 2 seconds at top contraction"
+                        )
+                    )
+                )
+            )
+        )
+
+        val result = WorkoutPlanShareImporter.importAsPersonalCopy(
+            pkg = pkg,
+            exerciseRepository = exerciseRepo,
+            routineRepository = routineRepo,
+            trainingProgramRepository = programRepo
+        )
+
+        assertEquals(1, result.importedRoutines.size)
+        val created = exerciseRepo.exercises.value.firstOrNull { it.name == "Custom Kelso Shrug" }
+        assertNotNull(created)
+        assertEquals("Pause 2 seconds at top contraction", created.pinnedNote)
+        assertEquals("Pause 2 seconds at top contraction", exerciseRepo.getExerciseById(created.id)?.pinnedNote)
+        assertEquals(
+            "Pause 2 seconds at top contraction",
+            result.importedRoutines.first().exerciseTemplates.firstOrNull()?.pinnedNote
+        )
+
+        // Verify note persisted into SQLite across ExerciseRepository reload
+        val reloadedExerciseRepo = ExerciseRepository(
+            initialExercises = repository.getAllCustomExercises(),
+            databaseRepo = repository
+        )
+        assertEquals(
+            "Pause 2 seconds at top contraction",
+            reloadedExerciseRepo.getExerciseById(created.id)?.pinnedNote
+        )
     }
 }
